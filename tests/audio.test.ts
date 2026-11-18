@@ -106,6 +106,23 @@ const settle = async (): Promise<void> => { for (let i = 0; i < 30; i++) await P
 const update = async (audio: SimulationAudio, sim: Simulation): Promise<void> => { audio.update(sim); await settle(); };
 const exact = (cue: { speaker: string; text: string }): string => `${cue.speaker}: ${cue.text}`;
 
+function audioSession(t: { after: (fn: () => void) => void }, initial = 'auto', throws = false) {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  let type = initial;
+  const writes: { type: string; contexts: number }[] = [];
+  const session = {
+    get type() { return type; },
+    set type(value: string) {
+      writes.push({ type: value, contexts: MockContext.created });
+      if (throws) throw new Error('experimental setter unavailable');
+      type = value;
+    },
+  };
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { audioSession: session } });
+  t.after(() => { if (previous) Object.defineProperty(globalThis, 'navigator', previous); else Reflect.deleteProperty(globalThis, 'navigator'); });
+  return { session, writes };
+}
+
 // These assertions bind captions to the same source as the bundled recordings.
 test('every recorded phase has its exact speaker and dialogue caption', () => {
   for (const [phase, cue] of Object.entries(radioScript.phase)) {
@@ -215,6 +232,90 @@ test('a delayed Sound-on transport resume cannot override a later pause', async 
   assert.equal(MockContext.latest.state, 'suspended');
   assert.equal(MockContext.latest.gains[0]!.gain.value, 0);
   assert.equal(audio.soundState, 'paused');
+});
+
+test('explicit activation chooses media playback before context construction and restores its owned category on cleanup', async t => {
+  browser(t); const { session, writes } = audioSession(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose());
+  MockContext.inGesture = true; MockContext.gestureRequired = true;
+  const start = audio.start(); MockContext.inGesture = false; await start;
+  assert.deepEqual(writes[0], { type: 'playback', contexts: 0 });
+  assert.equal(session.type, 'playback'); assert.equal(audio.soundState, 'running');
+  const context = MockContext.latest; context.state = 'interrupted';
+  MockContext.inGesture = true; const resume = audio.start(); MockContext.inGesture = false; await resume;
+  assert.equal(writes.at(-1)!.type, 'playback'); assert.equal(context.gestureResumes, 2);
+  audio.dispose(); assert.equal(session.type, 'auto');
+});
+
+test('saved mute makes no audio-session changes until the user explicitly enables sound', async t => {
+  browser(t); const { session, writes } = audioSession(t, 'ambient');
+  const audio = new SimulationAudio(); t.after(() => audio.dispose());
+  audio.setMuted(true); await audio.start(true); audio.restart();
+  assert.equal(writes.length, 0); assert.equal(MockContext.created, 0); assert.equal(session.type, 'ambient');
+  audio.setMuted(false); await audio.start(); assert.equal(session.type, 'playback');
+});
+
+test('an unavailable audio-session setter leaves ordinary Web Audio activation and cleanup usable', async t => {
+  browser(t); const { session } = audioSession(t, 'auto', true);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose());
+  await audio.start(true); assert.equal(audio.soundState, 'running'); assert.equal(session.type, 'auto');
+  const sim = new Simulation(); sim.begin(); await update(audio, sim);
+  assert.equal(MockContext.latest.gains[0]!.gain.value, .48);
+  audio.dispose(); assert.equal(MockContext.latest.state, 'closed');
+});
+
+test('Retry sound refreshes a running but possibly silent output once across a task and never invents a test cue', async t => {
+  browser(t); const { session, writes } = audioSession(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+  const count = MockContext.latest.sources.length, offset = writes.length;
+  const retry = audio.start(true);
+  assert.equal(session.type, 'ambient', 'retry deliberately leaves the stale playback category');
+  assert.deepEqual(writes.slice(offset).map(write => write.type), ['playback', 'ambient']);
+  await retry;
+  assert.deepEqual(writes.slice(offset).map(write => write.type), ['playback', 'ambient', 'playback']);
+  assert.equal(audio.soundState, 'running', 'context state is only a browser state, not proof of audible output');
+  assert.equal(MockContext.latest.sources.length, count, 'retry never queues speech or a test tone');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(writes.length, offset + 3, 'no looping category changes');
+});
+
+for (const interruption of ['pause', 'mute', 'restart', 'dispose'] as const) {
+  test(`an output retry interrupted by ${interruption} cannot change category or resume later`, async t => {
+    browser(t); const { writes } = audioSession(t);
+    const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+    let release!: () => void;
+    MockContext.resumeGate = new Promise<void>(resolve => { release = resolve; });
+    const retry = audio.start(true), context = MockContext.latest;
+    if (interruption === 'pause') audio.setPaused(true);
+    if (interruption === 'mute') audio.setMuted(true);
+    if (interruption === 'restart') { audio.restart(); audio.setPaused(true); }
+    if (interruption === 'dispose') audio.dispose();
+    const changes = writes.length, sources = context.sources.length;
+    release(); await retry; await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(writes.length, changes, 'cancelled timer cannot reassert playback');
+    assert.equal(context.state, interruption === 'dispose' ? 'closed' : 'suspended');
+    assert.equal(context.sources.length, sources); assert.equal(context.gains[0]!.gain.value, 0);
+  });
+}
+
+test('a newer output gesture supersedes a pending retry without stale category changes', async t => {
+  browser(t); const { session, writes } = audioSession(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+  const first = audio.start(true); const second = audio.start();
+  await Promise.all([first, second]);
+  const changes = writes.length; await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(writes.length, changes); assert.equal(session.type, 'playback'); assert.equal(audio.soundState, 'running');
+  session.type = 'play-and-record'; audio.dispose();
+  assert.equal(session.type, 'play-and-record', 'cleanup does not overwrite a different audio-session owner');
+});
+
+test('Home retry can select playback while transport stays paused and the next Start tap activates it', async t => {
+  browser(t); const { session } = audioSession(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); audio.setPaused(true);
+  await audio.start(true);
+  assert.equal(session.type, 'playback'); assert.equal(MockContext.latest.state, 'suspended');
+  assert.equal(MockContext.latest.gains[0]!.gain.value, 0); assert.equal(MockContext.latest.voices.length, 0);
+  audio.setPaused(false); await audio.start(); assert.equal(audio.soundState, 'running');
 });
 
 test('local recordings load progressively; title is silent; phase priority and frozen debrief lifecycle work', async t => {
@@ -794,6 +895,28 @@ test('radio and health reduce vehicle and shot masking immediately with smoothed
   assert.equal(engine.value, 0, 'transport resume alone cannot resurrect the previous vehicle mix');
 });
 
+test('real firing gets a 4.3 dB report lift with its full buffered attack and unchanged master gain', async t => {
+  browser(t); MockContext.sampleRate = 48000;
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+  const sim = new Simulation(); sim.begin(); sim.board(); await update(audio, sim);
+  const context = MockContext.latest; context.voices.at(-1)!.finish();
+  const before = context.sources.length;
+  audio.fireRangeShot(); audio.fireRangeShot();
+  const shots = context.sources.slice(before);
+  const oldLevels = [.44, .46];
+  shots.forEach((shot, index) => {
+    const gain = shot.connections[0]!.gain;
+    const lift = 20 * Math.log10(gain.value / oldLevels[index]!);
+    assert.ok(lift > 4.2 && lift < 4.4, 'two normally overlapping voices preserve the requested source lift');
+    assert.deepEqual(gain.events[0], { value: gain.value, time: context.currentTime, seconds: 0 },
+      'gain is established before source start; the buffer alone shapes the 0.8ms attack');
+  });
+  assert.equal(context.gains[0]!.gain.value, .48);
+  audio.healthAlert();
+  shots.forEach(shot => assert.ok(Math.abs(shot.connections[0]!.gain.value / [.72, .75][shots.indexOf(shot)]! - .4) < 1e-9,
+    'instrument warning retains its existing priority duck with louder reports'));
+});
+
 test('weapon reports vary subtly, taper to silence and retain bounded worst-case overlap at full sample rate', async t => {
   browser(t); MockContext.sampleRate = 48000;
   const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
@@ -809,7 +932,7 @@ test('weapon reports vary subtly, taper to silence and retain bounded worst-case
   assert.ok(samples.every(Number.isFinite) && peak < .85);
   assert.equal(samples[0], 0); assert.ok(Math.abs(samples.at(-1)!) < .00001, 'attack and tail cannot cut at a nonzero sample');
   const summedGain = shots.reduce((sum, shot) => sum + shot.connections[0]!.gain.value, 0);
-  assert.ok(peak * summedGain * .48 < .72, 'four coincident reports leave headroom below the unchanged master ceiling');
+  assert.ok(peak * summedGain * .48 <= .640001, 'four coincident reports leave .36 of output headroom beneath the unchanged master ceiling');
   const levels = shots.map(shot => shot.connections[0]!);
   shots.forEach(shot => shot.finish()); assert.ok(levels.every(level => level.disconnected));
   audio.restart(); audio.fireRangeShot();

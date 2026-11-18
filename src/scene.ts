@@ -820,7 +820,7 @@ export class VehicleScene {
     const shaking = !reducedMotion && !focused && speed > .1;
     const amplitude = shaking ? Math.min(1,speed / 10) * terrain.roughness : 0;
     const bob = Math.sin(range.time * 12.3) * amplitude * .045;
-    const recoil = firingRecoil(view,reducedMotion,damageTime,range.lastShotTime);
+    const recoil = firingRecoil(view,reducedMotion,range.time,range.lastShotTime);
     this.contactShadow.visible = outside;
     placeVehicleContactShadow(this.contactShadow,range.position.x,range.position.z,range.heading,terrainAt);
     this.vehicle.position.set(range.position.x,terrain.height + bob,range.position.z);
@@ -890,9 +890,12 @@ export class VehicleScene {
     if (!reducedMotion && !focused && view !== 'top') {
       this.camera.translateX(Math.sin(range.time * 15.3) * amplitude * .018);
       this.camera.translateY(bob * (outside ? .4 : 1.2));
-      this.camera.rotateX(Math.sin(range.time * 10.2) * amplitude * .003 + recoil);
+      this.camera.rotateX(Math.sin(range.time * 10.2) * amplitude * .003);
       this.camera.rotateZ(Math.sin(range.time * 8.6) * amplitude * .003);
     }
+    // Focus steadies road vibration, but a shot still kicks the cabin/physical display.
+    // The base pose above is rebuilt each frame, so this never accumulates camera drift.
+    if (recoil !== 0) this.camera.rotateX(recoil);
     const angle = range.heading + range.aimYaw, dx = -Math.sin(angle), dz = -Math.cos(angle);
     // A near witness point keeps the gun's actual world-space ray visible in the overhead view.
     const aimDistance = view === 'top' ? 10 : 41;

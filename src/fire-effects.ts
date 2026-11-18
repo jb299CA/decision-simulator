@@ -5,19 +5,23 @@ type Point = { x: number; y: number; z: number };
 export type VisualShot = { id: number; origin: Point; end: Point; hitTargetId?: string; createdAt: number };
 export const FIRE_EFFECT_LIFETIME = 1.6;
 export const MUZZLE_SMOKE_LIFETIME = .12;
+export const FIRING_RECOIL_DURATION = .14;
 const CAPACITY = 16;
 
 /** Negative/future timestamps cannot create a flash after restart. No wall clock is used. */
 export function shotAge(time: number, createdAt: number): number {
   const age = time - createdAt;
-  return Number.isFinite(age) && age >= 0 && age < FIRE_EFFECT_LIFETIME ? age : -1;
+  return time >= 0 && createdAt >= 0 && Number.isFinite(age) && age >= 0 && age < FIRE_EFFECT_LIFETIME ? age : -1;
 }
 
-/** Firing moves only the exposed hatch camera. Road vibration is a separate input. */
+/** A short cabin kick also moves the physical monitor in every display mode, including focus.
+ * Derive from the latest shot each frame: paused time freezes it, and bursts never accumulate.
+ * The seated kick is smaller than Hatch so the glass stays readable on portrait phones.
+ */
 export function firingRecoil(view: RangeView, reducedMotion: boolean, time: number, createdAt: number): number {
   const age = shotAge(time, createdAt);
-  if (view !== 'hatch' || reducedMotion || age < 0 || age >= .14) return 0;
-  return .037 * Math.exp(-age * 27) * Math.cos(age * 24);
+  if ((view !== 'hatch' && view !== 'inside') || reducedMotion || age < 0 || age >= FIRING_RECOIL_DURATION) return 0;
+  return (view === 'inside' ? .025 : .037) * Math.exp(-age * 27) * Math.cos(age * 24);
 }
 
 /** World-space ejection path, derived afresh so pause and replay are exactly stable. */

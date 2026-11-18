@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 39,
+  "sourceRelease": 40,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 102,
-  "totalBytes": 1867806,
+  "totalBytes": 1883538,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -134,8 +134,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 33364,
-      "sha256": "366dc6548fec7f5aea19b91573fd0694a9abf30b41a477b5fb818db10a8e62e8"
+      "bytes": 37210,
+      "sha256": "0ed522ba8e25df1b50bce6241e525c212bb9ecdc5934001b0cf57d520ebba5a2"
     },
     {
       "path": "src/cabin-display.ts",
@@ -189,8 +189,8 @@
     },
     {
       "path": "src/fire-effects.ts",
-      "bytes": 8459,
-      "sha256": "6a695f474a06b3ebf678eaa31acc760ed34718272a7bafdb2bfb99ec4aa7c3e2"
+      "bytes": 8801,
+      "sha256": "f8dbaa92ef5ca479a8209e0e509166c6f464b2c6820e8612b4c55b6551d497e5"
     },
     {
       "path": "src/game-preferences.ts",
@@ -234,8 +234,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 111565,
-      "sha256": "d0fe71236f834f797e3f9128f56759420d18ea8d734e83b832c5dcc96f2ef8ed"
+      "bytes": 112339,
+      "sha256": "2f85ce89ef78d892cceb64348a94b81a6e4144122e78c7035e869d0250764a6a"
     },
     {
       "path": "src/map-navigation.ts",
@@ -289,8 +289,8 @@
     },
     {
       "path": "src/scene.ts",
-      "bytes": 73511,
-      "sha256": "4ea2ad4795e2b270c1623a13827ac4b10ab71b5a4fe4e54b2aec5aef746812a4"
+      "bytes": 73735,
+      "sha256": "51c025bf765bb30255c70723d8973aa1db170bf80179f6e211f8d40cbd3a05f1"
     },
     {
       "path": "src/simulation.ts",
@@ -299,8 +299,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 198405,
-      "sha256": "d703d3d8c16ce193dfd28abd7c64ca64ee0dfd36b14e056a20e39534f8a50752"
+      "bytes": 198614,
+      "sha256": "416d5bb5373466a31f1727577865098663287bbd772e9dc40d0aff4433e1288e"
     },
     {
       "path": "src/target-debris.ts",
@@ -344,13 +344,13 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 53451,
-      "sha256": "cc01ac9e208905126ad1cf228efaaca5e0af7e8b57caf61c372b6e2bd5e48753"
+      "bytes": 61230,
+      "sha256": "118712bbd1b83b6222bd66de2cc219c02154dda635dd25132c97a118f7e159bd"
     },
     {
       "path": "tests/cabin-display.test.ts",
-      "bytes": 6350,
-      "sha256": "a09518d332e9f09addd1edeb878230f429e03c333ccad0a05c7072eaf3249aa4"
+      "bytes": 8106,
+      "sha256": "3d9e812cf405ba24189611301592d15bb7a5ee21a50dae6a6d05c38be7a7611c"
     },
     {
       "path": "tests/cabin-shell.test.ts",
@@ -414,8 +414,8 @@
     },
     {
       "path": "tests/fire-effects.test.ts",
-      "bytes": 5439,
-      "sha256": "2bb5bad3e358fcc814d8cb1771df51d4b96c605e204b7c7bb770ed57c816a327"
+      "bytes": 6241,
+      "sha256": "d90657582094582ce9811fcfb15fe3f4ea5e8b270ade811a809745fc04b9adba"
     },
     {
       "path": "tests/game-preferences.test.ts",

@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 39 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 40 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -54,7 +54,7 @@ Inside offers Day, illustrative Thermal and MFoCS display modes, plus Focus disp
 
 ## Validation and limitations
 
-This handoff was validated on November 18, 2026 with a fresh `npm ci`, **233 passing tests**, TypeScript checks and a production build. The install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the handoff; a separate private-path/identifier scan also passed. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. This release 40 update, with the same pinned dependency lockfile, passed **246 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the handoff; a separate private-path/identifier scan also passed. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 
@@ -67,3 +67,9 @@ Geometry and audio approximate an illustrative scenario; they do not validate re
 This repository is private. Cloud-Nook-Studio currently grants organization members read access by default; no additional engineering write access was assigned for this handoff. Repository owners control administration. When contributors are selected, use a named team with Write access and keep Admin access with the owners. Read access allows cloning and downloading the code.
 
 `.github/CODEOWNERS` routes review requests to the owner; it does not enforce approvals. GitHub Actions execution is disabled, workflow-token defaults are read-only, Dependabot alerts are enabled, and private forking is disallowed by the organization. There are no deployment workflows or production credentials. Enforced private-repository branch protection requires a supported paid GitHub plan; see [GitHub protected branch availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
+
+## Release 40 audio and firing feedback
+
+Supported browsers request an AudioSession playback category before explicit activation. Enable / retry sound in Menu or Home instructions can refresh stale output routing; it preserves a pre-existing pause. Unsupported or throwing API implementations keep ordinary Web Audio behavior. No microphone access or silent media loop is used. Actual iPhone Chrome output still needs device verification.
+
+Gun reports are about 4.3 dB louder at normal cadence, with priority ducking, a bounded overlap budget and immediate buffered onset. Inside now receives brief physical-display firing recoil, including Focus display; reduced motion disables it and Chase/Top remain steady.

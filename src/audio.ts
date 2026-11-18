@@ -12,6 +12,7 @@ const line = (cue: Cue): string => `${cue.speaker}: ${cue.text}`;
 // Quiet upper firing harmonics remain audible on small speakers without raising
 // the master ceiling or pretending these are measured vehicle frequencies.
 const dieselRatios = [1, 2, 3, 4, 5, 6, 10, 14, 19];
+type PlaybackSession = { type: string };
 
 /** Original fictional dialogue; the same text accompanies every recorded line. */
 export function captionForPhase(phase: Phase): string {
@@ -60,6 +61,11 @@ export class SimulationAudio {
   private squelchBuffer?: AudioBuffer;
   private squelches = new Set<AudioBufferSourceNode>();
   private rangeShotBuffer?: AudioBuffer;
+  private reportPeak = 1;
+  private playbackSession?: PlaybackSession;
+  private previousSessionType?: string;
+  private activationEpoch = 0;
+  private sessionRetry?: { timer: ReturnType<typeof setTimeout>; finish: () => void };
   private healthAlertBuffer?: AudioBuffer;
   private healthAlertSource?: AudioBufferSourceNode;
   private breakdownBuffer?: AudioBuffer;
@@ -113,11 +119,17 @@ export class SimulationAudio {
   }
 
   /** User-gesture activation. Recordings are bundled files, never a speech service. */
-  async start(): Promise<void> {
+  async start(retryOutput = false): Promise<void> {
     if (this.disposed) return;
     this.started = true;
     if (this.muted) return;
+    this.cancelSessionRetry();
+    const epoch = ++this.activationEpoch;
     try {
+      // iOS Web Audio's default ambient category can obey the hardware Silent
+      // switch even while AudioContext reports running. Ask for media playback
+      // before constructing/resuming the context; no microphone is involved.
+      this.selectPlaybackSession();
       if (!this.context && typeof window !== 'undefined') {
         const Audio = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (Audio) this.createSound(new Audio());
@@ -128,16 +140,60 @@ export class SimulationAudio {
       // home/inspection frame is paused. The master stays silent until update
       // observes an active exercise. Never wait for a recording before unlocking.
       const activation = context.resume();
+      // A deliberate retry also refreshes a stale WebKit playback category.
+      // One task boundary, never a background loop or a silent media element.
+      const recovery = retryOutput ? this.refreshPlaybackSession(epoch) : Promise.resolve();
       // Only warm the first relevant recording. Activation never waits for downloads.
       this.prefetch();
-      await activation;
+      await Promise.all([activation, recovery]);
       if (this.disposed || context !== this.context) return;
+      if (epoch === this.activationEpoch && retryOutput && this.audible) await context.resume();
       // A delayed mobile resume must not undo a pause or mute made meanwhile.
       if (!this.audible) this.syncContext();
     } catch { /* Captions remain available when device activation fails. */ }
   }
 
   private get audible(): boolean { return this.started && !this.disposed && !this.muted && !this.paused; }
+
+  private selectPlaybackSession(): void {
+    try {
+      const session = typeof navigator === 'undefined' ? undefined
+        : (navigator as Navigator & { audioSession?: PlaybackSession }).audioSession;
+      if (!session) return;
+      if (!this.playbackSession) { this.previousSessionType = session.type; this.playbackSession = session; }
+      session.type = 'playback';
+    } catch { /* Experimental/unsupported setters must not block ordinary audio. */ }
+  }
+
+  private refreshPlaybackSession(epoch: number): Promise<void> {
+    const session = this.playbackSession;
+    if (!session) return Promise.resolve();
+    try { session.type = 'ambient'; } catch { return Promise.resolve(); }
+    return new Promise(resolve => {
+      const timer = setTimeout(() => {
+        this.sessionRetry = undefined;
+        if (epoch === this.activationEpoch && !this.disposed && !this.muted) this.selectPlaybackSession();
+        else this.restorePlaybackSession();
+        resolve();
+      }, 0);
+      this.sessionRetry = { timer, finish: resolve };
+    });
+  }
+
+  private cancelSessionRetry(): void {
+    const retry = this.sessionRetry;
+    if (!retry) return;
+    clearTimeout(retry.timer); this.sessionRetry = undefined;
+    this.restorePlaybackSession(); retry.finish();
+  }
+
+  private restorePlaybackSession(): void {
+    try {
+      const session = this.playbackSession;
+      // Do not overwrite a different category selected by another page feature.
+      if (session && (session.type === 'playback' || session.type === 'ambient') && this.previousSessionType !== undefined) session.type = this.previousSessionType;
+    } catch { /* Cleanup is best effort on experimental implementations. */ }
+  }
 
   /** A single speculative job leaves capacity for a newly relevant cue. */
   private load(cue: Cue, priority: LoadJob['priority']): Promise<AudioBuffer | undefined> {
@@ -287,6 +343,7 @@ export class SimulationAudio {
       // Gentle saturation bounds even coincident reports without a hard clip.
       report[i] = attack * tail * .78 * Math.tanh((body + crack) / .78);
     }
+    this.reportPeak = report.reduce((peak, sample) => Math.max(peak, Math.abs(sample)), 0);
     // Original two-note instrument cue. It never replaces a recorded radio caption.
     this.healthAlertBuffer = context.createBuffer(1, Math.floor(context.sampleRate * .42), context.sampleRate);
     const alert = this.healthAlertBuffer.getChannelData(0);
@@ -418,7 +475,7 @@ export class SimulationAudio {
 
   /** A newly decoded line or alert gets headroom in the calling frame. Releases
    * are slower than attacks, avoiding a pumping engine between radio words. */
-  private mixPriority(): void {
+  private mixPriority(newReport?: AudioBufferSourceNode): void {
     const duck = this.breakdownSource ? .3 : this.voice ? .38 : this.healthAlertSource ? .55 : 1;
     for (const [node, base] of this.vehicleLevels) {
       const target = base * duck;
@@ -426,7 +483,19 @@ export class SimulationAudio {
       else this.smooth(node.gain, target, target < node.gain.value ? .025 : .16);
     }
     const reportDuck = this.breakdownSource ? .28 : this.healthAlertSource ? .4 : this.voice ? .55 : 1;
-    for (const { node, level } of this.shotLevels.values()) this.smooth(node.gain, level * reportDuck, .015);
+    const reportSum = [...this.shotLevels.values()].reduce((sum, shot) => sum + shot.level, 0);
+    // Real held fire has at most two overlapping reports and keeps the full
+    // +4.3 dB lift. Only unusually coincident 3/4-shot requests share this budget.
+    const overlap = Math.min(1, .64 / Math.max(.0001, reportSum * this.reportPeak * .48));
+    for (const [source, { node, level }] of this.shotLevels) {
+      const target = level * reportDuck * overlap;
+      // A newly coincident report must not overshoot while gain smoothing catches
+      // up. Priority reductions remain fast; natural tail releases stay smooth.
+      if (source === newReport || (overlap < 1 && target < node.gain.value)) {
+        node.gain.cancelScheduledValues(this.context!.currentTime);
+        node.gain.setValueAtTime(target, this.context!.currentTime);
+      } else this.smooth(node.gain, target, .015);
+    }
   }
 
   /** Immediate game feedback only; paused or muted shots are discarded. */
@@ -434,12 +503,12 @@ export class SimulationAudio {
     const context = this.context;
     if (!this.audible || !context || context.state !== 'running' || !this.master || !this.rangeShotBuffer || this.rangeShots.size >= 4) return;
     const source = context.createBufferSource(); source.buffer = this.rangeShotBuffer;
-    const variant = this.shotIndex++ % 3, level = [.44, .46, .42][variant]!;
+    const variant = this.shotIndex++ % 3, level = [.72, .75, .69][variant]!;
     source.playbackRate.value = [.97, 1.025, 1][variant]!;
     const node = context.createGain(); node.gain.value = 0;
     source.connect(node).connect(this.master); this.rangeShots.add(source); this.shotLevels.set(source, { node, level });
-    this.mixPriority();
-    const release = (): void => { this.rangeShots.delete(source); this.shotLevels.delete(source); source.disconnect(); node.disconnect(); };
+    this.mixPriority(source);
+    const release = (): void => { this.rangeShots.delete(source); this.shotLevels.delete(source); source.disconnect(); node.disconnect(); this.mixPriority(); };
     source.onended = release;
     try { source.start(); } catch { release(); }
   }
@@ -577,6 +646,8 @@ export class SimulationAudio {
   }
 
   private silence(): void {
+    this.activationEpoch++;
+    this.cancelSessionRetry();
     this.music?.stop();
     this.cancelVoice();
     this.cancelRangeShots();
@@ -618,6 +689,7 @@ export class SimulationAudio {
   dispose(): void {
     if (this.disposed) return;
     this.silence(); this.disposed = true; this.started = false;
+    this.restorePlaybackSession(); this.playbackSession = undefined;
     this.music?.dispose(); this.music = undefined;
     for (const source of this.sources) { try { source.stop(); } catch { /* Already stopped. */ } }
     this.sources = []; this.harmonics = []; this.whineTones = []; this.buffers.clear(); this.loads.clear();

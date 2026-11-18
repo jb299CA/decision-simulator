@@ -3,6 +3,7 @@ import test from 'node:test';
 import * as THREE from 'three';
 import { boxCorners, cabinDisplayBounds, cabinDisplayFov, CabinDisplayState, frameCabinDisplay, RANGE_TERMINAL } from '../src/cabin-display.ts';
 import { createCabinShell } from '../src/cabin-shell.ts';
+import { firingRecoil } from '../src/fire-effects.ts';
 
 // Dimensions of the real procedural case, side handles, glass and power light.
 function terminal() {
@@ -68,6 +69,29 @@ test('focus makes the same glass larger and front-on while retaining physical ca
       assert.ok(seated.width >= .82 && focused.width >= .90,`${width}x${height}: portrait glass remains prominent`);
       const caseProjection = projection(bounds,cameraFrame(width,height,true).camera);
       assert.ok(caseProjection.maxY < 1 && caseProjection.minY > -1,'top and bottom physical bezel remain in the cabin frame');
+    }
+  }
+});
+
+test('Inside shot recoil moves seated and focused glass without clipping across eight viewports', () => {
+  const shell = createCabinShell(new THREE.MeshBasicMaterial(),new THREE.MeshBasicMaterial()).shell;
+  shell.updateMatrixWorld(true);
+  for (const [width,height] of viewports) for (const focused of [false,true]) {
+    const {camera,fit} = cameraFrame(width,height,focused);
+    const before = projection(glass,camera), eye = camera.position.clone();
+    // The same physical camera kick applies to Day, Thermal and MFoCS; the screen
+    // texture does not participate in this transform, and focus only steadies road bob.
+    camera.rotateX(firingRecoil('inside',false,2,2)); camera.updateMatrixWorld();
+    const peak = projection(glass,camera), label = `${width}x${height}, ${focused ? 'focus' : 'seat'}`;
+    assert.ok(Math.abs(peak.minY - before.minY) * height / 2 >= 4,`${label}: physical glass visibly kicks`);
+    assert.ok(peak.minX > -.98 && peak.maxX < .98,`${label}: glass retains horizontal viewport clearance`);
+    assert.ok(peak.minY >= 1 - 2 * (fit.region.y + fit.region.height / 2) &&
+      peak.maxY <= 1 - 2 * (fit.region.y - fit.region.height / 2),`${label}: glass clears driving controls/captions`);
+    assert.deepEqual(camera.position,eye,`${label}: kick cannot move the observer through armor`);
+    for (const point of boxCorners(glass)) {
+      const target = point.applyMatrix4(display.matrix), direction = target.clone().sub(camera.position);
+      assert.equal(new THREE.Raycaster(camera.position,direction.clone().normalize(),.01,direction.length()).intersectObject(shell,true).length,0,
+        `${label}: glass remains unobscured by cabin armor`);
     }
   }
 });

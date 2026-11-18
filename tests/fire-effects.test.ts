@@ -1,20 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from 'three';
-import { casingPosition, firingRecoil, FIRE_EFFECT_LIFETIME, MUZZLE_SMOKE_LIFETIME, RangeFireEffects, shotAge } from '../src/fire-effects.ts';
+import { casingPosition, firingRecoil, FIRING_RECOIL_DURATION, FIRE_EFFECT_LIFETIME, MUZZLE_SMOKE_LIFETIME, RangeFireEffects, shotAge } from '../src/fire-effects.ts';
 import { RANGE_VIEWS } from '../src/mission-contract.ts';
 
 const shot = { id: 1, origin: { x: .48, y: 3, z: 19 }, end: { x: .48, y: 2.4, z: -30 }, hitTargetId: 'target-1', createdAt: 2 };
 
-test('firing recoil applies only to Hatch and respects reduced motion', () => {
-  assert.ok(firingRecoil('hatch', false, 2, 2) > .03);
+test('firing recoil kicks Hatch and Inside, leaving the exterior cameras steady', () => {
+  assert.equal(firingRecoil('hatch', false, 2, 2), .037);
+  assert.equal(firingRecoil('inside', false, 2, 2), .025);
   for (const view of RANGE_VIEWS) {
-    if (view !== 'hatch') assert.equal(firingRecoil(view, false, 2.02, 2), 0);
+    if (view !== 'hatch' && view !== 'inside') assert.equal(firingRecoil(view, false, 2.02, 2), 0);
     assert.equal(firingRecoil(view, true, 2.02, 2), 0);
   }
-  assert.equal(firingRecoil('hatch', false, 2.2, 2), 0);
-  assert.equal(firingRecoil('hatch', false, 0, 2), 0);
-  assert.equal(firingRecoil('hatch', false, 0, -Infinity), 0);
+});
+
+test('recoil freezes with simulation time, remains bounded through bursts and clears invalid shots', () => {
+  for (const view of ['hatch','inside'] as const) {
+    const paused = firingRecoil(view,false,2.035,2), peak = firingRecoil(view,false,2,2);
+    for (let frame = 0; frame < 100; frame++) assert.equal(firingRecoil(view,false,2.035,2),paused);
+    for (let shot = 0; shot < 50; shot++) for (let step = 0; step < 140; step++) {
+      const at = shot * .14;
+      assert.ok(Math.abs(firingRecoil(view,false,at + step / 1000,at)) <= peak);
+    }
+    assert.equal(firingRecoil(view,false,FIRING_RECOIL_DURATION,0),0);
+    assert.equal(firingRecoil(view,false,2.2,2),0);
+    for (const [time,createdAt] of [[0,2],[0,-Infinity],[NaN,0],[0,NaN],[0,-.01],[-.01,0]]) {
+      assert.equal(firingRecoil(view,false,time,createdAt),0);
+    }
+  }
 });
 
 test('effect timestamps accept zero age and reject future, invalid and expired shots', () => {

@@ -1679,3 +1679,6 @@ body[data-mode="range"].range-drawer-open .range-edge-controls > .pause-banner {
   body[data-mode="range"] .range-edge-controls .pause-banner { align-self: flex-end; width: 92px; }
 }
 
+
+.sound-help button { min-height: 44px; padding: 8px 12px; margin-top: 8px; color: #fff; background: #282e38; border: 1px solid #ff7047; border-radius: 4px; font: inherit; }
+.sound-help { line-height: 1.6; }
