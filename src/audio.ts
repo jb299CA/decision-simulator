@@ -61,6 +61,8 @@ export class SimulationAudio {
   private activePrefetch = 0;
   private squelchBuffer?: AudioBuffer;
   private squelches = new Set<AudioBufferSourceNode>();
+  private radioStaticBuffer?: AudioBuffer;
+  private radioStatic?: { source: AudioBufferSourceNode; gain: GainNode };
   private rangeShotBuffer?: AudioBuffer;
   private reportPeak = 1;
   private playbackSession?: PlaybackSession;
@@ -91,6 +93,7 @@ export class SimulationAudio {
   private radioNet: RadioNet;
   private drivingMode = false;
   private readonly random: () => number;
+  private readonly voiceRandom: () => number;
   private missionIdentity: string;
   private speakingCaption?: string;
   private captionUntil = 0;
@@ -98,9 +101,10 @@ export class SimulationAudio {
   private music?: ProceduralMusic;
   private musicOn = true;
 
-  constructor(random: () => number = Math.random) {
+  constructor(random: () => number = Math.random, voiceRandom: () => number = random) {
     this.random = random;
-    this.radioNet = new RadioNet(random);
+    this.voiceRandom = voiceRandom;
+    this.radioNet = new RadioNet(random, undefined, voiceRandom);
     this.missionIdentity = callsignForPair(this.radioNet.pair);
   }
 
@@ -276,8 +280,8 @@ export class SimulationAudio {
     // Driving mode skips the guided chapters; warm its next net transmission.
     // In the guided exercise, warm movement traffic only as it approaches.
     const cue = this.drivingMode ? this.radioNet.next
-      : this.wasMoving && this.nextAmbient - this.lastTime <= 6 ? this.radioNet.next
-      : nextPhase === 'exterior' ? this.radioNet.opening : nextPhase ? radioScript.phase[nextPhase] : undefined;
+      : this.wasMoving && this.nextAmbient - this.lastTime <= 6 ? this.guidedTraffic
+      : nextPhase === 'exterior' ? this.radioNet.pair.order : nextPhase ? radioScript.phase[nextPhase] : undefined;
     if (cue) void this.load(cue, 'prefetch');
   }
 
@@ -332,6 +336,9 @@ export class SimulationAudio {
       return buffer;
     };
     const white = noise(3, 'noise');
+    // Share this one buffer with the vehicle noise; each live radio call owns
+    // just one short-lived source and gain, never a per-frame oscillator.
+    this.radioStaticBuffer = white;
     // An original smooth rising mechanical whine and filtered airflow carry
     // throttle/load independently of road speed. No real vehicle recording.
     const whineFilter = filter('lowpass', 3100); whineFilter.connect(this.whineGain);
@@ -385,7 +392,7 @@ export class SimulationAudio {
       const hiss = hissTime > 0 ? (n - filteredNoise) * .085 * Math.min(1, hissTime * 12) * Math.max(0, 1 - hissTime / 1.65) ** 1.5 : 0;
       breakdown[i] = sputter + clunk + hiss;
     }
-    // Short, quiet PTT edges identify net traffic without laying hiss over words.
+    // Short PTT edges bracket the quieter, band-limited static beneath radio.
     this.squelchBuffer = context.createBuffer(1, Math.floor(context.sampleRate * .035), context.sampleRate);
     const squelch = this.squelchBuffer.getChannelData(0);
     for (let i = 0; i < squelch.length; i++) squelch[i] = random() * Math.sin(Math.PI * i / Math.max(1, squelch.length - 1)) * .035;
@@ -435,20 +442,20 @@ export class SimulationAudio {
     if (changed) {
       this.cancelVoice();
       this.clearQueuedLoads();
-      if (sim.phase !== 'title' && !breakdown) {
+      if (sim.phase !== 'title' && !breakdown && !vehicle?.terminal) {
         // Guided mode also supplies camera context. Its lack of a simulated
         // powertrain/training state distinguishes it from driving mode.
         const rangeEntry = sim.phase === 'cabin' && (vehicle?.powertrain !== undefined || vehicle?.training !== undefined);
         if (rangeEntry) this.drivingMode = true;
-        this.queue(rangeEntry || sim.phase === 'exterior' ? this.radioNet.opening : radioScript.phase[sim.phase]);
+        this.queue(rangeEntry ? this.radioNet.opening : sim.phase === 'exterior' ? this.radioNet.pair.order : radioScript.phase[sim.phase]);
       }
     }
     // Range completion shares the cabin phase; consume any obsolete movement
     // cue so its exact caption cannot describe an engine that has just stopped.
-    if (breakdown || (vehicle && engineStopped && !changed)) { this.cancelVoice(); this.clearQueuedLoads(); }
+    if (breakdown || vehicle?.terminal || (vehicle && engineStopped && !changed)) { this.cancelVoice(); this.clearQueuedLoads(); }
     if (!this.voice && this.speakingCaption && sim.time >= this.captionUntil && !this.pending) this.speakingCaption = undefined;
-    if (this.audible && sim.moving && !changed && sim.time >= this.nextAmbient && sim.time >= this.ambientNotBefore && !this.voice && !this.pending && !this.speakingCaption) {
-      this.queue(this.radioNet.takeNext());
+    if (this.audible && !vehicle?.terminal && sim.moving && !changed && sim.time >= this.nextAmbient && sim.time >= this.ambientNotBefore && !this.voice && !this.pending && !this.speakingCaption) {
+      this.queue(this.drivingMode ? this.radioNet.takeNext() : this.guidedTraffic);
       this.ambientIndex++;
       this.nextAmbient = sim.time + this.ambientDelay();
     }
@@ -482,6 +489,8 @@ export class SimulationAudio {
   }
 
   private ambientDelay(): number { return 18 + (this.ambientIndex * 7 + 3) % 11; }
+
+  private get guidedTraffic(): Cue { return radioScript.ambient[this.ambientIndex % radioScript.ambient.length]!; }
 
   private smooth(parameter: AudioParam, value: number, seconds: number): void {
     if (this.context && typeof parameter.setTargetAtTime === 'function') parameter.setTargetAtTime(value, this.context.currentTime, seconds);
@@ -611,16 +620,50 @@ export class SimulationAudio {
     source.onended = () => {
       if (this.voice !== source || generation !== this.generation) return;
       this.voice = undefined; this.speakingCaption = undefined;
+      this.cancelRadioStatic();
       source.disconnect(); this.mixPriority();
       this.ambientNotBefore = this.lastTime + 1.4;
       if (radio) this.squelch();
     };
     // Let PTT finish before the first syllable. The scheduled source is owned
     // immediately, so pause/phase changes can cancel it before it ever sounds.
-    try { source.start(context.currentTime + (radio ? .05 : 0)); } catch {
+    try {
+      const startsAt = context.currentTime + (radio ? .05 : 0);
+      source.start(startsAt);
+      if (radio) this.startRadioStatic(startsAt);
+    } catch {
       this.voice = undefined; source.onended = null; source.disconnect(); this.cancelSquelches();
+      this.cancelRadioStatic();
       this.mixPriority(); this.captionUntil = this.lastTime + 8;
     }
+  }
+
+  private startRadioStatic(startsAt: number): void {
+    const context = this.context;
+    if (!this.audible || !context || !this.radioInput || !this.radioStaticBuffer || !this.voice) return;
+    this.cancelRadioStatic();
+    const source = context.createBufferSource(), gain = context.createGain();
+    source.buffer = this.radioStaticBuffer; source.loop = true;
+    // Roughly thirty decibels beneath conditioned speech before the shared
+    // radio filters. Intercom never connects to this noise path.
+    gain.gain.value = .018;
+    source.connect(gain).connect(this.radioInput);
+    this.radioStatic = { source, gain };
+    source.onended = () => {
+      if (this.radioStatic?.source === source) this.radioStatic = undefined;
+      source.disconnect(); gain.disconnect();
+    };
+    try { source.start(startsAt); } catch { this.cancelRadioStatic(); }
+  }
+
+  private cancelRadioStatic(): void {
+    const current = this.radioStatic;
+    this.radioStatic = undefined;
+    if (!current) return;
+    this.zero(current.gain.gain);
+    current.source.onended = null;
+    try { current.source.stop(); } catch { /* Already ended or failed to start. */ }
+    current.source.disconnect(); current.gain.disconnect();
   }
 
   private squelch(): void {
@@ -646,6 +689,7 @@ export class SimulationAudio {
     const source = this.voice;
     this.voice = undefined;
     if (source) { source.onended = null; try { source.stop(); } catch { /* Already ended. */ } source.disconnect(); }
+    this.cancelRadioStatic();
     this.cancelSquelches();
     this.speakingCaption = undefined;
     this.mixPriority();
@@ -704,7 +748,7 @@ export class SimulationAudio {
 
   restart(): void {
     this.silence();
-    this.radioNet = new RadioNet(this.random, this.radioNet.pair);
+    this.radioNet = new RadioNet(this.random, this.radioNet.pair, this.voiceRandom);
     this.missionIdentity = callsignForPair(this.radioNet.pair);
     this.drivingMode = false;
     this.lastPhase = 'title'; this.lastTime = 0; this.paused = false;
@@ -728,6 +772,7 @@ export class SimulationAudio {
     if (this.context) void this.context.close().catch(() => {});
     this.context = undefined; this.master = undefined;
     this.rangeShotBuffer = undefined;
+    this.radioStaticBuffer = undefined;
     this.healthAlertBuffer = undefined;
     this.breakdownBuffer = undefined;
   }

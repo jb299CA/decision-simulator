@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 43 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 44 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -57,13 +57,13 @@ To complete delivery, clear the contacts, stop inside the marked dismount zone a
 
 ## Radio net
 
-Each run selects a company/platoon identity: Aztec, Brave or Crazy Horse with 1-6, 2-6 or 3-6. The opening order is Tomahawk 3 to that company's 6, followed by a matching company-to-platoon relay. Each prerecorded exchange includes its acknowledgment. Later background pairs vary without changing the player's displayed or debrief callsign.
+Each run selects a company/platoon identity: Aztec, Brave or Crazy Horse with 1-6, 2-6 or 3-6. The opening order is the matching company-to-platoon test-fire and LD clearance; later traffic follows Tomahawk 3 to company6, then matching platoon. Each prerecorded exchange includes its acknowledgment. Later background pairs vary without changing the player's displayed or debrief callsign.
 
-Original dialogue follows the call order, digit pronunciation and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 26 compact MP3s, using locally generated original voices. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
+Original dialogue follows the call order, digit pronunciation and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 38 compact MP3s, using locally generated original voices. Strong male voices are the default, with female commander alternatives selected for20% of net transmissions. Tomahawk is spoken as Three. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
 
 ## Validation and limitations
 
-The initial handoff received a fresh `npm ci`. The release 42 functional baseline passed **281 tests**, TypeScript checks and a production build on November 18, 2026. Release 43 changes only the home action button CSS; TypeScript and production build passed again, with gameplay, audio, content and assets unchanged. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. Release 44 passed **301 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 
@@ -82,3 +82,5 @@ This repository is private and owned by [jb299CA](https://github.com/jb299CA/dec
 Supported browsers request an AudioSession playback category before explicit activation. Enable / retry sound in Menu or Home instructions can refresh stale output routing; it preserves a pre-existing pause. Unsupported or throwing API implementations keep ordinary Web Audio behavior. No microphone access or silent media loop is used. Actual iPhone Chrome output still needs device verification.
 
 Gun reports are about 4.3 dB louder at normal cadence, with priority ducking, a bounded overlap budget and immediate buffered onset. Inside now receives brief physical-display firing recoil, including Focus display; reduced motion disables it and Chase/Top remain steady.
+
+Release44 adds a180-second movement clock from first LD crossing. A cleared, stopped arrival settles the clock; Drop ramp remains explicit. Timeout has its own debrief reason and preserves maintenance findings. Radio-only static follows speech lifecycle. Public demo: https://decision-simulator.jon-d-bate.chatgpt.site .

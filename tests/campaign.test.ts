@@ -62,6 +62,7 @@ test('enemy detection, damage and landed rounds are gated before the actual depa
   range.position = { x: 0, z: DEPARTURE_Z + .1 }; aimAt(range, contact);
   fireRounds(range, 8);
   assert.equal(range.mission.departureCrossed, false);
+  assert.equal(range.movementClock.status, 'waiting'); assert.equal(range.movementClock.startedAt, null);
   assert.equal(range.mission.phase, 'training'); assert.equal(range.mission.integrity, 100);
   assert.equal(range.hits, 0); assert.ok(range.mission.contacts.every(contact => !contact.detected && contact.health === contact.maxHealth));
   assert.ok(range.targets.filter(target => target.kind === 'enemy').every(target => target.destroyedAt === null && target.hitUntil === 0));
@@ -69,12 +70,15 @@ test('enemy detection, damage and landed rounds are gated before the actual depa
   range.tick(.025, { ...idle, throttle: 1 });
   assert.ok(range.position.z < DEPARTURE_Z);
   assert.equal(range.mission.departureCrossed, true); assert.equal(range.mission.phase, 'combat');
+  const departureTime = range.movementClock.startedAt;
+  assert.equal(departureTime, range.time); assert.equal(range.movementClock.remainingSeconds, 180);
   assert.equal(contact.detected, true); assert.equal(range.mission.integrity, 100, 'detection at 90 units cannot apply return fire');
   aimAt(range, contact); fireRounds(range, 1);
   assert.equal(contact.health, 1); assert.equal(range.hits, 1);
   range.position = { x: 0, z: 80 }; range.speed = 0; range.tick(.025, idle);
   assert.equal(range.mission.departureCrossed, true, 'backtracking does not restore training immunity');
   assert.equal(range.mission.phase, 'combat');
+  assert.equal(range.movementClock.startedAt, departureTime, 'backtracking cannot rearm the movement deadline');
 });
 
 test('practice boards crush on swept hull overlap, leave permanent debris, and never block driving', () => {
@@ -192,6 +196,7 @@ test('integrity depletion fails with engine off and restart restores all mission
   assert.deepEqual(range.position, MISSION_START); assert.equal(range.paused, false); assert.equal(range.time, 0);
   assert.equal(range.mission.status, 'enroute'); assert.equal(range.mission.phase, 'training');
   assert.equal(range.mission.departureCrossed, false); assert.equal(range.mission.remainingContacts, 6);
+  assert.equal(range.movementClock.status, 'waiting'); assert.equal(range.movementClock.remainingSeconds, 180);
   assert.equal(range.mission.integrity, 100); assert.equal(range.mission.arrivalProgress, 0);
   assert.ok(range.mission.contacts.every(contact => !contact.detected && !contact.neutralized && contact.health === contact.maxHealth && contact.neutralizedAt === null && contact.lastAttackTime === -Infinity));
   assert.ok(range.targets.every(target => target.hitUntil === 0 && target.destroyedAt === null && target.destroyedBy === null));

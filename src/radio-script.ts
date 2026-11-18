@@ -12,17 +12,17 @@ export const radioScript = {
         {
           "speaker": "TOMAHAWK 3",
           "voice": "am_eric",
-          "spokenText": "Brave six, this is Tomahawk tree. Move to the marked dismount point. Deliver the squad and report completion. Over.",
+          "spokenText": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
           "text": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
         },
         {
           "speaker": "BRAVE 6",
-          "voice": "af_heart",
-          "spokenText": "Tomahawk tree, this is Brave six. Wilco. Out.",
+          "voice": "am_fenrir",
+          "spokenText": "Tomahawk three, this is Brave six. Wilco. Out.",
           "text": "Tomahawk three, this is Brave six. Wilco. Out."
         }
       ],
-      "file": "/audio/crew_ready.mp3?v=brave11-r42b"
+      "file": "/audio/crew_ready.mp3?v=male-radio-r44"
     },
     "cabin": {
       "id": "moving",
@@ -30,7 +30,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Crew checks complete. Driver, move when ready.",
       "voice": "am_michael",
-      "file": "/audio/moving.mp3?v=net-orders-r42b"
+      "file": "/audio/moving.mp3?v=male-radio-r44"
     },
     "feed": {
       "id": "feed",
@@ -38,7 +38,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Bring up the charging trend. Keep engine state and electrical load beside it.",
       "voice": "am_michael",
-      "file": "/audio/feed.mp3?v=brave11-r42"
+      "file": "/audio/feed.mp3?v=male-radio-r44"
     },
     "manifold": {
       "id": "manifold",
@@ -46,7 +46,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Data's coming through. Timestamps and signal quality are included.",
       "voice": "am_eric",
-      "file": "/audio/manifold.mp3?v=brave11-r42"
+      "file": "/audio/manifold.mp3?v=male-radio-r44"
     },
     "turbine": {
       "id": "turbine",
@@ -54,7 +54,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "The signals are lined up now. Check the trend against the load.",
       "voice": "am_michael",
-      "file": "/audio/turbine.mp3?v=brave11-r42"
+      "file": "/audio/turbine.mp3?v=male-radio-r44"
     },
     "insight": {
       "id": "insight",
@@ -62,7 +62,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "That charging trend needs a look. If it stays abnormal, we'll halt. The alternator is only suspected.",
       "voice": "am_michael",
-      "file": "/audio/insight.mp3?v=brave11-r42"
+      "file": "/audio/insight.mp3?v=male-radio-r44"
     },
     "halted": {
       "id": "halted",
@@ -70,7 +70,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Vehicle stopped. Holding here. Ready to secure.",
       "voice": "am_eric",
-      "file": "/audio/halted.mp3?v=brave11-r42"
+      "file": "/audio/halted.mp3?v=male-radio-r44"
     },
     "secured": {
       "id": "secured",
@@ -78,7 +78,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Vehicle secured. Engine off. Keep it shut down for maintenance.",
       "voice": "am_michael",
-      "file": "/audio/secured.mp3?v=brave11-r42"
+      "file": "/audio/secured.mp3?v=male-radio-r44"
     },
     "service": {
       "id": "service",
@@ -86,7 +86,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Keep it shut down. The alternator is still suspected. Maintenance must confirm the fault before repair.",
       "voice": "am_michael",
-      "file": "/audio/service.mp3?v=brave11-r42"
+      "file": "/audio/service.mp3?v=male-radio-r44"
     },
     "debrief": {
       "id": "debrief",
@@ -94,7 +94,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Hold for maintenance. Repair and verification are still required.",
       "voice": "am_michael",
-      "file": "/audio/debrief.mp3?v=net-orders-r42b"
+      "file": "/audio/debrief.mp3?v=male-radio-r44"
     }
   },
   "ambient": [
@@ -103,24 +103,24 @@ export const radioScript = {
       "speaker": "BRAVE 6 · RADIO",
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Keep transmissions brief. Report changes as they occur. Out.",
-      "voice": "af_heart",
-      "file": "/audio/net_interval.mp3?v=brave11-r42"
+      "voice": "am_fenrir",
+      "file": "/audio/net_interval.mp3?v=male-radio-r44"
     },
     {
       "id": "net_check",
       "speaker": "BRAVE 6 · RADIO",
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Watch your vehicle health. Report faults early. Out.",
-      "voice": "af_heart",
-      "file": "/audio/net_check.mp3?v=net-orders-r42b"
+      "voice": "am_fenrir",
+      "file": "/audio/net_check.mp3?v=male-radio-r44"
     },
     {
       "id": "net_copy",
       "speaker": "BRAVE 6 · RADIO",
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Send your status when you reach the dismount point. Out.",
-      "voice": "af_heart",
-      "file": "/audio/net_copy.mp3?v=net-orders-r42b"
+      "voice": "am_fenrir",
+      "file": "/audio/net_copy.mp3?v=male-radio-r44"
     },
     {
       "id": "net_rear",
@@ -128,7 +128,7 @@ export const radioScript = {
       "channel": "radio",
       "text": "Brave six, this is Brave one two. No change to report. Out.",
       "voice": "am_eric",
-      "file": "/audio/net_rear.mp3?v=brave11-r42"
+      "file": "/audio/net_rear.mp3?v=male-radio-r44"
     }
   ],
   "radioOrders": [
@@ -144,16 +144,16 @@ export const radioScript = {
           "speaker": "TOMAHAWK 3",
           "voice": "am_eric",
           "text": "Aztec six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
-          "spokenText": "Aztec six, this is Tomahawk tree. Move to the marked dismount point. Deliver the squad and report completion. Over."
+          "spokenText": "Aztec six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
         },
         {
           "speaker": "AZTEC 6",
-          "voice": "am_michael",
+          "voice": "am_fenrir",
           "text": "Tomahawk three, this is Aztec six. Wilco. Out.",
-          "spokenText": "Tomahawk tree, this is Aztec six. Wilco. Out."
+          "spokenText": "Tomahawk three, this is Aztec six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_aztec.mp3?v=net-orders-r42b"
+      "file": "/audio/order_aztec.mp3?v=male-radio-r44"
     },
     {
       "id": "order_brave",
@@ -167,16 +167,16 @@ export const radioScript = {
           "speaker": "TOMAHAWK 3",
           "voice": "am_eric",
           "text": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
-          "spokenText": "Brave six, this is Tomahawk tree. Move to the marked dismount point. Deliver the squad and report completion. Over."
+          "spokenText": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
         },
         {
           "speaker": "BRAVE 6",
-          "voice": "af_heart",
+          "voice": "am_fenrir",
           "text": "Tomahawk three, this is Brave six. Wilco. Out.",
-          "spokenText": "Tomahawk tree, this is Brave six. Wilco. Out."
+          "spokenText": "Tomahawk three, this is Brave six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_brave.mp3?v=net-orders-r42b"
+      "file": "/audio/order_brave.mp3?v=male-radio-r44"
     },
     {
       "id": "order_crazy_horse",
@@ -190,16 +190,16 @@ export const radioScript = {
           "speaker": "TOMAHAWK 3",
           "voice": "am_eric",
           "text": "Crazy Horse six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
-          "spokenText": "Crazy Horse six, this is Tomahawk tree. Move to the marked dismount point. Deliver the squad and report completion. Over."
+          "spokenText": "Crazy Horse six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
         },
         {
           "speaker": "CRAZY HORSE 6",
-          "voice": "am_michael",
+          "voice": "am_fenrir",
           "text": "Tomahawk three, this is Crazy Horse six. Wilco. Out.",
-          "spokenText": "Tomahawk tree, this is Crazy Horse six. Wilco. Out."
+          "spokenText": "Tomahawk three, this is Crazy Horse six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_crazy_horse.mp3?v=net-orders-r42b"
+      "file": "/audio/order_crazy_horse.mp3?v=male-radio-r44"
     }
   ],
   "radioRelays": [
@@ -209,14 +209,14 @@ export const radioScript = {
       "platoon": 1,
       "speaker": "AZTEC 6 / AZTEC 1-6 · RADIO",
       "channel": "radio",
-      "text": "Aztec one-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over. Aztec six, this is Aztec one-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Aztec one-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec one-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "AZTEC 6",
-          "voice": "am_michael",
-          "text": "Aztec one-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Aztec one six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Aztec one-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec one six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "AZTEC 1-6",
@@ -225,7 +225,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_1_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_aztec_1_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_aztec_2_6",
@@ -233,14 +233,14 @@ export const radioScript = {
       "platoon": 2,
       "speaker": "AZTEC 6 / AZTEC 2-6 · RADIO",
       "channel": "radio",
-      "text": "Aztec two-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over. Aztec six, this is Aztec two-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Aztec two-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec two-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "AZTEC 6",
-          "voice": "am_michael",
-          "text": "Aztec two-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Aztec two six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Aztec two-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec two six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "AZTEC 2-6",
@@ -249,7 +249,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_2_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_aztec_2_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_aztec_3_6",
@@ -257,14 +257,14 @@ export const radioScript = {
       "platoon": 3,
       "speaker": "AZTEC 6 / AZTEC 3-6 · RADIO",
       "channel": "radio",
-      "text": "Aztec three-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over. Aztec six, this is Aztec three-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Aztec three-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec three-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "AZTEC 6",
-          "voice": "am_michael",
-          "text": "Aztec three-six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Aztec tree six, this is Aztec six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Aztec three-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec tree six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "AZTEC 3-6",
@@ -273,7 +273,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec tree six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_3_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_aztec_3_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_brave_1_6",
@@ -281,14 +281,14 @@ export const radioScript = {
       "platoon": 1,
       "speaker": "BRAVE 6 / BRAVE 1-6 · RADIO",
       "channel": "radio",
-      "text": "Brave one-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over. Brave six, this is Brave one-six. Wilco. Out.",
-      "voice": "af_heart",
+      "text": "Brave one-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave one-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "BRAVE 6",
-          "voice": "af_heart",
-          "text": "Brave one-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Brave one six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Brave one-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave one six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "BRAVE 1-6",
@@ -297,7 +297,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_1_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_brave_1_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_brave_2_6",
@@ -305,14 +305,14 @@ export const radioScript = {
       "platoon": 2,
       "speaker": "BRAVE 6 / BRAVE 2-6 · RADIO",
       "channel": "radio",
-      "text": "Brave two-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over. Brave six, this is Brave two-six. Wilco. Out.",
-      "voice": "af_heart",
+      "text": "Brave two-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave two-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "BRAVE 6",
-          "voice": "af_heart",
-          "text": "Brave two-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Brave two six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Brave two-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave two six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "BRAVE 2-6",
@@ -321,7 +321,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_2_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_brave_2_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_brave_3_6",
@@ -329,14 +329,14 @@ export const radioScript = {
       "platoon": 3,
       "speaker": "BRAVE 6 / BRAVE 3-6 · RADIO",
       "channel": "radio",
-      "text": "Brave three-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over. Brave six, this is Brave three-six. Wilco. Out.",
-      "voice": "af_heart",
+      "text": "Brave three-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave three-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "BRAVE 6",
-          "voice": "af_heart",
-          "text": "Brave three-six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Brave tree six, this is Brave six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Brave three-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave tree six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "BRAVE 3-6",
@@ -345,7 +345,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave tree six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_3_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_brave_3_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_crazy_horse_1_6",
@@ -353,14 +353,14 @@ export const radioScript = {
       "platoon": 1,
       "speaker": "CRAZY HORSE 6 / CRAZY HORSE 1-6 · RADIO",
       "channel": "radio",
-      "text": "Crazy Horse one-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over. Crazy Horse six, this is Crazy Horse one-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Crazy Horse one-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse one-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "CRAZY HORSE 6",
-          "voice": "am_michael",
-          "text": "Crazy Horse one-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Crazy Horse one six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Crazy Horse one-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse one six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "CRAZY HORSE 1-6",
@@ -369,7 +369,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_1_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_crazy_horse_1_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_crazy_horse_2_6",
@@ -377,14 +377,14 @@ export const radioScript = {
       "platoon": 2,
       "speaker": "CRAZY HORSE 6 / CRAZY HORSE 2-6 · RADIO",
       "channel": "radio",
-      "text": "Crazy Horse two-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over. Crazy Horse six, this is Crazy Horse two-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Crazy Horse two-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse two-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "CRAZY HORSE 6",
-          "voice": "am_michael",
-          "text": "Crazy Horse two-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Crazy Horse two six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Crazy Horse two-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse two six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "CRAZY HORSE 2-6",
@@ -393,7 +393,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_2_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_crazy_horse_2_6.mp3?v=male-radio-r44"
     },
     {
       "id": "relay_crazy_horse_3_6",
@@ -401,14 +401,14 @@ export const radioScript = {
       "platoon": 3,
       "speaker": "CRAZY HORSE 6 / CRAZY HORSE 3-6 · RADIO",
       "channel": "radio",
-      "text": "Crazy Horse three-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over. Crazy Horse six, this is Crazy Horse three-six. Wilco. Out.",
-      "voice": "am_michael",
+      "text": "Crazy Horse three-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse three-six. Wilco. Out.",
+      "voice": "am_fenrir",
       "segments": [
         {
           "speaker": "CRAZY HORSE 6",
-          "voice": "am_michael",
-          "text": "Crazy Horse three-six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over.",
-          "spokenText": "Crazy Horse tree six, this is Crazy Horse six. Continue to the assigned dismount point. Report when complete. Over."
+          "voice": "am_fenrir",
+          "text": "Crazy Horse three-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse tree six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
         },
         {
           "speaker": "CRAZY HORSE 3-6",
@@ -417,7 +417,306 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse tree six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_3_6.mp3?v=net-orders-r42b"
+      "file": "/audio/relay_crazy_horse_3_6.mp3?v=male-radio-r44"
+    }
+  ],
+  "radioFemale": [
+    {
+      "id": "order_aztec_female",
+      "company": "aztec",
+      "speaker": "TOMAHAWK 3 / AZTEC 6 · RADIO",
+      "channel": "radio",
+      "text": "Aztec six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over. Tomahawk three, this is Aztec six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "TOMAHAWK 3",
+          "voice": "af_heart",
+          "text": "Aztec six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
+          "spokenText": "Aztec six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
+        },
+        {
+          "speaker": "AZTEC 6",
+          "voice": "am_fenrir",
+          "text": "Tomahawk three, this is Aztec six. Wilco. Out.",
+          "spokenText": "Tomahawk three, this is Aztec six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/order_aztec_female.mp3?v=male-radio-r44",
+      "baseId": "order_aztec"
+    },
+    {
+      "id": "order_brave_female",
+      "company": "brave",
+      "speaker": "TOMAHAWK 3 / BRAVE 6 · RADIO",
+      "channel": "radio",
+      "text": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over. Tomahawk three, this is Brave six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "TOMAHAWK 3",
+          "voice": "af_heart",
+          "text": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
+          "spokenText": "Brave six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
+        },
+        {
+          "speaker": "BRAVE 6",
+          "voice": "am_fenrir",
+          "text": "Tomahawk three, this is Brave six. Wilco. Out.",
+          "spokenText": "Tomahawk three, this is Brave six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/order_brave_female.mp3?v=male-radio-r44",
+      "baseId": "order_brave"
+    },
+    {
+      "id": "order_crazy_horse_female",
+      "company": "crazy-horse",
+      "speaker": "TOMAHAWK 3 / CRAZY HORSE 6 · RADIO",
+      "channel": "radio",
+      "text": "Crazy Horse six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over. Tomahawk three, this is Crazy Horse six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "TOMAHAWK 3",
+          "voice": "af_heart",
+          "text": "Crazy Horse six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over.",
+          "spokenText": "Crazy Horse six, this is Tomahawk three. Move to the marked dismount point. Deliver the squad and report completion. Over."
+        },
+        {
+          "speaker": "CRAZY HORSE 6",
+          "voice": "am_fenrir",
+          "text": "Tomahawk three, this is Crazy Horse six. Wilco. Out.",
+          "spokenText": "Tomahawk three, this is Crazy Horse six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/order_crazy_horse_female.mp3?v=male-radio-r44",
+      "baseId": "order_crazy_horse"
+    },
+    {
+      "id": "relay_aztec_1_6_female",
+      "company": "aztec",
+      "platoon": 1,
+      "speaker": "AZTEC 6 / AZTEC 1-6 · RADIO",
+      "channel": "radio",
+      "text": "Aztec one-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec one-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "AZTEC 6",
+          "voice": "af_heart",
+          "text": "Aztec one-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec one six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "AZTEC 1-6",
+          "voice": "am_eric",
+          "text": "Aztec six, this is Aztec one-six. Wilco. Out.",
+          "spokenText": "Aztec six, this is Aztec one six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_aztec_1_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_aztec_1_6"
+    },
+    {
+      "id": "relay_aztec_2_6_female",
+      "company": "aztec",
+      "platoon": 2,
+      "speaker": "AZTEC 6 / AZTEC 2-6 · RADIO",
+      "channel": "radio",
+      "text": "Aztec two-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec two-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "AZTEC 6",
+          "voice": "af_heart",
+          "text": "Aztec two-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec two six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "AZTEC 2-6",
+          "voice": "am_eric",
+          "text": "Aztec six, this is Aztec two-six. Wilco. Out.",
+          "spokenText": "Aztec six, this is Aztec two six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_aztec_2_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_aztec_2_6"
+    },
+    {
+      "id": "relay_aztec_3_6_female",
+      "company": "aztec",
+      "platoon": 3,
+      "speaker": "AZTEC 6 / AZTEC 3-6 · RADIO",
+      "channel": "radio",
+      "text": "Aztec three-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Aztec six, this is Aztec three-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "AZTEC 6",
+          "voice": "af_heart",
+          "text": "Aztec three-six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Aztec tree six, this is Aztec six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "AZTEC 3-6",
+          "voice": "am_eric",
+          "text": "Aztec six, this is Aztec three-six. Wilco. Out.",
+          "spokenText": "Aztec six, this is Aztec tree six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_aztec_3_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_aztec_3_6"
+    },
+    {
+      "id": "relay_brave_1_6_female",
+      "company": "brave",
+      "platoon": 1,
+      "speaker": "BRAVE 6 / BRAVE 1-6 · RADIO",
+      "channel": "radio",
+      "text": "Brave one-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave one-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "BRAVE 6",
+          "voice": "af_heart",
+          "text": "Brave one-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave one six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "BRAVE 1-6",
+          "voice": "am_eric",
+          "text": "Brave six, this is Brave one-six. Wilco. Out.",
+          "spokenText": "Brave six, this is Brave one six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_brave_1_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_brave_1_6"
+    },
+    {
+      "id": "relay_brave_2_6_female",
+      "company": "brave",
+      "platoon": 2,
+      "speaker": "BRAVE 6 / BRAVE 2-6 · RADIO",
+      "channel": "radio",
+      "text": "Brave two-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave two-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "BRAVE 6",
+          "voice": "af_heart",
+          "text": "Brave two-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave two six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "BRAVE 2-6",
+          "voice": "am_eric",
+          "text": "Brave six, this is Brave two-six. Wilco. Out.",
+          "spokenText": "Brave six, this is Brave two six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_brave_2_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_brave_2_6"
+    },
+    {
+      "id": "relay_brave_3_6_female",
+      "company": "brave",
+      "platoon": 3,
+      "speaker": "BRAVE 6 / BRAVE 3-6 · RADIO",
+      "channel": "radio",
+      "text": "Brave three-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Brave six, this is Brave three-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "BRAVE 6",
+          "voice": "af_heart",
+          "text": "Brave three-six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Brave tree six, this is Brave six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "BRAVE 3-6",
+          "voice": "am_eric",
+          "text": "Brave six, this is Brave three-six. Wilco. Out.",
+          "spokenText": "Brave six, this is Brave tree six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_brave_3_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_brave_3_6"
+    },
+    {
+      "id": "relay_crazy_horse_1_6_female",
+      "company": "crazy-horse",
+      "platoon": 1,
+      "speaker": "CRAZY HORSE 6 / CRAZY HORSE 1-6 · RADIO",
+      "channel": "radio",
+      "text": "Crazy Horse one-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse one-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "CRAZY HORSE 6",
+          "voice": "af_heart",
+          "text": "Crazy Horse one-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse one six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "CRAZY HORSE 1-6",
+          "voice": "am_eric",
+          "text": "Crazy Horse six, this is Crazy Horse one-six. Wilco. Out.",
+          "spokenText": "Crazy Horse six, this is Crazy Horse one six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_crazy_horse_1_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_crazy_horse_1_6"
+    },
+    {
+      "id": "relay_crazy_horse_2_6_female",
+      "company": "crazy-horse",
+      "platoon": 2,
+      "speaker": "CRAZY HORSE 6 / CRAZY HORSE 2-6 · RADIO",
+      "channel": "radio",
+      "text": "Crazy Horse two-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse two-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "CRAZY HORSE 6",
+          "voice": "af_heart",
+          "text": "Crazy Horse two-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse two six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "CRAZY HORSE 2-6",
+          "voice": "am_eric",
+          "text": "Crazy Horse six, this is Crazy Horse two-six. Wilco. Out.",
+          "spokenText": "Crazy Horse six, this is Crazy Horse two six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_crazy_horse_2_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_crazy_horse_2_6"
+    },
+    {
+      "id": "relay_crazy_horse_3_6_female",
+      "company": "crazy-horse",
+      "platoon": 3,
+      "speaker": "CRAZY HORSE 6 / CRAZY HORSE 3-6 · RADIO",
+      "channel": "radio",
+      "text": "Crazy Horse three-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over. Crazy Horse six, this is Crazy Horse three-six. Wilco. Out.",
+      "voice": "af_heart",
+      "segments": [
+        {
+          "speaker": "CRAZY HORSE 6",
+          "voice": "af_heart",
+          "text": "Crazy Horse three-six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have three minutes from the LD to reach the dismount point. Over.",
+          "spokenText": "Crazy Horse tree six, this is Crazy Horse six. Cleared to test fire, then move to the line of departure. Report when ready. You have tree minutes from the ell dee to reach the dismount point. Over."
+        },
+        {
+          "speaker": "CRAZY HORSE 3-6",
+          "voice": "am_eric",
+          "text": "Crazy Horse six, this is Crazy Horse three-six. Wilco. Out.",
+          "spokenText": "Crazy Horse six, this is Crazy Horse tree six. Wilco. Out."
+        }
+      ],
+      "file": "/audio/relay_crazy_horse_3_6_female.mp3?v=male-radio-r44",
+      "baseId": "relay_crazy_horse_3_6"
     }
   ]
 } as const;

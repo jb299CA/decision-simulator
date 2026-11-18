@@ -43,6 +43,20 @@ test('wrong-location unload has a distinct immutable failure record from contact
   assert.ok(missionDebriefMarkup(combat).includes('Vehicle lost to contact damage.'));
 });
 
+test('movement timeout reports the deadline without inventing combat loss or losing repair findings', () => {
+  const late = report('failed');
+  late.failureReason = 'movement-timeout';
+  late.movementClock = Object.freeze({ status: 'expired', limitSeconds: 180, remainingSeconds: 0, elapsedSeconds: 180, startedAt: 24, arrivalAt: null });
+  const html = missionDebriefMarkup(Object.freeze(late));
+  assert.ok(html.includes('Movement deadline missed.'));
+  assert.ok(html.includes('03:00 expired'));
+  assert.ok(html.includes('Replace damaged charging components.'));
+  assert.ok(!html.includes('Vehicle lost to contact damage.'));
+  const onTime = report('complete');
+  onTime.movementClock = { ...late.movementClock, status: 'arrived', remainingSeconds: 60, elapsedSeconds: 120, arrivalAt: 144 };
+  assert.ok(missionDebriefMarkup(onTime).includes('Reached in 02:00 / 03:00 allowed.'));
+});
+
 test('inspection and recovery are decisions, not a fabricated repair', () => {
   const data = report('recovery');
   data.decisions = [{ action: 'diagnose', time: 67, faultId: 'charging' }, { action: 'recovery', time: 68 }];
