@@ -1,0 +1,541 @@
+{
+  "formatVersion": 1,
+  "sourceRelease": 39,
+  "algorithm": "SHA-256",
+  "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
+  "fileCount": 102,
+  "totalBytes": 1867806,
+  "copiedRoots": [
+    "src/",
+    "tests/",
+    "public/"
+  ],
+  "copiedRootFiles": [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "index.html"
+  ],
+  "generatedHandoffFiles": [
+    "README.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+    ".gitignore",
+    ".nvmrc",
+    ".gitattributes",
+    "handoff-manifest.json",
+    ".github/CODEOWNERS"
+  ],
+  "files": [
+    {
+      "path": "index.html",
+      "bytes": 735,
+      "sha256": "e21f4ff8c6d70f1e1faaa6ad46e34953daef5d4338215f7b296f1f12882adc7c"
+    },
+    {
+      "path": "package.json",
+      "bytes": 539,
+      "sha256": "07c983053e5efb8fcfb3e0e2394cbb73f58381e6e261160e6f945b5c089980d8"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 43979,
+      "sha256": "acb2e2162d7da863d17064516faa48241d43a4048c1964c4cb5343faca47efd6"
+    },
+    {
+      "path": "public/art/stryker-start.jpg",
+      "bytes": 398122,
+      "sha256": "45f31394750784f96d41b5379b5e1a3c42f8f4b4c1cfdba0175d44a8fd3ef9ba"
+    },
+    {
+      "path": "public/audio/crew_ready.mp3",
+      "bytes": 44736,
+      "sha256": "3c299c8d2181882c93fe6efbbe16507323560762fcc4af4d33b25ae92fc63a49"
+    },
+    {
+      "path": "public/audio/debrief.mp3",
+      "bytes": 49536,
+      "sha256": "d5fde99a7efde05abedd085bd8c60bc8c002894f55caff3ad0339860f06994a3"
+    },
+    {
+      "path": "public/audio/feed.mp3",
+      "bytes": 45888,
+      "sha256": "b508b6a8ffe95a3c846233b326b65af33109a3e323ebdab773ebf8951a762e5d"
+    },
+    {
+      "path": "public/audio/halted.mp3",
+      "bytes": 26496,
+      "sha256": "dde6bf70f37800c53a5edf178b14ba1071c3dd6a649743eff2c2e7c5233be986"
+    },
+    {
+      "path": "public/audio/insight.mp3",
+      "bytes": 51648,
+      "sha256": "5aa20ce61dfca3028bf3bc8854b56348462e377dbffed58d140f3fabad8d70c8"
+    },
+    {
+      "path": "public/audio/manifold.mp3",
+      "bytes": 36288,
+      "sha256": "f3506a58328d090983908db499d2960ba972c0cf036351901107173ff258998b"
+    },
+    {
+      "path": "public/audio/moving.mp3",
+      "bytes": 26112,
+      "sha256": "b7dc735dea008e1043ff2e49b42274593432101b105450184e13b31fd0792d5b"
+    },
+    {
+      "path": "public/audio/net_check.mp3",
+      "bytes": 38400,
+      "sha256": "91206a1ced463d8d94752669da8f290a997fc9214e4bb4c5d709e9ef04c70060"
+    },
+    {
+      "path": "public/audio/net_copy.mp3",
+      "bytes": 29184,
+      "sha256": "514728bf1dfb7c63787e357884bff8bc1031e090d6638f216c4828279dc08907"
+    },
+    {
+      "path": "public/audio/net_interval.mp3",
+      "bytes": 38400,
+      "sha256": "4842d4a6abe57d20819279259d2cdc8b65fd531d34f91cd28ba529ed879230c8"
+    },
+    {
+      "path": "public/audio/net_rear.mp3",
+      "bytes": 31872,
+      "sha256": "7a4371cd0b0b2b63bf81120b3c5402c154339e5fe405439796126dde7e099299"
+    },
+    {
+      "path": "public/audio/secured.mp3",
+      "bytes": 45120,
+      "sha256": "1b6d6e3c4b60c95bc82278149d9211d35a47d90c17022e08023d038c9aa55549"
+    },
+    {
+      "path": "public/audio/service.mp3",
+      "bytes": 48384,
+      "sha256": "db8e3ab97ae74a15285513a328e138d411951348b41c4a63d1bdd441f0222b87"
+    },
+    {
+      "path": "public/audio/turbine.mp3",
+      "bytes": 36672,
+      "sha256": "2e815cd293d59eb11f5509223afa2b34873d4a685a61c7af41e52e482714aa56"
+    },
+    {
+      "path": "public/branding/shift5-logo.svg",
+      "bytes": 1902,
+      "sha256": "2a060c66829a567453ed8a8a6d9f1f76ee0fa7f2949b356be507daa8367c82c1"
+    },
+    {
+      "path": "public/favicon.svg",
+      "bytes": 2051,
+      "sha256": "ccbd1c5a1b69351dc60b35a6c70a0c229a87540f003c39ae48d2c675ba58a91e"
+    },
+    {
+      "path": "public/licenses/three.txt",
+      "bytes": 1081,
+      "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    {
+      "path": "src/audio.ts",
+      "bytes": 33364,
+      "sha256": "366dc6548fec7f5aea19b91573fd0694a9abf30b41a477b5fb818db10a8e62e8"
+    },
+    {
+      "path": "src/cabin-display.ts",
+      "bytes": 4458,
+      "sha256": "fc0a39e2400991f51a7d18625d6192d97e03646aaf083156bff86452c3df6f1f"
+    },
+    {
+      "path": "src/cabin-shell.ts",
+      "bytes": 1212,
+      "sha256": "d4300ef01ba852629ee9956320b465bd716ccccee867227af1bc83eb79e23c9e"
+    },
+    {
+      "path": "src/camera-motion.ts",
+      "bytes": 3413,
+      "sha256": "db39c9cdd10e2679901e85ef1d269bd91da8edd9f5eb6caec53992455ff8e2bc"
+    },
+    {
+      "path": "src/crew-camera.ts",
+      "bytes": 1054,
+      "sha256": "6b5c339da42f74b8c8ab009d658b79ee7b998e76d8582ce9a8c8dffc06a0a7ce"
+    },
+    {
+      "path": "src/damage-effects.ts",
+      "bytes": 6331,
+      "sha256": "a3f30e3c8494f0444b02ac0400bfdaa6f76092d06c716f12133a42ba7d710a58"
+    },
+    {
+      "path": "src/debrief-view.ts",
+      "bytes": 4961,
+      "sha256": "bfcfaed7a5dfc99c12ce326a04cd6280a4723978f72561330196375a900c2317"
+    },
+    {
+      "path": "src/driving-dynamics.ts",
+      "bytes": 3070,
+      "sha256": "c5f798f6901dcac43d42943566e750ebe21723bd138e72c28ba3999851e40689"
+    },
+    {
+      "path": "src/environment-appearance.ts",
+      "bytes": 21817,
+      "sha256": "c053319223f5aca75a79c85624e70d0bba210d32e77e4dbe9d43863dd6ba03b0"
+    },
+    {
+      "path": "src/exploration.ts",
+      "bytes": 2766,
+      "sha256": "5fb76000c7ff03cd55667edc1a09bf4a875357e723d98cb45c80180459922a4b"
+    },
+    {
+      "path": "src/fault-display.ts",
+      "bytes": 3158,
+      "sha256": "c1758f42d08f0ce975a995c9ffd36ead29f55bc172c3790a54459434e77dd0d1"
+    },
+    {
+      "path": "src/fire-effects.ts",
+      "bytes": 8459,
+      "sha256": "6a695f474a06b3ebf678eaa31acc760ed34718272a7bafdb2bfb99ec4aa7c3e2"
+    },
+    {
+      "path": "src/game-preferences.ts",
+      "bytes": 2153,
+      "sha256": "972a60dd832c19e444944041c2057061f20ad348bb311b3581ac9101e74ec43c"
+    },
+    {
+      "path": "src/guided-camera.ts",
+      "bytes": 1274,
+      "sha256": "9e023bd5613bb904fe21c8999b3c20985a6d86b41bef225a3e1a0c33f30ba2bb"
+    },
+    {
+      "path": "src/gunner-display.ts",
+      "bytes": 17213,
+      "sha256": "612aef7efb87eb2b2880e6e4edf4ee9173a7a12f9870b3ab27a06c1984ca6d71"
+    },
+    {
+      "path": "src/gun-truck.ts",
+      "bytes": 4327,
+      "sha256": "0b71d1f838d28987b7b3e62d4c92a4d9ec7f86539057967c9a8683d3a72ced5b"
+    },
+    {
+      "path": "src/health-score.ts",
+      "bytes": 2031,
+      "sha256": "aa41ef6de25e7022f438e3f0d031df14c85ee52b7559abd0cfa522c87ac7feab"
+    },
+    {
+      "path": "src/input.ts",
+      "bytes": 3689,
+      "sha256": "41f8a9ab36a0543b36424d11a1b2de53baae4d3a5f456930a9115c80879183c0"
+    },
+    {
+      "path": "src/inspection-model.ts",
+      "bytes": 3799,
+      "sha256": "f75cc95f8fa21d8798a7f5a53aaf7dd97eaabd6c5bb0f196620e7f53ba7a7c60"
+    },
+    {
+      "path": "src/instrument-screen.ts",
+      "bytes": 10683,
+      "sha256": "b7385580c7697c89674ae037020263363e3c28cdcf23960d95e8190cb81038ea"
+    },
+    {
+      "path": "src/main.ts",
+      "bytes": 111565,
+      "sha256": "d0fe71236f834f797e3f9128f56759420d18ea8d734e83b832c5dcc96f2ef8ed"
+    },
+    {
+      "path": "src/map-navigation.ts",
+      "bytes": 4486,
+      "sha256": "2a48befab5883af062c5f0a70e0b63224715cd8f58368e041c5122cdb7b576d2"
+    },
+    {
+      "path": "src/mission-contract.ts",
+      "bytes": 2361,
+      "sha256": "a16fee5c9d33f5087e1a61d9c054864fcff75ef79ebb8b4e2bc1322777b7337f"
+    },
+    {
+      "path": "src/mission-map.ts",
+      "bytes": 1927,
+      "sha256": "043c1adec313124feb4d275fac35bb425f8813cb35d7be981b48a53faed75b1a"
+    },
+    {
+      "path": "src/mounted-gun.ts",
+      "bytes": 4679,
+      "sha256": "7be03062692234825102fa9db573aa99090089b138614361c4ccb8809fe7438c"
+    },
+    {
+      "path": "src/music.ts",
+      "bytes": 5700,
+      "sha256": "11e97398a30de08142db68eaba9fea13478bcb932ec29d07e26812fbd2c394a0"
+    },
+    {
+      "path": "src/outcome-reveal.ts",
+      "bytes": 734,
+      "sha256": "fddf2da33c2b923b6652374104b1cf0cb7091c8fa1d2c9c2d799c00aa2039aed"
+    },
+    {
+      "path": "src/page-lifecycle.ts",
+      "bytes": 769,
+      "sha256": "84770d9c1df23bafaa787680b9e0e5e675514438903b115518115aafe9ea8d0d"
+    },
+    {
+      "path": "src/powertrain.ts",
+      "bytes": 2981,
+      "sha256": "8c7c3fd4825d4a59f128972d3201d6beeec9108297c8b3bffaa636fa32e66286"
+    },
+    {
+      "path": "src/radio-script.ts",
+      "bytes": 3411,
+      "sha256": "0a036a24a83e5d467a7f1b42181760bb2906b05fa393d6ca72a155d42913a926"
+    },
+    {
+      "path": "src/range.ts",
+      "bytes": 24820,
+      "sha256": "5263267597ce8fb09f31bc3b25a7a751f4ce6203d063c23779772c67a83e2e33"
+    },
+    {
+      "path": "src/scene.ts",
+      "bytes": 73511,
+      "sha256": "4ea2ad4795e2b270c1623a13827ac4b10ab71b5a4fe4e54b2aec5aef746812a4"
+    },
+    {
+      "path": "src/simulation.ts",
+      "bytes": 5508,
+      "sha256": "d1174f7b11cec9b7ed1bfcee5eb377f257c3289f0680fbe4892c5da475d02417"
+    },
+    {
+      "path": "src/style.css",
+      "bytes": 198405,
+      "sha256": "d703d3d8c16ce193dfd28abd7c64ca64ee0dfd36b14e056a20e39534f8a50752"
+    },
+    {
+      "path": "src/target-debris.ts",
+      "bytes": 5189,
+      "sha256": "b4e07e84594daea47f7381a57cd2eeddd5cac5fa7b33d263b5cb8382f8c3ee7d"
+    },
+    {
+      "path": "src/touch-stick.ts",
+      "bytes": 2332,
+      "sha256": "de36ae9106bf70153c4ddd018156733c9384d86e63e3d94764aa1695f3c00f84"
+    },
+    {
+      "path": "src/ui-focus.ts",
+      "bytes": 817,
+      "sha256": "9c06dc661832f5fccb79210b4824bc32fa7528061cd25ef0703c75cb64d12dcb"
+    },
+    {
+      "path": "src/vehicle-appearance.ts",
+      "bytes": 8234,
+      "sha256": "f4b76475eb4f40d2d066861fd5e04559f5105f3f629073459d709afe66dffe3a"
+    },
+    {
+      "path": "src/vehicle-health.ts",
+      "bytes": 7636,
+      "sha256": "7ac23044af0b38f9028c0f42f47a642900bde5fbff396e22585d60f4c9c757a2"
+    },
+    {
+      "path": "src/vehicle-inspector.ts",
+      "bytes": 9517,
+      "sha256": "121f760f422f1aaade0df15897a7a4366cef4099233e64b47dae4ec39bd4ae19"
+    },
+    {
+      "path": "src/world-config.ts",
+      "bytes": 4425,
+      "sha256": "de2890c636eb079e41359f61efcc626562e73e197a231c81f3d6593a31ad0bb7"
+    },
+    {
+      "path": "tests/aim-assist.test.ts",
+      "bytes": 7631,
+      "sha256": "70fcbb77154be334c25aa793d9ede6c02b7858ef5efa3cd17b8fe9e976832d9a"
+    },
+    {
+      "path": "tests/audio.test.ts",
+      "bytes": 53451,
+      "sha256": "cc01ac9e208905126ad1cf228efaaca5e0af7e8b57caf61c372b6e2bd5e48753"
+    },
+    {
+      "path": "tests/cabin-display.test.ts",
+      "bytes": 6350,
+      "sha256": "a09518d332e9f09addd1edeb878230f429e03c333ccad0a05c7072eaf3249aa4"
+    },
+    {
+      "path": "tests/cabin-shell.test.ts",
+      "bytes": 2337,
+      "sha256": "ece3aeada0d5751f331c4e0797fba864792738420ec3bcee57dd7d8890d4a377"
+    },
+    {
+      "path": "tests/camera-motion.test.ts",
+      "bytes": 3180,
+      "sha256": "f495c5856f67afa253f8ff5b85a7afed4b8e6066ed54f242e58752b2a3760356"
+    },
+    {
+      "path": "tests/campaign.test.ts",
+      "bytes": 13536,
+      "sha256": "ea2df3bc0c9624a3572f8257eef511c4fbda3cdac0a160f46d8bdcdbb95f9075"
+    },
+    {
+      "path": "tests/campaign-route.test.ts",
+      "bytes": 8395,
+      "sha256": "cd4c3be167636feec755e2e4deadab6ac53e65e16a4eb314a6ae4a6996cc3f3a"
+    },
+    {
+      "path": "tests/crew-camera.test.ts",
+      "bytes": 2355,
+      "sha256": "50863322eb1b54a809c2c8b0ea0cd298ea4d12b5bdc168a20ddd5079414e9255"
+    },
+    {
+      "path": "tests/damage-effects.test.ts",
+      "bytes": 5438,
+      "sha256": "cc5875ace1a94846e21aff712503d2bea7303c970ac7632ecf72f145e644cef8"
+    },
+    {
+      "path": "tests/debrief-view.test.ts",
+      "bytes": 3332,
+      "sha256": "27eb7cad6ea3dad57e6a9d86575f7391d2b8f8e609444ee7bed53c0ba03917c8"
+    },
+    {
+      "path": "tests/driving-dynamics.test.ts",
+      "bytes": 3752,
+      "sha256": "ae04290b0a4763959acab27f1b2e35e6fec3b3b6efac8c17e6ea47d8897dccdd"
+    },
+    {
+      "path": "tests/environment-appearance.test.ts",
+      "bytes": 9008,
+      "sha256": "9f08ee2d1b796444b9933729a23df7a542ede026371ac525e4e761914b1f2509"
+    },
+    {
+      "path": "tests/exploration.test.ts",
+      "bytes": 6263,
+      "sha256": "a8e986cc6a8561ac943ef1da180f74124ef940d18b8ea64f3fe33edadd8e0c37"
+    },
+    {
+      "path": "tests/exploration-route.test.ts",
+      "bytes": 2236,
+      "sha256": "17a22a274bf642a5c2a2351b5108179c0fe79f31a67acd5c73228baa82d84d88"
+    },
+    {
+      "path": "tests/fault-display.test.ts",
+      "bytes": 2184,
+      "sha256": "3a17ca8da92868fc5f7094a6d8da0e1409b29b338d0452c126d707f03f306908"
+    },
+    {
+      "path": "tests/fire-effects.test.ts",
+      "bytes": 5439,
+      "sha256": "2bb5bad3e358fcc814d8cb1771df51d4b96c605e204b7c7bb770ed57c816a327"
+    },
+    {
+      "path": "tests/game-preferences.test.ts",
+      "bytes": 2816,
+      "sha256": "ca1795c0be6b16128335870864f8cda1992e774d5326fce785c35b0f3f627f9e"
+    },
+    {
+      "path": "tests/guided-camera.test.ts",
+      "bytes": 2611,
+      "sha256": "1a9a57c7e2c8297d518cbccef7369dddd3b14a9bc6a0870bd42d142e0a042f24"
+    },
+    {
+      "path": "tests/gunner-display.test.ts",
+      "bytes": 21881,
+      "sha256": "48d639e86fe0a8bac8f4c74d6cc7692c76e10ee627f4958e669e1b5401bc65b5"
+    },
+    {
+      "path": "tests/gun-truck.test.ts",
+      "bytes": 2037,
+      "sha256": "4c3e81b7f0e8fa095a422d9c823647aaa18dfe4288603e234f766298e55b3acd"
+    },
+    {
+      "path": "tests/health-score.test.ts",
+      "bytes": 3185,
+      "sha256": "3e1f250f3394ef59cf2fdb3329a47a5dab1e201f4dc3e6929de335eae10f8552"
+    },
+    {
+      "path": "tests/input.test.ts",
+      "bytes": 7777,
+      "sha256": "600bb3f7e684ef7926cdcd4d2be0dab1560bd2243cb4e1bfeee1ae6b69446cda"
+    },
+    {
+      "path": "tests/inspection-model.test.ts",
+      "bytes": 3333,
+      "sha256": "06b138be333727d3dc7ab8be3ebe8f6f69110dd95674a405f0d57d42f2f69210"
+    },
+    {
+      "path": "tests/instrument-screen.test.ts",
+      "bytes": 7226,
+      "sha256": "2aac872337c748e2744ab84d132f4b9c73b8a5fa42981a7df4fb30a5c9a484a0"
+    },
+    {
+      "path": "tests/map-inspection.test.ts",
+      "bytes": 1722,
+      "sha256": "c75a92054ad214c931abce5aa9a7737a800423e25c1187a1d49b5135910b6b99"
+    },
+    {
+      "path": "tests/map-navigation.test.ts",
+      "bytes": 2899,
+      "sha256": "2a132869feeee96ffe32cdff4d6ce7451388db06f1565f4defbc2e7f44bf1595"
+    },
+    {
+      "path": "tests/mission-map.test.ts",
+      "bytes": 2919,
+      "sha256": "a5b2ae95260b770c48a7cf492eb3be14437ab5e8a33934bdab80716ff00ce7bf"
+    },
+    {
+      "path": "tests/mounted-gun.test.ts",
+      "bytes": 2255,
+      "sha256": "c191f0b0977dd85c85bfc7045462efd4413c3a506518b698bbc26a373244de1b"
+    },
+    {
+      "path": "tests/music.test.ts",
+      "bytes": 6128,
+      "sha256": "bd06c96bb2647f765dbc31970a4fd26aebb72831a72a2cba8d03164b4a498faa"
+    },
+    {
+      "path": "tests/outcome-reveal.test.ts",
+      "bytes": 1709,
+      "sha256": "6d3ac55f49ac9a5c06a0f7309532cacfe582539c8917fa22a24de946f7198c94"
+    },
+    {
+      "path": "tests/page-lifecycle.test.ts",
+      "bytes": 1489,
+      "sha256": "2a463b161ea0763ff625de65225c61b8b89547b50db9b906fa2b37513f4d2008"
+    },
+    {
+      "path": "tests/powertrain.test.ts",
+      "bytes": 2524,
+      "sha256": "4fd7041464531d29246ab0f4833ac108e8f552f2232c30e118c9cff9e7e17c37"
+    },
+    {
+      "path": "tests/range.test.ts",
+      "bytes": 16019,
+      "sha256": "1839ec0568cc618a051c00b6ceba44359e25e142b4dab3a2cac633f060211793"
+    },
+    {
+      "path": "tests/simulation.test.ts",
+      "bytes": 7276,
+      "sha256": "ca635323e47087272a0b31e4e2a5d65abc6c73e5d503826bd5a40e228988a645"
+    },
+    {
+      "path": "tests/target-debris.test.ts",
+      "bytes": 4141,
+      "sha256": "e060132d5c4945104bd0c583bf17b06845fec4e573b41f26bfcbf997f6307a35"
+    },
+    {
+      "path": "tests/touch-stick.test.ts",
+      "bytes": 5782,
+      "sha256": "ba830036b76f9226c2deec1c54112307dbaec27728d00a781382073bd9ca8f8b"
+    },
+    {
+      "path": "tests/ui-focus.test.ts",
+      "bytes": 1725,
+      "sha256": "3ce455b08151d9aee1e07018f469f10a9d97a775c6c9a765692addfe9fe7baf0"
+    },
+    {
+      "path": "tests/vehicle-appearance.test.ts",
+      "bytes": 5080,
+      "sha256": "a841d20af20d6e69c7a41156506a47e855eb18dca877f735cd5c4e5f72c73f7e"
+    },
+    {
+      "path": "tests/vehicle-health.test.ts",
+      "bytes": 4650,
+      "sha256": "bf86534bde844e0154c4e59b489a92038afd651d48fbc3e568f240a529b691b9"
+    },
+    {
+      "path": "tsconfig.json",
+      "bytes": 351,
+      "sha256": "11b3608cad5681fb1e4ef5b03ee552f5039fb6d0d8b910b12e75c18f2c25676c"
+    }
+  ]
+}

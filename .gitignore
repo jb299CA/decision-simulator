@@ -1,0 +1,43 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Local configuration and hosting state
+.env*
+!.env.example
+.openai/
+.wrangler/
+wrangler.*
+.vercel/
+.netlify/
+
+# Private, planning, QA and raw-source material
+qa/
+references/
+raw/
+raw-artwork/
+artwork/
+private/
+**/private/
+.private/
+.beads/
+AGENTS.md
+planning-tracker.json
+Decision_Simulator_DRAFT_*.md
+
+# Logs, caches and editor/OS state
+*.log
+logs/
+.cache/
+tmp/
+temp/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.bak

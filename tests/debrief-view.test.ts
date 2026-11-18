@@ -1,0 +1,53 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { exerciseTime, missionDebriefMarkup } from '../src/debrief-view.ts';
+import type { MissionDebrief } from '../src/mission-contract.ts';
+
+function report(outcome: MissionDebrief['outcome']): MissionDebrief {
+  return { outcome, endedAt: 135, distanceTravelled: 808, contactsCleared: 2, contactsTotal: 4, summary: 'Crew outcome <script>alert(1)</script>', vehicleStatus: 'major-repair', findings: [{ id: 'charging', label: 'Charging output', severity: 'severe', maintenance: 'major', consequence: 'Electrical damage <not markup>', repair: 'Replace damaged charging components.', firstWarningAt: 65, severeAt: 95, diagnosed: false }], decisions: [{ action: 'continue', time: 70, faultId: 'charging' }, { action: 'reduce-pace', time: 110 }] };
+}
+
+test('all terminal outcomes render their frozen run result', () => {
+  const titles = { complete: 'Dismount point reached.', failed: 'Vehicle lost to contact damage.', recovery: 'Recovery requested.', breakdown: 'Vehicle breakdown.' };
+  for (const outcome of ['complete', 'failed', 'recovery', 'breakdown'] as const) {
+    const data = report(outcome);
+    const before = JSON.stringify(data);
+    const html = missionDebriefMarkup(data);
+    assert.ok(html.includes(titles[outcome]));
+    assert.ok(html.includes('02:15')); assert.ok(html.includes('808')); assert.ok(html.includes('2 / 4'));
+    assert.equal(JSON.stringify(data), before);
+    assert.equal(html.includes('The mission was completed, but'), outcome === 'complete');
+  }
+});
+
+test('debrief escapes state text, preserves repair findings and orders warnings with decisions', () => {
+  const html = missionDebriefMarkup(report('breakdown'));
+  assert.ok(!html.includes('<script>')); assert.ok(html.includes('&lt;script&gt;'));
+  assert.ok(html.includes('Replace damaged charging components.'));
+  assert.ok(html.indexOf('<time>01:05') < html.indexOf('<time>01:10'));
+  assert.ok(html.indexOf('<time>01:10') < html.indexOf('<time>01:35'));
+  assert.ok(html.includes('no repair performed') === false);
+  assert.ok(!html.includes('$')); assert.ok(!html.includes('hours'));
+});
+
+test('inspection and recovery are decisions, not a fabricated repair', () => {
+  const data = report('recovery');
+  data.decisions = [{ action: 'diagnose', time: 67, faultId: 'charging' }, { action: 'recovery', time: 68 }];
+  const html = missionDebriefMarkup(data);
+  assert.ok(html.includes('Inspected fault; no repair performed'));
+  assert.ok(html.includes('Called in-game recovery; vehicle stopped'));
+  assert.ok(html.includes('No real diagnosis, repair estimate or outbound recovery message'));
+  assert.equal(exerciseTime(0), '00:00'); assert.equal(exerciseTime(-10), '00:00');
+});
+
+test('optional stops render only actual frozen visited labels and escape their text', () => {
+  const data = report('complete');
+  assert.ok(!missionDebriefMarkup(data).includes('OPTIONAL STOPS VISITED'));
+  data.optionalVisitedLabels = ['West overlook', 'Relay <unsafe>'];
+  const before = JSON.stringify(data);
+  const html = missionDebriefMarkup(data);
+  assert.ok(html.includes('OPTIONAL STOPS VISITED'));
+  assert.ok(html.includes('West overlook &middot; Relay &lt;unsafe&gt;'));
+  assert.ok(!html.includes('Relay <unsafe>'));
+  assert.equal(JSON.stringify(data), before);
+});
