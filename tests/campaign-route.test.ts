@@ -21,6 +21,7 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
   }
   let waypoint = 1;
   for (let step = 0; step < 24000 && !range.missionEnded; step++) {
+    if (range.dismounting) { range.tick(dt, { throttle: 0, steer: 0, aim: 0, fire: false }); continue; }
     const exposure = range.health.faults[0]!.exposure;
     if (!range.health.paceLimited && (response === 'early' && exposure >= 6 || response === 'late' && exposure >= 65)) {
       range.paused = true;
@@ -48,6 +49,7 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
     const headingError = wrap(Math.atan2(-dx, -dz) - range.heading);
     const inObjective = waypoint === MISSION_ROUTE.length - 1 && Math.hypot(dx, dz) < range.mission.objective.radius * .6;
     range.tick(dt, { throttle: inObjective ? 0 : Math.abs(headingError) > .6 ? .4 : .9, steer: clamp(headingError * 2), aim: 0, fire: false, brake: inObjective });
+    if (inObjective && range.dropRampAvailability.available) assert.equal(range.dropRamp(), true);
   }
   return range;
 }
@@ -58,6 +60,8 @@ test('shorter gun truck encounters allow ignored faults to deliver with major un
   // before overheating immobilizes it. Persistent health damage must still be reported.
   assert.equal(range.mission.status, 'complete', `ended ${range.mission.status} at ${range.time.toFixed(1)}s with exposure ${range.health.faults[0]!.exposure}`);
   assert.equal(range.debrief?.outcome, 'complete'); assert.equal(range.debrief?.vehicleStatus, 'major-repair');
+  assert.equal(range.movementClock.status, 'arrived'); assert.ok(range.movementClock.remainingSeconds > 0);
+  assert.equal(range.debrief?.movementClock, range.movementClock);
   assert.equal(range.health.continued, false); assert.equal(range.health.paceLimited, false);
   assert.equal(range.health.breakdownCause, null); assert.equal(range.mission.remainingContacts, 0);
   assert.deepEqual(range.debrief?.decisions, []);
@@ -81,6 +85,7 @@ test('additional practice then ignored warnings cause a cooling breakdown before
   assert.equal(range.health.phase, 'broken'); assert.equal(range.health.breakdownCause, 'cooling');
   assert.equal(range.health.paceLimited, false); assert.deepEqual(range.health.decisions, []);
   assert.equal(range.debrief?.outcome, 'breakdown'); assert.equal(range.debrief?.vehicleStatus, 'immobilized');
+  assert.equal(range.movementClock.status, 'running'); assert.ok(range.movementClock.remainingSeconds > 0);
   const cooling = range.debrief?.findings.find(finding => finding.id === 'cooling');
   assert.equal(cooling?.maintenance, 'major');
   assert.ok(cooling && cooling.firstWarningAt !== null && cooling.severeAt !== null);
@@ -97,6 +102,7 @@ test('early reduced pace can clear all encounters and deliver with only minor in
   assert.ok(range.mission.contacts.every(c => c.neutralized && c.health === 0));
   assert.ok(range.targets.filter(t => t.kind === 'training' && t.destroyedBy === 'vehicle').length >= 2);
   assert.equal(range.debrief?.vehicleStatus, 'requires-inspection');
+  assert.equal(range.movementClock.status, 'arrived'); assert.ok(range.movementClock.remainingSeconds > 0);
   assert.ok(range.debrief?.findings.every(finding => finding.maintenance === 'inspection' || finding.maintenance === 'none'));
   assert.equal(range.debrief?.contactsCleared, range.mission.contacts.length);
   assert.equal(range.debrief?.distanceTravelled, range.distanceTravelled);
@@ -108,6 +114,7 @@ test('late mitigation can finish the full route while leaving major repairs in t
   const range = driveMission('late');
   assert.equal(range.mission.status, 'complete', `ended ${range.mission.status} at ${JSON.stringify(range.position)} after ${range.time.toFixed(1)}s`);
   assert.equal(range.debrief?.vehicleStatus, 'major-repair');
+  assert.equal(range.movementClock.status, 'arrived'); assert.ok(range.movementClock.remainingSeconds > 0);
   assert.equal(range.debrief?.findings.find(finding => finding.id === 'charging')?.maintenance, 'major');
   assert.equal(range.debrief?.findings.find(finding => finding.id === 'wheel-end')?.maintenance, 'major');
   assert.equal(range.health.breakdownCause, null); assert.equal(range.mission.remainingContacts, 0);

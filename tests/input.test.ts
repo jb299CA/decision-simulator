@@ -24,6 +24,31 @@ test('text editing, select menus and browser modifier shortcuts retain keyboard 
   for (const modifiers of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }]) assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, modifiers), false);
 });
 
+test('ramp command recognizes physical and virtual R while respecting game focus gates', () => {
+  for (const event of [{ code: 'KeyR', key: 'r' }, { key: 'r' }, { code: 'Unidentified', key: 'R' }]) {
+    assert.equal(gameKeyCode(event), 'KeyR');
+  }
+  assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, {}), true);
+  assert.equal(permitsGameKeys({ tagName: 'INPUT', type: 'text' }, {}), false);
+  assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, {}, true), false);
+  assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, { ctrlKey: true }), false);
+});
+
+test('committed ramp unload cannot reuse held drive or a queued fire tap', () => {
+  const input = new RangeKeyboard();
+  const range = new DrivingRange();
+  input.down('KeyW'); input.down('KeyF'); input.up('KeyF');
+  assert.equal(range.dropRamp(), true, 'outside-zone command commits the unload');
+  input.clear();
+  const shots = range.shotsFired;
+  const position = { ...range.position };
+  range.tick(.1, drivingInput(input, new Set()));
+  assert.deepEqual(range.position, position);
+  assert.equal(range.shotsFired, shots);
+  assert.equal(range.dismounting, true);
+  assert.equal(range.debrief, null, 'debrief must wait for the squad animation');
+});
+
 test('a quick fire tap survives release until one tick and a hold remains continuous', () => {
   const input = new RangeKeyboard(); input.down('KeyF'); input.up('KeyF');
   assert.equal(input.consumeFire(), true); assert.equal(input.consumeFire(), false);

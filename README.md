@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 39 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 46 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -44,6 +44,7 @@ The renderer and audio follow simulation state. Inspection and map dialogs pause
 | Accelerate | Hold Space or W; release to coast | Hold ACCEL or push stick forward |
 | Aim | Automatic lock; Q / E temporarily overrides | Automatic lock; aim slider overrides |
 | Fire | Hold F | Hold FIRE |
+| Unload squad | R | Drop ramp beside the cameras |
 | Camera | 1 Hatch, 2 Inside, 3 Chase, 4 Top | Four camera buttons |
 | Pause / resume | P | Pause / Resume |
 | Mute | M | Sound control |
@@ -52,9 +53,17 @@ The renderer and audio follow simulation state. Inspection and map dialogs pause
 
 Inside offers Day, illustrative Thermal and MFoCS display modes, plus Focus display / Back to seat. Mission instructions and secondary settings start collapsed; phone settings include the independent Music switch. The guided exercise uses its displayed phase actions and retains Space-to-pause. Space activates a keyboard-focused button when appropriate. Release, cancellation, focus loss, pause and dialogs clear held movement.
 
+To complete delivery, clear the contacts, stop inside the marked dismount zone and select Drop ramp. The hinged rear ramp lowers and nine soldiers exit in sequence. Dropping the ramp anywhere outside the zone commits mission failure, then shows the squad exiting before the debrief. Accepted commands switch to Chase; driving and firing stop during unloading. Pause freezes the sequence, restart clears it, and reduced motion removes limb cycling. The squad and ramp use pooled procedural geometry. Recorded maintenance outcomes remain intact.
+
+## Radio net
+
+Each run selects a company/platoon identity: Aztec, Brave or Crazy Horse with 1-6, 2-6 or 3-6. The opening order is the matching company-to-platoon test-fire and LD clearance; later traffic follows Tomahawk 3 to company6, then matching platoon. Each prerecorded exchange includes its acknowledgment. Later background pairs vary without changing the player's displayed or debrief callsign.
+
+Original dialogue follows the call order, digit pronunciation and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 38 compact MP3s, using locally generated original voices. Strong male voices are the default, with female commander alternatives selected for20% of net transmissions. Tomahawk is spoken as Three. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
+
 ## Validation and limitations
 
-This handoff was validated on November 18, 2026 with a fresh `npm ci`, **233 passing tests**, TypeScript checks and a production build. The install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the handoff; a separate private-path/identifier scan also passed. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. Release 46 passed **314 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 
@@ -64,7 +73,18 @@ Geometry and audio approximate an illustrative scenario; they do not validate re
 
 ## Repository access
 
-This repository is private and owned by [jb299CA](https://github.com/jb299CA/decision-simulator). It was transferred from Cloud-Nook-Studio on November 18, 2026, retaining its branches, commits and [draft pull request #1](https://github.com/jb299CA/decision-simulator/pull/1). Only jb299CA has access, as Admin; there are no pending collaborator invitations. Personal private-repository collaborators receive Write access, with no read-only collaborator role. The owner must select and authorize contributors before inviting them.
+This repository is private and owned by [jb299CA](https://github.com/jb299CA/decision-simulator). It was transferred from Cloud-Nook-Studio on November 18, 2026, retaining its branches, commits and [pull request #1](https://github.com/jb299CA/decision-simulator/pull/1). Only jb299CA has access, as Admin; there are no pending collaborator invitations. Personal private-repository collaborators receive Write access, with no read-only collaborator role. The owner must select and authorize contributors before inviting them.
 
 `.github/CODEOWNERS` provides advisory review routing; it does not enforce approvals. GitHub Actions execution is disabled, workflow-token defaults are read-only and Dependabot alerts are enabled. Private forking is enabled; GitHub rejected a request to disable it because that setting is configurable only for organization-owned private repositories. There are no deployment workflows or production credentials. Enforced private-repository branch protection is unavailable on the current plan; GitHub requires an upgrade to Pro for this personal private repository. See [GitHub protected branch availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
 
+## Release 40 audio and firing feedback
+
+Supported browsers request an AudioSession playback category before explicit activation. Enable / retry sound in Menu or Home instructions can refresh stale output routing; it preserves a pre-existing pause. Unsupported or throwing API implementations keep ordinary Web Audio behavior. No microphone access or silent media loop is used. Actual iPhone Chrome output still needs device verification.
+
+Gun reports are about 4.3 dB louder at normal cadence, with priority ducking, a bounded overlap budget and immediate buffered onset. Inside now receives brief physical-display firing recoil, including Focus display; reduced motion disables it and Chase/Top remain steady.
+
+Release44 adds a180-second movement clock from first LD crossing. A cleared, stopped arrival settles the clock; Drop ramp remains explicit. Timeout has its own debrief reason and preserves maintenance findings. Radio-only static follows speech lifecycle. Public demo: https://decision-simulator.jon-d-bate.chatgpt.site .
+
+Release45 hides the desktop driving panel by default behind Controls. Keyboard driving stays available; phones keep thumbstick/ACCEL/FIRE and collapse extra manual aim. The rear bumper carries the assigned company and platoon number, beneath the opening ramp. Inspection snapshots retain their original marking through immutable bounded texture caching. Browser visual review was blocked because Computer Use could not verify the browser URL.
+
+Release46 restores a subtle phone-audible score with sparse midrange melody and soft percussion. Music on/off is visible in the header and respects master mute. Auto-away pauses expose visible Resume and accept a fresh scene tap or movement key; manual/dialog/terminal pause ownership is preserved. Held input is cleared, and delayed AudioContext suspension cannot override newer Play. Regression tests cover these state and audio races; live browser/device verification remains unavailable.

@@ -333,6 +333,11 @@ body[data-mode="range"] .caption{font-size:11px;max-width:1000px}
 .range-weapon.firing{background:#ff5841;color:#171b23;border-color:#fff}
 .range-weapon.firing>span:not(.weapon-dot){color:#171b23}
 .range-controls{position:absolute;bottom:30px;left:0;right:0;border:1px solid #ffffff40;border-radius:7px;padding:12px 16px;background:#171b23e8;backdrop-filter:blur(12px)}
+.range-controls-tray{position:absolute;z-index:10;bottom:30px;left:0;right:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none}
+.range-controls-tray>.range-controls{position:static;width:100%;pointer-events:auto}
+.range-controls-toggle{min-width:88px;min-height:44px;padding:10px 14px;border:1px solid #ffffff75;border-radius:6px;background:#14232ce6;color:#fff;font-size:12px;font-weight:600;pointer-events:auto;touch-action:manipulation}
+.range-controls-toggle:focus-visible{outline:2px solid #ffad66;outline-offset:3px}
+.range-controls[hidden],.weapon-controls input[hidden]{display:none!important}
 .range-key-guide{display:flex;justify-content:space-between;gap:14px;font-size:10px;color:#bfc8d7;padding-bottom:11px}
 .range-key-guide b{font-size:9px;color:#fff;font-weight:600;letter-spacing:.4px}
 .range-control-row{display:flex;align-items:center;justify-content:space-between;gap:28px}
@@ -583,6 +588,8 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
 .masthead .menu-control .control-icon { font-size: 18px; line-height: 18px; }
 .masthead .menu-control .control-name { position: static; display: block; width: auto; height: auto; padding: 0; margin: 0; overflow: visible; clip: auto; white-space: nowrap; font-size: 9px; line-height: 11px; }
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  body[data-mode="range"] .range-controls-tray{display:contents}
+  body[data-mode="range"] .range-controls-toggle{position:fixed;z-index:11;left:var(--range-edge-left);bottom:calc(var(--range-controls-bottom) + 144px);min-width:88px;min-height:44px;padding:9px 12px;font-size:11px}
   body[data-mode="range"] {
     --range-edge-left: max(8px, env(safe-area-inset-left));
     --range-edge-right: max(8px, env(safe-area-inset-right));
@@ -660,7 +667,7 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
   body[data-mode="range"] .range-health-notice { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   body[data-mode="range"] .range-controls {
     position: fixed; z-index: 10; left: var(--range-edge-left); right: var(--range-edge-right);
-    bottom: var(--range-controls-bottom); height: 140px; padding: 0; border: 0;
+    bottom: var(--range-controls-bottom); width:auto; height: 140px; padding: 0; border: 0;
     background: transparent; backdrop-filter: none; pointer-events: none;
   }
   body[data-mode="range"] .range-control-row { display: flex; width: 100%; height: 100%; align-items: flex-end; justify-content: space-between; gap: 10px; }
@@ -741,6 +748,7 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
   body[data-mode="range"] .mission-map { top: calc(env(safe-area-inset-top) + 54px); width: 80px; }
   body[data-mode="range"] .mission-map .map-content svg { height: 60px; }
   body[data-mode="range"] .range-controls { height: 116px; }
+  body[data-mode="range"] .range-controls-toggle { bottom:calc(var(--range-controls-bottom) + 120px); }
   body[data-mode="range"] .touch-stick { width: 112px; height: 112px; flex-basis: 112px; }
   body[data-mode="range"] .stick-hint { top: 50px; }
   body[data-mode="range"] .stick-forward { top: 6px; }
@@ -871,9 +879,24 @@ body[data-mode="range"] .range-health:focus-visible { outline: 3px solid #fff; o
   body[data-mode="range"] .weapon-controls label > .aim-lock-status { font-size: 9px; letter-spacing: .25px; }
 }
 
-/* Range phones keep the independent music switch in Mission & settings. */
+/* Five compact 44px controls keep Music, Sound, Pause, Home and Menu available
+   in a 320px driving header without covering the environment. */
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
-  body[data-mode="range"] .masthead .music-control { display: none; }
+  body[data-mode="range"] .masthead :is(.music-control, [data-action="pause"]) { display: flex; flex-direction: column; gap: 1px; }
+  body[data-mode="range"] .masthead :is(.music-control, [data-action="pause"]) .control-name {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible;
+    clip: auto; font-size: 8px; line-height: 10px;
+  }
+  body[data-mode="range"] .range-mobile-status { max-width: calc(100% - 240px); }
+  body:not([data-mode="home"]) .masthead [data-action="pause"] { display: flex; flex-direction: column; gap: 1px; }
+  body:not([data-mode="home"]) .masthead [data-action="pause"] .control-name {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible;
+    clip: auto; font-size: 8px; line-height: 10px;
+  }
+}
+body[data-away-paused="true"] .masthead [data-action="pause"] {
+  border-color: #ffd166; color: #fff4ce; background: #5b4219f5;
+  box-shadow: 0 0 0 1px #ffd16670;
 }
 @media (max-width: 400px) {
   /* The brand already returns home; keep room for the separate music switch. */
@@ -1036,46 +1059,49 @@ body[data-mode="home"] .home-actions {
   display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px;
 }
 body[data-mode="home"] .home-actions > button {
-  min-height: 52px; min-width: 190px; padding: 10px 12px 10px 20px;
-  border-radius: 8px; gap: 20px; font-size: 14px; font-weight: 600;
-  letter-spacing: .15px; line-height: 1.25; text-shadow: none;
+  min-height: 52px; min-width: 190px; padding: 10px 18px;
+  border-width: 1px; border-style: solid; border-radius: 7px;
+  gap: 18px; font-size: 14px; font-weight: 600;
+  letter-spacing: .1px; line-height: 1.25; text-shadow: none;
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 body[data-mode="home"] .home-actions > button > span {
-  display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px;
-  border: 1px solid #11182024; border-radius: 5px; background: #1118200d;
-  font-size: 18px; line-height: 1; box-shadow: inset 0 1px 0 #ffffff26;
+  display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 22px;
+  padding-left: 10px; border: 0; border-left: 1px solid #11182033;
+  border-radius: 0; background: transparent; box-shadow: none;
+  font-size: 18px; line-height: 1;
 }
 body[data-mode="home"] .home-actions .primary-button {
-  background: linear-gradient(180deg, #ff8667 0%, #ff6548 48%, #f2553b 100%);
-  border-color: #ff9479; color: #111820;
-  box-shadow: inset 0 1px 0 #ffffff59, inset 0 -1px 0 #a92d222e, 0 4px 12px #00000038;
+  background: linear-gradient(180deg, #ff805f 0%, #ff7353 100%);
+  border-color: #ff967d; color: #111820;
+  box-shadow: inset 0 1px 0 #ffffff26, 0 3px 8px #00000033;
 }
 body[data-mode="home"] .home-actions .secondary-button {
-  background: linear-gradient(180deg, #1d2932e6 0%, #101a23e6 100%);
-  border-color: #a7b4bf80; color: #fff;
-  box-shadow: inset 0 1px 0 #ffffff1f, 0 4px 12px #00000033;
+  background: linear-gradient(180deg, #1a2732 0%, #14202a 100%);
+  border-color: #71818e; color: #fff;
+  box-shadow: inset 0 1px 0 #ffffff14, 0 3px 8px #00000033;
 }
 body[data-mode="home"] .home-actions .secondary-button > span {
-  border-color: #ffffff26; background: #ffffff08; box-shadow: inset 0 1px 0 #ffffff0d;
+  border-left-color: #ffffff40;
 }
 @media (hover: hover) {
   body[data-mode="home"] .home-actions > button:hover:not(:disabled) {
     filter: none; transform: translateY(-1px); border-color: #ffd2c4;
-    box-shadow: inset 0 1px 0 #ffffff59, 0 6px 16px #0000004d;
+    box-shadow: inset 0 1px 0 #ffffff26, 0 4px 10px #00000040;
   }
-  body[data-mode="home"] .home-actions .secondary-button:hover:not(:disabled) { border-color: #d8e2e9; }
+  body[data-mode="home"] .home-actions .secondary-button:hover:not(:disabled) { border-color: #aebcc7; }
 }
 body[data-mode="home"] .home-actions > button:focus-visible {
   outline: 2px solid #fff; outline-offset: 4px;
 }
 body[data-mode="home"] .home-actions > button:active:not(:disabled) {
   filter: none; transform: translateY(1px);
-  box-shadow: inset 0 2px 4px #00000026, 0 1px 3px #00000033;
+  box-shadow: inset 0 1px 2px #0000001a, 0 1px 3px #00000026;
 }
 body.reduced-motion[data-mode="home"] .home-actions > button { transition: none; }
 body.reduced-motion[data-mode="home"] .home-actions > button:is(:hover, :active) { transform: none; }
 @media (prefers-reduced-motion: reduce) {
+  body[data-mode="home"] .home-actions > button { transition: none; }
   body[data-mode="home"] .home-actions > button:is(:hover, :active) { transform: none; }
 }
 body[data-mode="home"] .home-secondary {
@@ -1679,3 +1705,26 @@ body[data-mode="range"].range-drawer-open .range-edge-controls > .pause-banner {
   body[data-mode="range"] .range-edge-controls .pause-banner { align-self: flex-end; width: 92px; }
 }
 
+
+.sound-help button { min-height: 44px; padding: 8px 12px; margin-top: 8px; color: #fff; background: #282e38; border: 1px solid #ff7047; border-radius: 4px; font: inherit; }
+.sound-help { line-height: 1.6; }
+
+/* Keep the explicit unload command beside the cameras, clear of the sight. */
+body[data-mode="range"] .ramp-command { display: flex; flex-direction: column; gap: 3px; pointer-events: auto; }
+.movement-clock { display: flex; justify-content: space-between; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #72818b80; border-radius: 4px; background: #14232cee; color: #f7fafc; }
+.movement-clock > span { font-size: 8px; letter-spacing: .3px; }
+.movement-clock > strong { font: 600 15px/1.2 "Consolas", monospace; font-variant-numeric: tabular-nums; }
+.movement-clock[data-urgent="true"] { color: #fff; border-color: #ff8065; background: #6f2d22ee; }
+.movement-clock-record { font-size: 13px; line-height: 1.5; color: #d7e4e9; padding: 10px 12px; border-left: 2px solid #ff8065; background: #1c2c35; }
+body[data-mode="range"] .ramp-command > button {
+  min-width: 44px; min-height: 44px; padding: 7px 5px; border: 1px solid #ff9a61;
+  border-radius: 6px; color: #fff; background: #293139ee; font-size: 12px; font-weight: 600;
+}
+body[data-mode="range"] .ramp-command > button small { font-size: 9px; margin-left: 5px; color: #ffd0b6; }
+body[data-mode="range"] .ramp-command > button:disabled { opacity: .6; }
+body[data-mode="range"] #ramp-command-status { padding: 3px 5px; border-radius: 4px; background: #14232ce6; color: #ffcfb5; font-size: 10px; line-height: 1.35; }
+body[data-mode="range"].range-drawer-open .ramp-command { visibility: hidden; }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  body[data-mode="range"] .ramp-command > button { font-size: 11px; }
+  body[data-mode="range"] #ramp-command-status { font-size: 9px; }
+}

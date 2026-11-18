@@ -3,7 +3,9 @@ import { ArcadePowertrain, type PowertrainState } from './powertrain.ts';
 import { VehicleHealth } from './vehicle-health.ts';
 import { Exploration, type ExplorationState, type NavigationTarget } from './exploration.ts';
 import { DrivingDynamics, DRIVE_LIMITS_MPH, mphToMps, mpsToMph } from './driving-dynamics.ts';
-import type { FaultId, HealthDecision, MissionDebrief, VehicleHealthState } from './mission-contract.ts';
+import { DISMOUNT, stowedDismount } from './dismount.ts';
+import { MissionMovementClock, type MovementClockSnapshot } from './mission-clock.ts';
+import type { FaultId, HealthDecision, MissionDebrief, MissionFailureReason, VehicleHealthState } from './mission-contract.ts';
 import { WORLD_BOUNDS, MISSION_START, DEPARTURE_Z, DISMOUNT_POINT, MISSION_ROUTE, PRACTICE_TARGETS, ENEMY_CONTACTS, roadDistanceAt } from './world-config.ts';
 
 export type { RangeView } from './mission-contract.ts';
@@ -15,7 +17,8 @@ export type AimLock = { targetId: string; label: string };
 export type RangeContact = { id: string; x: number; z: number; radius: number; kind: 'troop' | 'vehicle'; health: number; maxHealth: number; detected: boolean; neutralized: boolean; neutralizedAt: number | null; lastAttackTime: number };
 export type RangeMission = {
   title: string;
-  status: 'enroute' | 'arriving' | 'complete' | 'failed' | 'recovery' | 'breakdown';
+  status: 'enroute' | 'arriving' | 'dismounting' | 'complete' | 'failed' | 'recovery' | 'breakdown';
+  failureReason: MissionFailureReason | null;
   objective: { x: number; z: number; radius: number };
   waypoints: { x: number; z: number }[];
   currentWaypoint: number;
@@ -60,6 +63,7 @@ class RangeAudioState extends Simulation {
 /** Arcade sandbox: simulated metres and m/s, simplified motion and panel scoring. */
 export class DrivingRange {
   time = 0;
+  callsign = 'Unassigned';
   paused = false;
   position: { x: number; z: number } = { ...MISSION_START };
   /** Zero faces -z. Positive heading rotates the forward vector toward -x. */
@@ -75,6 +79,7 @@ export class DrivingRange {
   shots: RangeShot[] = [];
   distanceTravelled = 0;
   debrief: MissionDebrief | null = null;
+  dismount = stowedDismount();
   mission: RangeMission = this.makeMission();
   targets: RangeTarget[] = this.makeTargets();
   private readonly soundState = new RangeAudioState();
@@ -82,9 +87,11 @@ export class DrivingRange {
   private readonly vehicleHealth = new VehicleHealth();
   private readonly dynamics = new DrivingDynamics();
   private readonly explorer = new Exploration();
+  private readonly movementTimer = new MissionMovementClock();
   private lastThrottle = 0;
 
   get exploration(): ExplorationState { return this.explorer.state; }
+  get movementClock(): MovementClockSnapshot { return this.movementTimer.snapshot; }
   get navigationTarget(): NavigationTarget | null { return this.explorer.navigationTarget; }
   selectNavigationTarget(id: string): boolean { return !this.missionEnded && this.explorer.select(id); }
   selectNavigationPoint(x: number, z: number): boolean { return !this.missionEnded && this.explorer.selectPoint(x, z); }
@@ -94,31 +101,64 @@ export class DrivingRange {
   get powertrain(): PowertrainState { return this.drivetrain.state; }
   get health(): VehicleHealthState { return this.vehicleHealth.state; }
   get missionEnded(): boolean { return this.mission.status === 'complete' || this.mission.status === 'failed' || this.mission.status === 'recovery' || this.mission.status === 'breakdown'; }
+  get dismounting(): boolean { return this.mission.status === 'dismounting'; }
   get manualAimActive(): boolean { return this.time < this.manualAimUntil; }
   get speedMph(): number { return mpsToMph(this.speed); }
   /** Effective road-wheel angle in radians after the game grip limit. */
   get steeringAngle(): number { return this.dynamics.appliedSteeringAngle; }
   private get healthSpeedFactor(): number { return this.health.paceLimited ? .55 : this.health.phase === 'critical' ? .6 : 1; }
   get speedLimitMph(): number {
-    if (this.missionEnded) return 0;
+    if (this.missionEnded || this.dismounting) return 0;
     const reverse = this.speed < -.01 || (Math.abs(this.speed) <= .01 && this.lastThrottle < 0);
     return (reverse ? Math.min(DRIVE_LIMITS_MPH.reverse, DRIVE_LIMITS_MPH[this.terrain.kind]) : DRIVE_LIMITS_MPH[this.terrain.kind]) * this.healthSpeedFactor;
   }
   get speedLimitReason(): string {
     if (this.missionEnded) return 'Exercise ended';
+    if (this.dismounting) return 'Team unloading';
     if (this.health.paceLimited) return 'Crew reduced pace';
     if (this.health.phase === 'critical') return 'Vehicle fault';
     if (this.speed < -.01 || (Math.abs(this.speed) <= .01 && this.lastThrottle < 0)) return 'Reverse';
     return this.terrain.label;
   }
 
+  get dropRampAvailability(): { available: boolean; reason: string } {
+    if (this.paused) return { available: false, reason: 'Resume the exercise before dropping the ramp.' };
+    if (this.missionEnded) return { available: false, reason: 'Exercise ended.' };
+    if (this.dismount.phase !== 'stowed') return { available: false, reason: 'The team is already unloading.' };
+    const distance = Math.hypot(this.position.x - this.mission.objective.x, this.position.z - this.mission.objective.z);
+    if (!Number.isFinite(distance) || !Number.isFinite(this.speed)) return { available: false, reason: 'Vehicle position is unavailable.' };
+    if (distance > this.mission.objective.radius) return { available: true, reason: 'Outside zone = mission failure.' };
+    if (!this.mission.departureCrossed) return { available: false, reason: 'Cross the line of departure and clear the contacts before dropping the ramp.' };
+    if (this.mission.contacts.some(contact => !contact.neutralized)) return { available: false, reason: 'Clear every fictional contact before dropping the ramp.' };
+    if (Math.abs(this.speed) >= .8) return { available: false, reason: 'Stop inside the dismount zone before dropping the ramp.' };
+    return { available: true, reason: 'Drop ramp to let the team out.' };
+  }
+
+  /** Explicit, one-way arcade command. An off-objective drop still shows the exit. */
+  dropRamp(): boolean {
+    if (this.paused || this.missionEnded || this.dismount.phase !== 'stowed') return false;
+    const availability = this.dropRampAvailability;
+    if (!availability.available) { this.mission.notice = availability.reason; return false; }
+    const validDrop = Math.hypot(this.position.x - this.mission.objective.x, this.position.z - this.mission.objective.z) <= this.mission.objective.radius;
+    if (validDrop) this.movementTimer.update(this.time, this.mission.departureCrossed, true);
+    this.dismount = { phase: 'opening', elapsed: 0, position: { ...this.position }, heading: this.heading, validDrop };
+    this.mission.status = 'dismounting'; this.mission.arrivalProgress = 0;
+    this.mission.failureReason = validDrop ? null : 'dismount-outside-zone';
+    this.mission.notice = validDrop ? 'Ramp opening. The dismount team is exiting.'
+      : 'Mission failed: ramp dropped outside the dismount zone. The team is unloading at the wrong location.';
+    this.speed = 0; this.lastThrottle = 0; this.aimLock = null;
+    this.drivetrain.tick(.025, { speed: 0, throttle: 0, acceleration: 0, roughness: this.terrain.roughness, speedFactor: this.terrain.speedFactor, brake: true, engine: false });
+    return true;
+  }
+
   setAimAssist(enabled: boolean): void {
+    if (this.dismounting || this.missionEnded) return;
     this.aimAssistEnabled = !!enabled;
     this.aimLock = null;
   }
 
   centerAim(): void {
-    if (this.paused || this.missionEnded) return;
+    if (this.paused || this.missionEnded || this.dismounting) return;
     this.aimYaw = 0; this.aimLock = null;
     this.manualAimUntil = this.time + AIM_ASSIST.manualGrace;
   }
@@ -168,7 +208,7 @@ export class DrivingRange {
 
   /** Crew commands remain available during an explicitly paused inspection. */
   takeHealthDecision(action: HealthDecision, faultId?: FaultId): boolean {
-    if (this.missionEnded || !this.vehicleHealth.decide(action, this.time, faultId)) return false;
+    if (this.missionEnded || this.dismounting || !this.vehicleHealth.decide(action, this.time, faultId)) return false;
     if (action === 'recovery') {
       this.mission.status = 'recovery'; this.mission.arrivalProgress = 0; this.speed = 0;
       this.mission.notice = this.health.message;
@@ -179,20 +219,20 @@ export class DrivingRange {
 
   get audioState(): Simulation {
     const state = this.soundState;
-    state.phase = 'cabin'; state.engine = !this.missionEnded; state.paused = this.paused;
+    state.phase = 'cabin'; state.engine = !this.missionEnded && !this.dismounting; state.paused = this.paused;
     state.time = this.time; state.speed = clamp(Math.abs(this.speed) / mphToMps(DRIVE_LIMITS_MPH.road), 0, 1);
     return state;
   }
 
   private makeMission(): RangeMission {
     return {
-      title: 'Deliver the dismount team', status: 'enroute',
+      title: 'Deliver the dismount team', status: 'enroute', failureReason: null,
       objective: { ...DISMOUNT_POINT },
       waypoints: MISSION_ROUTE.map(point => ({ x: point.x, z: point.z })),
       currentWaypoint: 1, distance: Math.hypot(DISMOUNT_POINT.x - MISSION_START.x, DISMOUNT_POINT.z - MISSION_START.z), arrivalProgress: 0, integrity: 100,
       contacts: ENEMY_CONTACTS.map(contact => ({ ...contact, health: contact.maxHealth, detected: false, neutralized: false, neutralizedAt: null, lastAttackTime: -Infinity })),
       departureCrossed: false, remainingContacts: ENEMY_CONTACTS.length, phase: 'training',
-      notice: 'Practice in the training area, then cross the line of departure. Clear the fictional contacts before delivering the dismount team.',
+      notice: 'Practice fire before the line of departure. Crossing it starts three minutes to clear the fictional contacts and stop at the dismount point.',
     };
   }
 
@@ -206,14 +246,31 @@ export class DrivingRange {
     if (this.missionEnded) { this.finishMission(); return; }
     // Drop wall-clock backlog, including time spent in background tabs.
     const dt = Math.min(delta, .1);
+    if (this.dismounting) {
+      const elapsed = Math.min(dt, DISMOUNT.durationSeconds - this.dismount.elapsed);
+      this.time += elapsed; this.dismount.elapsed += elapsed;
+      this.mission.arrivalProgress = this.dismount.elapsed / DISMOUNT.durationSeconds;
+      this.dismount.phase = this.dismount.elapsed >= DISMOUNT.rampOpenSeconds ? 'unloading' : 'opening';
+      if (this.dismount.elapsed >= DISMOUNT.durationSeconds - 1e-9) {
+        this.dismount.elapsed = DISMOUNT.durationSeconds; this.dismount.phase = 'complete';
+        this.mission.arrivalProgress = 1;
+        this.mission.status = this.dismount.validDrop ? 'complete' : 'failed';
+        this.mission.notice = this.dismount.validDrop
+          ? 'Mission complete: dismount team delivered. Engine off. This was a fictional arcade exercise.'
+          : 'Mission failed: the team unloaded outside the marked dismount zone.';
+        this.finishMission();
+      }
+      return;
+    }
     const throttle = normalized(input.throttle), steer = normalized(input.steer), aim = normalized(input.aim);
     this.time = Math.max(0, finite(this.time));
     this.position.x = clamp(finite(this.position.x), WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
     this.position.z = clamp(finite(this.position.z), WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
     this.heading = wrap(finite(this.heading)); this.aimYaw = wrap(finite(this.aimYaw)); this.speed = clamp(finite(this.speed), -mphToMps(60), mphToMps(60));
     this.lastThrottle = throttle;
-    const steps = Math.ceil(dt / .025), step = dt / steps;
+    const steps = Math.ceil(dt / .025), nominalStep = dt / steps;
     for (let i = 0; i < steps; i++) {
+      const step = this.movementClock.status === 'running' ? Math.min(nominalStep, this.movementClock.remainingSeconds) : nominalStep;
       this.time += step;
       const terrain = this.terrain;
       const previousSpeed = this.speed;
@@ -240,13 +297,21 @@ export class DrivingRange {
       }
       if (!this.mission.departureCrossed && this.position.z <= DEPARTURE_Z) {
         this.mission.departureCrossed = true;
-        this.mission.notice = 'Line of departure crossed. Fictional enemy contacts are active; clear the route to the dismount point.';
+        this.movementTimer.update(this.time, true, false);
+        this.mission.notice = 'Line of departure crossed. Three minutes to clear the fictional contacts and stop at the dismount point.';
       }
       this.crushPracticeTargets(previousX, previousZ);
       this.updateAimAssist(aim);
       if (input.fire && this.time - this.lastShotTime >= .14 - 1e-9) this.fire();
-      this.updateMission(step);
+      this.updateMission();
       if (this.missionEnded) { this.finishMission(); break; }
+      this.movementTimer.update(this.time, this.mission.departureCrossed, this.mission.status === 'arriving');
+      if (this.movementClock.status === 'expired') {
+        this.mission.status = 'failed'; this.mission.failureReason = 'movement-timeout'; this.mission.arrivalProgress = 0;
+        this.mission.notice = 'Mission failed: three-minute movement limit expired before a cleared, stopped arrival at the dismount point.';
+        this.finishMission();
+        break;
+      }
       this.drivetrain.tick(step, { speed: this.speed, throttle, acceleration: (this.speed - previousSpeed) / step, roughness: terrain.roughness, speedFactor: terrain.speedFactor, brake: !!input.brake, engine: !this.missionEnded });
     }
     // Keep brief effect history for tracers, casings and impacts, bounded during sustained fire.
@@ -265,13 +330,17 @@ export class DrivingRange {
     const findings = this.health.faults.map(({ id, label, severity, maintenance, consequence, repair, firstWarningAt, severeAt, diagnosed }) =>
       Object.freeze({ id, label, severity, maintenance, consequence, repair, firstWarningAt, severeAt, diagnosed }));
     const summary = outcome === 'breakdown' ? 'Vehicle stopped after overheating before delivery. Recovery and an engine assessment are required.'
-      : outcome === 'failed' ? 'Enemy contact damage ended the exercise before delivery. Vehicle faults and repair needs remain recorded.'
+      : outcome === 'failed' ? this.mission.failureReason === 'dismount-outside-zone'
+        ? 'Mission failed: the ramp was dropped outside the marked dismount zone. The team exited at the wrong location. Vehicle faults and repair needs remain recorded.'
+        : this.mission.failureReason === 'movement-timeout'
+          ? 'Mission failed: the three-minute movement limit expired before the vehicle stopped at the cleared dismount point. Vehicle faults and repair needs remain recorded.'
+          : 'Enemy contact damage ended the exercise before delivery. Vehicle faults and repair needs remain recorded.'
         : outcome === 'recovery' ? 'Crew requested in-game recovery. Vehicle held with engine off; recorded faults still require assessment.'
           : major ? 'Team delivered, with lasting vehicle damage and major repair required after deferred action.'
             : repair ? 'Team delivered, with unresolved faults requiring repair before return to service.'
               : 'Team delivered. Early pace reduction limited damage; recorded trends still require inspection.';
     this.debrief = Object.freeze({
-      outcome, endedAt: this.time, distanceTravelled: this.distanceTravelled,
+      outcome, callsign: this.callsign, movementClock: this.movementClock, failureReason: this.mission.failureReason, endedAt: this.time, distanceTravelled: this.distanceTravelled,
       optionalVisitedLabels: this.explorer.visitedLabels(),
       contactsCleared: this.mission.contacts.filter(contact => contact.neutralized).length, contactsTotal: this.mission.contacts.length,
       summary, vehicleStatus: outcome === 'breakdown' ? 'immobilized' : major ? 'major-repair' : repair ? 'repair-required' : 'requires-inspection',
@@ -280,7 +349,7 @@ export class DrivingRange {
     });
   }
 
-  private updateMission(dt: number): void {
+  private updateMission(): void {
     const mission = this.mission;
     mission.remainingContacts = mission.contacts.filter(contact => !contact.neutralized).length;
     mission.phase = !mission.departureCrossed ? 'training' : mission.remainingContacts > 0 ? 'combat' : 'dismount';
@@ -303,6 +372,7 @@ export class DrivingRange {
     }
     if (mission.integrity <= 0) {
       mission.status = 'failed'; mission.arrivalProgress = 0;
+      mission.failureReason = 'combat-damage';
       mission.notice = 'Exercise ended: vehicle integrity depleted. Restart to try the fictional delivery mission again.';
       return;
     }
@@ -311,14 +381,10 @@ export class DrivingRange {
       mission.notice = `Dismount point reached with ${mission.remainingContacts} fictional contacts remaining. Clear every contact before the team exits.`;
     } else if (mission.departureCrossed && mission.remainingContacts === 0 && mission.distance <= mission.objective.radius && Math.abs(this.speed) < .8) {
       mission.status = 'arriving';
-      mission.arrivalProgress = Math.min(1, mission.arrivalProgress + dt / 2);
-      mission.notice = 'Dismount point reached. Hold the vehicle still for the team to exit.';
-      if (mission.arrivalProgress >= 1 - 1e-9) {
-        mission.arrivalProgress = 1; mission.status = 'complete';
-        mission.notice = 'Mission complete: dismount team delivered. Engine off. This was a fictional arcade exercise.';
-      }
+      mission.arrivalProgress = 0;
+      mission.notice = 'Dismount point reached. Vehicle stopped. Select Drop ramp to let the team out.';
     } else {
-      if (mission.status === 'arriving') mission.notice = 'Stay inside the dismount circle and stop to complete the delivery.';
+      if (mission.status === 'arriving') mission.notice = 'Stop inside the dismount circle, then select Drop ramp.';
       mission.status = 'enroute'; mission.arrivalProgress = 0;
     }
   }
@@ -342,7 +408,7 @@ export class DrivingRange {
   }
 
   private fire(): void {
-    if (this.missionEnded) return;
+    if (this.missionEnded || this.dismounting) return;
     const angle = this.heading + this.aimYaw, dx = -Math.sin(angle), dz = -Math.cos(angle);
     const pivot = this.weaponPivot();
     const origin = { x: pivot.x + dx, y: this.terrain.height + 3, z: pivot.z + dz };
@@ -377,7 +443,9 @@ export class DrivingRange {
   restart(): void {
     this.time = 0; this.paused = false; this.position = { ...MISSION_START }; this.heading = 0; this.speed = 0;
     this.distanceTravelled = 0; this.debrief = null;
+    this.dismount = stowedDismount();
     this.explorer.reset();
+    this.movementTimer.reset();
     this.aimYaw = 0; this.shotsFired = 0; this.hits = 0; this.lastShotTime = -Infinity;
     this.aimLock = null; this.manualAimUntil = 0;
     this.shots = []; this.mission = this.makeMission(); this.targets = this.makeTargets(); this.soundState.restart(); this.drivetrain.restart(); this.vehicleHealth.restart(); this.dynamics.restart(); this.lastThrottle = 0;

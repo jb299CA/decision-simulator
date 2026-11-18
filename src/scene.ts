@@ -21,6 +21,8 @@ import { cabinDisplayBounds, cabinDisplayFov, frameCabinDisplay, RANGE_TERMINAL 
 import { applyWorldUV, createExplorationLandmark, createGroundTexture, createPolylineRoadRibbon, createRoadRibbon, createScenery, createSceneryLayout, createVehicleContactShadow, placeVehicleContactShadow, groundTint } from './environment-appearance';
 import { applyVehicleAppearance } from './vehicle-appearance';
 import type { GunnerDisplayMode, VehicleFault } from './mission-contract';
+import { closedRampClone, createRearRamp, DismountSquad, updateRearRamp } from './dismount-squad';
+import { RearBumperMarking } from './bumper-marking';
 
 /** Original, entirely procedural illustration. No asset downloads or live interfaces. */
 export class VehicleScene {
@@ -32,6 +34,9 @@ export class VehicleScene {
   private cabinCeiling!: THREE.Mesh;
   private readonly exercise = new THREE.Group();
   private readonly vehicle = new THREE.Group();
+  private readonly dismountSquad = new DismountSquad();
+  private rearRamp!: ReturnType<typeof createRearRamp>;
+  private readonly bumperMarking = new RearBumperMarking();
   private readonly contactShadow = createVehicleContactShadow();
   private readonly guidedVehicleBounds = new THREE.Box3();
   private readonly guidedTerrain = new THREE.Group();
@@ -109,6 +114,7 @@ export class VehicleScene {
     Object.assign(this.curtain.style, { position: 'absolute', inset: '0', background: '#07111b', opacity: '0', pointerEvents: 'none' });
     container.appendChild(this.curtain);
     this.scene.add(this.exterior, this.cabin, this.exercise, this.rangeWorld);
+    this.rangeWorld.add(this.dismountSquad.group);
     this.exterior.add(this.guidedTerrain);
     this.scene.add(new THREE.HemisphereLight(0xd8e5ee, 0x78684c, 1.6));
     this.sun = new THREE.DirectionalLight(0xffe5bf, 3.3);
@@ -361,13 +367,10 @@ export class VehicleScene {
       this.cylinder(this.vehicle,.065,.09,[x,.99,3.16],recess,[Math.PI / 2,0,0],12);
       this.box(this.vehicle,[.38,.05,.22],[x,1.55,3.02],panel);
     }
-    // Rear ramp outline, hinge pads and latches are recessed into the rear armor.
-    this.box(this.vehicle,[1.48,1.03,.03],[0,1.49,-3.185],recess);
-    this.box(this.vehicle,[1.39,.95,.035],[0,1.51,-3.207],panel);
-    for (const x of [-.53,.53]) {
-      this.box(this.vehicle,[.23,.075,.055],[x,1.10,-3.24],edge);
-      this.box(this.vehicle,[.06,.22,.045],[x,1.87,-3.24],fastener);
-    }
+    // The hinge group stays separate from static hull compaction. A dark inset
+    // masks the original closed illustrative hull only while the ramp is open.
+    this.rearRamp = createRearRamp(panel,edge); this.vehicle.add(this.rearRamp.root);
+    this.vehicle.add(this.bumperMarking.root);
     // Commander's and driver's hatches, periscopes, low remote station, stowage and aerials.
     this.cylinder(this.vehicle,.46,.11,[-.6,2.29,1.25],panel);
     this.cylinder(this.vehicle,.4,.07,[-.6,2.36,1.25],armor);
@@ -670,9 +673,10 @@ export class VehicleScene {
   }
 
   /** Independent GPU ownership; the inspection never changes driving geometry or pose. */
-  createInspectionModel(): THREE.Group { return cloneInspectionModel(this.vehicle); }
+  createInspectionModel(): THREE.Group { return cloneInspectionModel(closedRampClone(this.vehicle)); }
 
-  update(sim: Simulation, delta: number, reducedMotion: boolean, faults?: readonly VehicleFault[]) {
+  update(sim: Simulation, delta: number, reducedMotion: boolean, faults?: readonly VehicleFault[], callsign = 'Vehicle') {
+    this.bumperMarking.update(callsign);
     this.screenMaterial.map = this.instrumentScreen.texture;
     this.screen.scale.y = 1;
     this.cabinTerminal.rotation.set(-.12,-.16,0);
@@ -683,6 +687,7 @@ export class VehicleScene {
       this.fireEffects.reset(); this.damageEffects.reset(); this.aftermathClock.reset(); this.lastRangeTime = -1;
       this.rangeWorld.visible = false; this.guidedTerrain.visible = true;
       this.vehicle.position.set(0,0,0); this.vehicle.rotation.set(0,0,0);
+      this.rearRamp.pivot.rotation.set(0,0,0); this.rearRamp.doorway.visible = false; this.dismountSquad.reset();
       this.cabin.position.set(0,0,0); this.cabin.rotation.set(0,0,0);
       this.cabinTerminal.position.set(.42,1.68,1.22); this.cabinTerminal.scale.setScalar(.66);
       this.leds.emissive.set(0x699b70);
@@ -770,7 +775,7 @@ export class VehicleScene {
     this.dust.visible = exterior && sim.moving && sim.speed > .1 && !reducedMotion;
     this.dust.position.z = -(sim.drivingTime * .8) % 1.5;
     // Physical equipment is dark after shutdown. The later exercise view is separate from the cabin.
-    this.instrumentScreen.update({ mode: 'guided', time: sim.time, engine: sim.engine, speed: sim.speed * 18,
+    this.instrumentScreen.update({ mode: 'guided', callsign, time: sim.time, engine: sim.engine, speed: sim.speed * 18,
       rpm: sim.engine ? 720 + sim.speed * 1500 : 0, load: sim.latest.load, integrity: 100,
       status: sim.alert ? 'CHARGING TREND ALERT  /  REVIEW EVIDENCE' : sim.secured ? 'ENGINE OFF  /  VEHICLE SECURED' : 'CREW SYSTEMS  /  MONITORING',
       voltage: sim.latest.voltage, voltageHistory: sim.observations.map(observation => observation.voltage), alert: sim.alert, faults });
@@ -786,6 +791,7 @@ export class VehicleScene {
   }
 
   updateRange(range: DrivingRange, delta: number, reducedMotion: boolean, view: RangeView) {
+    this.bumperMarking.update(range.callsign);
     this.camera.clearViewOffset();
     const entering = !this.rangeActive;
     if (entering || range.time < this.lastRangeTime) this.gunnerDisplay.reset();
@@ -812,7 +818,7 @@ export class VehicleScene {
       this.cabinTerminal.rotation.set(-.12,-.16,0);
     }
     const engine = range.audioState.engine;
-    this.instrumentScreen.update({ mode: 'range', time: range.time, engine, speed: range.speedMph,
+    this.instrumentScreen.update({ mode: 'range', callsign: range.callsign, time: range.time, engine, speed: range.speedMph,
       rpm: range.powertrain.rpm, load: range.powertrain.load, integrity: range.mission.integrity,
       status: range.health.phase === 'nominal' ? 'CREW SYSTEMS  /  MONITORING' : range.health.message,
       faults: range.health.faults });
@@ -820,11 +826,13 @@ export class VehicleScene {
     const shaking = !reducedMotion && !focused && speed > .1;
     const amplitude = shaking ? Math.min(1,speed / 10) * terrain.roughness : 0;
     const bob = Math.sin(range.time * 12.3) * amplitude * .045;
-    const recoil = firingRecoil(view,reducedMotion,damageTime,range.lastShotTime);
+    const recoil = firingRecoil(view,reducedMotion,range.time,range.lastShotTime);
     this.contactShadow.visible = outside;
     placeVehicleContactShadow(this.contactShadow,range.position.x,range.position.z,range.heading,terrainAt);
     this.vehicle.position.set(range.position.x,terrain.height + bob,range.position.z);
     this.vehicle.rotation.set(Math.sin(range.time * 7.2) * amplitude * .012,range.heading + Math.PI,Math.sin(range.time * 8.7) * amplitude * .016);
+    updateRearRamp(this.rearRamp.pivot,this.rearRamp.doorway,range.dismount,reducedMotion);
+    this.dismountSquad.update(range.dismount,this.debrisGround,reducedMotion);
     this.cabin.position.set(range.position.x,terrain.height + bob,range.position.z); this.cabin.rotation.set(0,range.heading,0);
     const cos = Math.cos(range.heading), sin = Math.sin(range.heading);
     // Shot origins and the illustrated muzzle share the same transform in every camera.
@@ -866,8 +874,16 @@ export class VehicleScene {
       this.aim.set(range.position.x,terrain.height,range.position.z);
       this.camera.up.set(0,0,-1);
     } else if (view === 'chase') {
-      this.target.set(0,mobile ? 6.1 : 5.2,mobile ? 13.0 : 11.4);
-      this.aim.set(0,1.6,-4.2);
+      if (range.dismount.phase !== 'stowed') {
+        // Centerline rear observer sees the hinge and all nine exits. Portrait
+        // framing fits the side fan without soldiers passing through the camera.
+        const distance = Math.max(12.6,6.0 / (Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect));
+        this.target.set(0,Math.max(6.8,distance * .52),distance);
+        this.aim.set(0,.8,1.0);
+      } else {
+        this.target.set(0,mobile ? 6.1 : 5.2,mobile ? 13.0 : 11.4);
+        this.aim.set(0,1.6,-4.2);
+      }
     } else if (view === 'hatch') {
       const frame = hatchCameraFrame(this.width,this.height);
       this.target.fromArray(frame.eye);
@@ -890,9 +906,12 @@ export class VehicleScene {
     if (!reducedMotion && !focused && view !== 'top') {
       this.camera.translateX(Math.sin(range.time * 15.3) * amplitude * .018);
       this.camera.translateY(bob * (outside ? .4 : 1.2));
-      this.camera.rotateX(Math.sin(range.time * 10.2) * amplitude * .003 + recoil);
+      this.camera.rotateX(Math.sin(range.time * 10.2) * amplitude * .003);
       this.camera.rotateZ(Math.sin(range.time * 8.6) * amplitude * .003);
     }
+    // Focus steadies road vibration, but a shot still kicks the cabin/physical display.
+    // The base pose above is rebuilt each frame, so this never accumulates camera drift.
+    if (recoil !== 0) this.camera.rotateX(recoil);
     const angle = range.heading + range.aimYaw, dx = -Math.sin(angle), dz = -Math.cos(angle);
     // A near witness point keeps the gun's actual world-space ray visible in the overhead view.
     const aimDistance = view === 'top' ? 10 : 41;
@@ -993,7 +1012,7 @@ export class VehicleScene {
       const lockedContact = lockedTarget ? range.mission.contacts.find(contact => contact.id === lockedTarget.id) : undefined;
       const aimPoint = lockedTarget ? {x:lockedTarget.x,z:lockedTarget.z,
         y:terrainAt(lockedTarget.x,lockedTarget.z).height + (lockedContact ? lockedContact.kind === 'troop' ? 1.25 : 2.2 : 2.4)} : undefined;
-      this.gunnerDisplay.capture(this.renderer,this.scene,{time:range.time,paused:range.paused,engine,phone:mobile,
+      this.gunnerDisplay.capture(this.renderer,this.scene,{callsign:range.callsign,time:range.time,paused:range.paused,engine,phone:mobile,
         lastShotTime:range.lastShotTime,reducedMotion,
         x:range.position.x,z:range.position.z,height:terrain.height,heading:range.heading,aimYaw:range.aimYaw,locked:!!lockedTarget && !range.missionEnded,aimPoint},
         [this.rangeWorld,this.exterior],hidden,hot);
@@ -1022,6 +1041,8 @@ export class VehicleScene {
   }
 
   dispose() {
+    this.bumperMarking.disposeTextures();
+    this.dismountSquad.dispose();
     this.damageEffects.dispose(); this.aftermathClock.reset();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
     this.scene.traverse(object => {

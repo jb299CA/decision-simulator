@@ -251,6 +251,7 @@ test('combat failure receives a debrief independently of the mechanical fault pa
   range.position = { x: contact.x, z: contact.z + 20 }; range.mission.integrity = 2;
   range.tick(.025, idle);
   assert.equal(range.mission.status, 'failed'); assert.equal(range.debrief?.outcome, 'failed');
+  assert.equal(range.mission.failureReason, 'combat-damage'); assert.equal(range.debrief?.failureReason, 'combat-damage');
   assert.equal(range.audioState.engine, false); assert.equal(range.powertrain.rpm, 0);
   assert.equal(range.debrief?.contactsTotal, range.mission.contacts.length);
 });
