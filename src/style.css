@@ -1036,46 +1036,49 @@ body[data-mode="home"] .home-actions {
   display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px;
 }
 body[data-mode="home"] .home-actions > button {
-  min-height: 52px; min-width: 190px; padding: 10px 12px 10px 20px;
-  border-radius: 8px; gap: 20px; font-size: 14px; font-weight: 600;
-  letter-spacing: .15px; line-height: 1.25; text-shadow: none;
+  min-height: 52px; min-width: 190px; padding: 10px 18px;
+  border-width: 1px; border-style: solid; border-radius: 7px;
+  gap: 18px; font-size: 14px; font-weight: 600;
+  letter-spacing: .1px; line-height: 1.25; text-shadow: none;
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 body[data-mode="home"] .home-actions > button > span {
-  display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px;
-  border: 1px solid #11182024; border-radius: 5px; background: #1118200d;
-  font-size: 18px; line-height: 1; box-shadow: inset 0 1px 0 #ffffff26;
+  display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 22px;
+  padding-left: 10px; border: 0; border-left: 1px solid #11182033;
+  border-radius: 0; background: transparent; box-shadow: none;
+  font-size: 18px; line-height: 1;
 }
 body[data-mode="home"] .home-actions .primary-button {
-  background: linear-gradient(180deg, #ff8667 0%, #ff6548 48%, #f2553b 100%);
-  border-color: #ff9479; color: #111820;
-  box-shadow: inset 0 1px 0 #ffffff59, inset 0 -1px 0 #a92d222e, 0 4px 12px #00000038;
+  background: linear-gradient(180deg, #ff805f 0%, #ff7353 100%);
+  border-color: #ff967d; color: #111820;
+  box-shadow: inset 0 1px 0 #ffffff26, 0 3px 8px #00000033;
 }
 body[data-mode="home"] .home-actions .secondary-button {
-  background: linear-gradient(180deg, #1d2932e6 0%, #101a23e6 100%);
-  border-color: #a7b4bf80; color: #fff;
-  box-shadow: inset 0 1px 0 #ffffff1f, 0 4px 12px #00000033;
+  background: linear-gradient(180deg, #1a2732 0%, #14202a 100%);
+  border-color: #71818e; color: #fff;
+  box-shadow: inset 0 1px 0 #ffffff14, 0 3px 8px #00000033;
 }
 body[data-mode="home"] .home-actions .secondary-button > span {
-  border-color: #ffffff26; background: #ffffff08; box-shadow: inset 0 1px 0 #ffffff0d;
+  border-left-color: #ffffff40;
 }
 @media (hover: hover) {
   body[data-mode="home"] .home-actions > button:hover:not(:disabled) {
     filter: none; transform: translateY(-1px); border-color: #ffd2c4;
-    box-shadow: inset 0 1px 0 #ffffff59, 0 6px 16px #0000004d;
+    box-shadow: inset 0 1px 0 #ffffff26, 0 4px 10px #00000040;
   }
-  body[data-mode="home"] .home-actions .secondary-button:hover:not(:disabled) { border-color: #d8e2e9; }
+  body[data-mode="home"] .home-actions .secondary-button:hover:not(:disabled) { border-color: #aebcc7; }
 }
 body[data-mode="home"] .home-actions > button:focus-visible {
   outline: 2px solid #fff; outline-offset: 4px;
 }
 body[data-mode="home"] .home-actions > button:active:not(:disabled) {
   filter: none; transform: translateY(1px);
-  box-shadow: inset 0 2px 4px #00000026, 0 1px 3px #00000033;
+  box-shadow: inset 0 1px 2px #0000001a, 0 1px 3px #00000026;
 }
 body.reduced-motion[data-mode="home"] .home-actions > button { transition: none; }
 body.reduced-motion[data-mode="home"] .home-actions > button:is(:hover, :active) { transform: none; }
 @media (prefers-reduced-motion: reduce) {
+  body[data-mode="home"] .home-actions > button { transition: none; }
   body[data-mode="home"] .home-actions > button:is(:hover, :active) { transform: none; }
 }
 body[data-mode="home"] .home-secondary {
