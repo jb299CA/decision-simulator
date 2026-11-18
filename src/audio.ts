@@ -485,7 +485,8 @@ export class SimulationAudio {
     });
     if (this.firingTone) this.smooth(this.firingTone.frequency, rpm / 60, .045);
     this.music?.update({ time: sim.time, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
-      audible: this.audible && this.musicOn && sim.phase !== 'title', ducked: !!(this.voice || this.pending || this.speakingCaption || this.healthAlertSource || this.breakdownSource) });
+      audible: this.audible && this.musicOn && sim.phase !== 'title', ducked: !!this.voice,
+      priorityAlert: !!(this.healthAlertSource || this.breakdownSource) });
   }
 
   private ambientDelay(): number { return 18 + (this.ambientIndex * 7 + 3) % 11; }
@@ -553,7 +554,7 @@ export class SimulationAudio {
     const source = context.createBufferSource(); source.buffer = this.healthAlertBuffer;
     source.connect(this.master); this.healthAlertSource = source;
     this.mixPriority();
-    this.music?.duck();
+    this.music?.duck(true);
     source.onended = () => { if (this.healthAlertSource === source) this.healthAlertSource = undefined; source.disconnect(); this.mixPriority(); };
     try { source.start(); } catch { this.healthAlertSource = undefined; source.disconnect(); this.mixPriority(); }
   }
@@ -564,7 +565,7 @@ export class SimulationAudio {
     const source = context.createBufferSource(); source.buffer = this.breakdownBuffer;
     source.connect(this.master); this.breakdownSource = source;
     this.mixPriority();
-    this.music?.duck();
+    this.music?.duck(true);
     source.onended = () => { if (this.breakdownSource === source) this.breakdownSource = undefined; source.disconnect(); this.mixPriority(); };
     try { source.start(); } catch { this.breakdownSource = undefined; source.disconnect(); this.mixPriority(); }
   }
@@ -735,12 +736,18 @@ export class SimulationAudio {
     const context = this.context;
     if (!context || context.state === 'closed') return;
     try {
-      const change = this.audible ? context.resume() : context.suspend();
+      const requestedAudible = this.audible;
+      const change = requestedAudible ? context.resume() : context.suspend();
       void change.then(() => {
         // A route change can resolve an earlier resume after the user muted or
         // paused. Honor the latest transport state in every resume path.
         if (context === this.context && !this.audible && context.state === 'running') {
-          void context.suspend().catch(() => {});
+          this.syncContext();
+        } else if (context === this.context && requestedAudible !== this.audible && this.audible && context.state === 'suspended') {
+          // An older focus-loss suspend can finish after the user's Play tap.
+          // Reconcile the latest request without timers or replaying cues. Its
+          // completion is checked too, in case another pause arrives meanwhile.
+          this.syncContext();
         }
       }).catch(() => { /* The Sound control can retry from a user tap. */ });
     } catch { /* Some devices throw synchronously while an audio route changes. */ }

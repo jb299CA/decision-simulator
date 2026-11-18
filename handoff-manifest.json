@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 45,
+  "sourceRelease": 46,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 137,
-  "totalBytes": 4791385,
+  "fileCount": 139,
+  "totalBytes": 4810670,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -254,8 +254,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 41131,
-      "sha256": "7ec40a747ce8f6249ceed6ab0e00238243f60b94014a19666b7585a06daeb672"
+      "bytes": 41559,
+      "sha256": "3f6172f7073e5b3067ec12afbfe606dacefa077de21d539740a60e2cec94995a"
     },
     {
       "path": "src/bumper-marking.ts",
@@ -369,8 +369,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 118613,
-      "sha256": "da47f6fe0f2619ff3246275dcbf73a45c14714662920bbb9ec152316f9db737b"
+      "bytes": 121715,
+      "sha256": "cb9b89c70628b4e459ba915d587a82c73d7562b1c0bcbf2cc4b4d6ffecea5935"
     },
     {
       "path": "src/map-navigation.ts",
@@ -399,8 +399,8 @@
     },
     {
       "path": "src/music.ts",
-      "bytes": 5700,
-      "sha256": "11e97398a30de08142db68eaba9fea13478bcb932ec29d07e26812fbd2c394a0"
+      "bytes": 6873,
+      "sha256": "71fac2d1f3e5329ecf17943fa697b0337547650a549c58fbebd5298ce770ee6b"
     },
     {
       "path": "src/outcome-reveal.ts",
@@ -411,6 +411,11 @@
       "path": "src/page-lifecycle.ts",
       "bytes": 769,
       "sha256": "84770d9c1df23bafaa787680b9e0e5e675514438903b115518115aafe9ea8d0d"
+    },
+    {
+      "path": "src/playback-focus.ts",
+      "bytes": 1729,
+      "sha256": "23fcc47556dc7c1c5c86307557fec899c0ca0fbe4f05a4763f61dd31b60e769e"
     },
     {
       "path": "src/powertrain.ts",
@@ -444,8 +449,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 201378,
-      "sha256": "cf94258ac273298b99f5ee96a086a9aca20eccd5b12a5f29908118856983f78e"
+      "bytes": 202330,
+      "sha256": "4a713efd5014a7c8a0155d858d44d651eda7e231ac7b15b6c45a7fb50f360c7e"
     },
     {
       "path": "src/target-debris.ts",
@@ -489,8 +494,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 82348,
-      "sha256": "bfb77efbf662d115bbfee1150047f61fc4904c527f6585b7306e468d437de2a2"
+      "bytes": 86671,
+      "sha256": "94a7ca825892464b1ea1c099b68deface8418222ec8ada02b8836ea372083f43"
     },
     {
       "path": "tests/bumper-marking.test.ts",
@@ -644,8 +649,8 @@
     },
     {
       "path": "tests/music.test.ts",
-      "bytes": 6128,
-      "sha256": "bd06c96bb2647f765dbc31970a4fd26aebb72831a72a2cba8d03164b4a498faa"
+      "bytes": 7860,
+      "sha256": "0c0efbb67fa8519c249ddd2f6a0e183b0666b9728698cd65abe1bd9f89285337"
     },
     {
       "path": "tests/outcome-reveal.test.ts",
@@ -656,6 +661,11 @@
       "path": "tests/page-lifecycle.test.ts",
       "bytes": 1489,
       "sha256": "2a463b161ea0763ff625de65225c61b8b89547b50db9b906fa2b37513f4d2008"
+    },
+    {
+      "path": "tests/playback-focus.test.ts",
+      "bytes": 5846,
+      "sha256": "3b83a3436bec90a036fb61aa75db99c4da5a0b2a3e04bd0daee08eea5dc5e3ee"
     },
     {
       "path": "tests/powertrain.test.ts",

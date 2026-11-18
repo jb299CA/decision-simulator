@@ -879,9 +879,24 @@ body[data-mode="range"] .range-health:focus-visible { outline: 3px solid #fff; o
   body[data-mode="range"] .weapon-controls label > .aim-lock-status { font-size: 9px; letter-spacing: .25px; }
 }
 
-/* Range phones keep the independent music switch in Mission & settings. */
+/* Five compact 44px controls keep Music, Sound, Pause, Home and Menu available
+   in a 320px driving header without covering the environment. */
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
-  body[data-mode="range"] .masthead .music-control { display: none; }
+  body[data-mode="range"] .masthead :is(.music-control, [data-action="pause"]) { display: flex; flex-direction: column; gap: 1px; }
+  body[data-mode="range"] .masthead :is(.music-control, [data-action="pause"]) .control-name {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible;
+    clip: auto; font-size: 8px; line-height: 10px;
+  }
+  body[data-mode="range"] .range-mobile-status { max-width: calc(100% - 240px); }
+  body:not([data-mode="home"]) .masthead [data-action="pause"] { display: flex; flex-direction: column; gap: 1px; }
+  body:not([data-mode="home"]) .masthead [data-action="pause"] .control-name {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible;
+    clip: auto; font-size: 8px; line-height: 10px;
+  }
+}
+body[data-away-paused="true"] .masthead [data-action="pause"] {
+  border-color: #ffd166; color: #fff4ce; background: #5b4219f5;
+  box-shadow: 0 0 0 1px #ffd16670;
 }
 @media (max-width: 400px) {
   /* The brand already returns home; keep room for the separate music switch. */

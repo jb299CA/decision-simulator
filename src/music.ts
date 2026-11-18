@@ -2,16 +2,16 @@ import type { Phase } from './simulation.ts';
 
 export type MusicScene = 'practice' | 'movement' | 'contact' | 'warning' | 'severe' | 'resolution';
 export type MusicSituation = { phase: Phase; moving: boolean; faultSeverity: number; alert: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean };
-export type MusicFrame = { time: number; scene: MusicScene; audible: boolean; ducked: boolean };
+export type MusicFrame = { time: number; scene: MusicScene; audible: boolean; ducked: boolean; priorityAlert?: boolean };
 
 /** Original small tonal palette: no recorded music, borrowed melody or military signal. */
-export const MUSIC_PROFILES: Record<MusicScene, { notes: readonly number[]; beatsPerMinute: number; bed: number; drum: number }> = {
-  practice: { notes: [110, 164.81, 220], beatsPerMinute: 48, bed: .03, drum: .007 },
-  movement: { notes: [110, 130.81, 164.81], beatsPerMinute: 64, bed: .034, drum: .014 },
-  contact: { notes: [110, 116.54, 164.81], beatsPerMinute: 84, bed: .037, drum: .02 },
-  warning: { notes: [103.83, 130.81, 155.56], beatsPerMinute: 68, bed: .031, drum: .012 },
-  severe: { notes: [98, 103.83, 146.83], beatsPerMinute: 88, bed: .034, drum: .018 },
-  resolution: { notes: [110, 138.59, 164.81], beatsPerMinute: 48, bed: .026, drum: 0 },
+export const MUSIC_PROFILES: Record<MusicScene, { notes: readonly number[]; motif: readonly number[]; beatsPerMinute: number; bed: number; drum: number }> = {
+  practice: { notes: [110, 164.81, 220], motif: [0, -1, 1, 0, 2, -1, 1, -1], beatsPerMinute: 48, bed: .04, drum: .009 },
+  movement: { notes: [110, 130.81, 164.81], motif: [0, -1, 2, 1, 0, 1, 2, -1], beatsPerMinute: 64, bed: .043, drum: .014 },
+  contact: { notes: [110, 116.54, 164.81], motif: [0, 0, -1, 1, 2, -1, 1, -1], beatsPerMinute: 84, bed: .044, drum: .016 },
+  warning: { notes: [103.83, 130.81, 155.56], motif: [0, -1, 1, -1, 2, 1, 0, -1], beatsPerMinute: 68, bed: .04, drum: .011 },
+  severe: { notes: [98, 103.83, 146.83], motif: [0, -1, 1, 0, 1, -1, 2, -1], beatsPerMinute: 88, bed: .043, drum: .015 },
+  resolution: { notes: [110, 138.59, 164.81], motif: [2, -1, -1, 1, 0, -1, -1, -1], beatsPerMinute: 48, bed: .034, drum: 0 },
 };
 
 export function musicScene(situation: MusicSituation): MusicScene {
@@ -24,16 +24,24 @@ export function musicScene(situation: MusicSituation): MusicScene {
 }
 
 /** No note timers or future queue: each frame describes only the current sim instant. */
-export function musicLevels(frame: MusicFrame): { bed: number; drum: number; frequency: number } {
-  if (!frame.audible || !Number.isFinite(frame.time) || frame.time < 0) return { bed: 0, drum: 0, frequency: 52 };
+export function musicLevels(frame: MusicFrame): { bed: number; melody: number; melodyFrequency: number; drum: number; frequency: number } {
+  if (!frame.audible || !Number.isFinite(frame.time) || frame.time < 0) return { bed: 0, melody: 0, melodyFrequency: 440, drum: 0, frequency: 180 };
   const profile = MUSIC_PROFILES[frame.scene], time = frame.time;
   const beat = time * profile.beatsPerMinute / 60;
   const age = (beat - Math.floor(beat)) * 60 / profile.beatsPerMinute;
-  // Soft, short low-tom envelope. Alternating accents suggest a restrained march.
+  // A soft triangle tom and sparse horn-like phrase carry the score above the
+  // bass region on small speakers. All phrases are original, with breathing rests.
   const accent = Math.floor(beat) % 4 === 0 ? 1 : .55;
   const pulse = Math.min(1, age / .018) * Math.exp(-age * 13) * accent;
-  const duck = frame.ducked ? .12 : 1;
-  return { bed: profile.bed * (.9 + .1 * Math.sin(time * .19)) * duck, drum: profile.drum * pulse * duck, frequency: 50 + 18 * Math.exp(-age * 16) };
+  const note = profile.motif[Math.floor(beat) % profile.motif.length]!;
+  const envelope = Math.min(1, age / .07) * Math.min(1, (60 / profile.beatsPerMinute - age) / .2) * Math.exp(-age * .45);
+  // Dialogue stays in front without making the entire opening score vanish.
+  // Brief instrument/breakdown cues retain the deeper, immediate reduction.
+  const duck = frame.priorityAlert ? .12 : frame.ducked ? .35 : 1;
+  return { bed: profile.bed * (.9 + .1 * Math.sin(time * .19)) * duck,
+    melody: note < 0 ? 0 : profile.bed * .8 * envelope * duck,
+    melodyFrequency: profile.notes[Math.max(0, note)]! * 4,
+    drum: profile.drum * pulse * duck, frequency: 180 + 60 * Math.exp(-age * 16) };
 }
 
 /** Quiet synthesized score. All sound sources are stopped at every interruption. */
@@ -66,15 +74,14 @@ export class ProceduralMusic {
     if (!frame.audible || !Number.isFinite(frame.time) || frame.time < 0) { this.stop(); return; }
     if (!this.tones.length) {
       const notes = MUSIC_PROFILES[frame.scene].notes;
-      this.tones = [this.tone('sine', notes[0]!), this.tone('sine', notes[1]!), this.tone('triangle', notes[2]!)];
-      this.drum = this.tone('sine', 52);
+      this.tones = [this.tone('sine', notes[0]!), this.tone('triangle', notes[1]! * 2), this.tone('triangle', notes[0]! * 4)];
+      this.drum = this.tone('triangle', 180);
     }
     const profile = MUSIC_PROFILES[frame.scene], levels = musicLevels(frame);
     this.tones.forEach((tone, index) => {
-      // Slow octave color changes are derived from simulation time as well.
-      const octave = index === 2 && Math.floor(frame.time / 16) % 2 ? .5 : 1;
-      this.value(tone.oscillator.frequency, profile.notes[index]! * octave, .55);
-      this.value(tone.level.gain, levels.bed * [1, .65, .22][index]!, frame.ducked ? .025 : .25);
+      const frequency = index === 2 ? levels.melodyFrequency : profile.notes[index]! * (index ? 2 : 1);
+      this.value(tone.oscillator.frequency, frequency, index === 2 ? .035 : .55);
+      this.value(tone.level.gain, index === 2 ? levels.melody : levels.bed * [.42, .45][index]!, frame.ducked || frame.priorityAlert ? .025 : index === 2 ? .025 : .25);
     });
     if (this.drum) {
       this.value(this.drum.oscillator.frequency, levels.frequency, .02);
@@ -83,13 +90,14 @@ export class ProceduralMusic {
   }
 
   /** An alert or newly decoded radio line can duck immediately between frames. */
-  duck(): void { if (this.frame?.audible) this.update({ ...this.frame, ducked: true }); }
+  duck(priorityAlert = false): void { if (this.frame?.audible) this.update({ ...this.frame, ducked: true, priorityAlert: priorityAlert || this.frame.priorityAlert }); }
 
   stop(): void {
     for (const tone of [...this.tones, ...(this.drum ? [this.drum] : [])]) {
       // Cancel smoothing at the current audio instant; nothing survives a pause.
       if (typeof tone.level.gain.cancelScheduledValues === 'function') tone.level.gain.cancelScheduledValues(this.context.currentTime);
-      tone.level.gain.value = 0;
+      if (typeof tone.level.gain.setValueAtTime === 'function') tone.level.gain.setValueAtTime(0, this.context.currentTime);
+      else tone.level.gain.value = 0;
       try { tone.oscillator.stop(); } catch { /* Already ended. */ }
       tone.oscillator.disconnect(); tone.level.disconnect();
     }

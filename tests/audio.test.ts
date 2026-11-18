@@ -43,6 +43,7 @@ class MockContext {
   static decodeGate?: Promise<void>;
   static failDecode = false;
   static resumeGate?: Promise<void>;
+  static suspendGate?: Promise<void>;
   static gestureRequired = false;
   static inGesture = false;
   static resumeFailures = 0;
@@ -82,7 +83,7 @@ class MockContext {
     if (MockContext.resumeGate) await MockContext.resumeGate;
     if (this.state !== 'closed') this.state = 'running';
   }
-  async suspend(): Promise<void> { this.state = 'suspended'; }
+  async suspend(): Promise<void> { if (MockContext.suspendGate) await MockContext.suspendGate; if (this.state !== 'closed') this.state = 'suspended'; }
   async close(): Promise<void> { this.state = 'closed'; }
   get voices(): MockNode[] { return this.sources.filter(source => source.started && source.buffer?.id); }
 }
@@ -99,7 +100,7 @@ function browser(t: { after: (fn: () => void) => void }, gates = new Map<string,
     await gates.get(file);
     return { ok: true, arrayBuffer: async () => new TextEncoder().encode(file.split('/').at(-1)!.split('?')[0]!.replace(/\.(wav|mp3)$/, '')).buffer };
   } });
-  MockContext.decodeGate = undefined; MockContext.failDecode = false; MockContext.resumeGate = undefined;
+  MockContext.decodeGate = undefined; MockContext.failDecode = false; MockContext.resumeGate = undefined; MockContext.suspendGate = undefined;
   MockContext.gestureRequired = false; MockContext.inGesture = false; MockContext.resumeFailures = 0;
   MockContext.created = 0;
   MockContext.sampleRate = 1000;
@@ -107,7 +108,7 @@ function browser(t: { after: (fn: () => void) => void }, gates = new Map<string,
   t.after(() => {
     if (beforeWindow) Object.defineProperty(globalThis, 'window', beforeWindow); else Reflect.deleteProperty(globalThis, 'window');
     if (beforeFetch) Object.defineProperty(globalThis, 'fetch', beforeFetch); else Reflect.deleteProperty(globalThis, 'fetch');
-    MockContext.decodeGate = undefined; MockContext.failDecode = false; MockContext.resumeGate = undefined;
+    MockContext.decodeGate = undefined; MockContext.failDecode = false; MockContext.resumeGate = undefined; MockContext.suspendGate = undefined;
     MockContext.gestureRequired = false; MockContext.inGesture = false; MockContext.resumeFailures = 0;
     MockContext.sampleRate = 1000;
     MockContext.failVoiceStart = false; MockContext.failStaticStart = false;
@@ -252,6 +253,36 @@ test('a delayed Sound-on transport resume cannot override a later pause', async 
   assert.equal(MockContext.latest.state, 'suspended');
   assert.equal(MockContext.latest.gains[0]!.gain.value, 0);
   assert.equal(audio.soundState, 'paused');
+});
+
+test('an older focus-loss suspension cannot leave a later Play tap silent', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose());
+  await audio.start();
+  const sim = new Simulation(); sim.begin(); sim.board(); sim.time = .25; await update(audio, sim);
+  let release!: () => void;
+  MockContext.suspendGate = new Promise<void>(resolve => { release = resolve; });
+  audio.setPaused(true);
+  const voiceCount = MockContext.latest.voices.length, sourceCount = MockContext.latest.sources.length;
+  audio.setPaused(false); await audio.start();
+  release(); await settle();
+  assert.equal(audio.soundState, 'running', 'late suspend resolution is reconciled with current active transport');
+  assert.equal(MockContext.latest.sources.length, sourceCount, 'transport repair never queues catchup notes or speech');
+  await update(audio, sim);
+  assert.equal(MockContext.latest.voices.length, voiceCount, 'interrupted speech stays consumed');
+});
+
+test('a new mute still wins while a stale suspension is being repaired', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  let releaseSuspend!: () => void, releaseResume!: () => void;
+  MockContext.suspendGate = new Promise<void>(resolve => { releaseSuspend = resolve; });
+  audio.setPaused(true); audio.setPaused(false); await settle();
+  MockContext.resumeGate = new Promise<void>(resolve => { releaseResume = resolve; });
+  releaseSuspend(); await settle(); // The old suspend now starts its corrective resume.
+  audio.setMuted(true); releaseResume(); await settle();
+  assert.equal(audio.soundState, 'muted'); assert.equal(MockContext.latest.state, 'suspended');
+  assert.equal(MockContext.latest.gains[0]!.gain.value, 0);
 });
 
 test('explicit activation chooses media playback before context construction and restores its owned category on cleanup', async t => {
@@ -1032,12 +1063,44 @@ test('radio and health cues duck music immediately without replacing important c
   const speakingLevel = musicGain.gain.value;
   context.voices.at(-1)!.finish(); await update(audio, sim);
   const normalLevel = musicGain.gain.value;
-  assert.ok(normalLevel > speakingLevel * 5, 'priority radio dominates the score');
+  assert.ok(normalLevel > speakingLevel * 2.5 && normalLevel < speakingLevel * 3, 'radio gets foreground headroom while leaving a faint score');
   const caption = audio.caption; audio.healthAlert();
   assert.ok(musicGain.gain.value < normalLevel * .2, 'health cue ducks in the calling frame');
   assert.equal(audio.caption, caption);
   context.sources.at(-1)!.finish(); await update(audio, sim);
   assert.equal(musicGain.gain.value, normalLevel);
+});
+
+test('a caption waiting for its recording does not silently suppress the music', async t => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  browser(t, new Map([[radioScript.phase.cabin.file, pending]]));
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start(); await settle();
+  const context = MockContext.latest, baseGains = context.gains.length;
+  const sim = new Simulation(); sim.begin(); sim.board(); sim.time = .25; await update(audio, sim);
+  const caption = audio.caption, fullLevel = context.gains[baseGains]!.gain.value;
+  assert.equal(context.voices.length, 0); assert.ok(fullLevel > .01);
+  release(); await settle();
+  assert.equal(context.voices.length, 1); assert.equal(audio.caption, caption);
+  assert.ok(context.gains[baseGains]!.gain.value < fullLevel * .4, 'actual speech receives headroom immediately when decoded');
+});
+
+test('music preference survives restart and cannot override an explicit master mute', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  const sim = new Simulation(); sim.begin(); sim.board(); sim.time = .25; await update(audio, sim);
+  audio.setMusicEnabled(false); audio.restart(); sim.restart();
+  assert.equal(audio.musicEnabled, false);
+  audio.setMuted(true); audio.setMusicEnabled(true); await audio.start();
+  const context = MockContext.latest, count = context.oscillators.length;
+  sim.begin(); sim.board(); sim.time = .25; await update(audio, sim);
+  assert.equal(audio.soundState, 'muted'); assert.equal(audio.musicEnabled, true);
+  assert.equal(context.oscillators.length, count, 'music on while muted starts no source');
+  assert.equal(context.gains[0]!.gain.value, 0);
+  audio.setMuted(false); await audio.start(); await update(audio, sim);
+  const score = context.oscillators.slice(count);
+  assert.equal(score.length, 4); assert.ok(score.some(node => node.frequency.value >= 300 && node.connections[0]!.gain.value > 0));
+  assert.equal(context.gains[0]!.gain.value, .48, 'restoring music never raises the master ceiling');
 });
 
 const breakdownCues = (context: MockContext): MockNode[] => context.sources.filter(source => source.buffer?.length === 2700);

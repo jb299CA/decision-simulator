@@ -18,6 +18,7 @@ import { clientMapPoint, MapNavigation } from './map-navigation';
 import { DRIVE_CODES, drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, RangeInspection, RangeKeyboard } from './input';
 import { GameFocusOwnership, nextTrappedFocus } from './ui-focus';
 import { PageLifecycle } from './page-lifecycle';
+import { PlaybackFocus } from './playback-focus';
 import { loadGamePreferences, saveGamePreferences } from './game-preferences';
 import { faultInstrumentData, systemsHealthMarkup } from './fault-display';
 
@@ -82,6 +83,12 @@ let lastAlert = false;
 let lastSampleCount = -1;
 let lastSampleTime = -1;
 let previousFrame = performance.now();
+const playbackFocus = new PlaybackFocus({
+  state: () => ({ active: mode !== 'home', paused: isPaused(), hidden: document.hidden, blocked: playbackBlocked() }),
+  pause: () => setPaused(true, 'away'),
+  resume: () => setPaused(false),
+  activateSound: () => activateSound(),
+});
 
 const arrow = '<span aria-hidden="true">↗</span>';
 const chapters = ['Approach', 'Observe', 'Understand', 'Decide', 'Protect', 'Debrief'];
@@ -807,6 +814,11 @@ function syncSoundControls(): void {
     if (!el.querySelector('#sound-icon')) el.textContent = label;
   });
   document.querySelector('#sound-label')!.textContent = label;
+  document.querySelectorAll<HTMLButtonElement>('[data-action="music"]').forEach(el => {
+    const status = !audio.musicEnabled ? 'Music off' : muted ? 'Music on; master sound muted' : isPaused() ? 'Music on; paused with exercise' : retry ? 'Music on; tap sound to enable audio' : 'Music on';
+    el.setAttribute('aria-label', `${status}. ${audio.musicEnabled ? 'Turn music off' : 'Turn music on'}`);
+    el.title = status;
+  });
   document.querySelector('#sound-icon')!.textContent = muted ? '◖×' : retry ? '♪↻' : state === 'unsupported' ? '♪×' : '◖))';
 }
 
@@ -827,6 +839,11 @@ function syncControls(): void {
   document.querySelector('#music-label')!.textContent = audio.musicEnabled ? 'Music on' : 'Music off';
   document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-pressed', String(paused)); el.disabled = mode === 'home' || healthInspection.open || mapInspection.open; });
   document.querySelector('#pause-label')!.textContent = paused ? 'Resume' : 'Pause';
+  document.body.dataset.awayPaused = String(playbackFocus.pausedWhileAway);
+  const pauseDescription = playbackFocus.pausedWhileAway ? 'Paused while away. Resume exercise' : paused ? 'Resume exercise (P)' : 'Pause exercise (P)';
+  document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-label', pauseDescription); el.title = pauseDescription; });
+  pauseBanner.querySelector('b')!.textContent = playbackFocus.pausedWhileAway ? 'Paused while away' : 'Exercise paused';
+  pauseBanner.querySelector('small')!.textContent = playbackFocus.pausedWhileAway ? 'Resume, tap the scene or press a driving key to return.' : 'Scene, telemetry and sound are held.';
   document.querySelector('#pause-icon')!.textContent = paused ? '▷' : 'Ⅱ';
   document.querySelectorAll<HTMLButtonElement>('[data-action="motion"]').forEach(el => el.setAttribute('aria-pressed', String(reducedMotion)));
   document.querySelector<HTMLElement>('#pause-banner')!.hidden = mode === 'home' || !paused || healthInspection.open || mapInspection.open || (mode === 'range' && range.missionEnded);
@@ -836,7 +853,8 @@ function syncControls(): void {
     const name = el.dataset.action ?? '';
     const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
-    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
+    const returnControl = playbackFocus.pausedWhileAway && el.hasAttribute('data-hold');
+    el.disabled = (!transport && !viewControl && !returnControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
@@ -845,7 +863,12 @@ function syncControls(): void {
   syncSoundControls();
 }
 
-function setPaused(value: boolean): void {
+function playbackBlocked(): boolean {
+  return healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open || (mode === 'range' ? range.missionEnded || range.dismounting : sim.phase === 'debrief');
+}
+
+function setPaused(value: boolean, cause: 'explicit' | 'away' = 'explicit'): void {
+  if (cause === 'explicit') playbackFocus.takePauseOwnership();
   clearRangeInputs();
   if (mode === 'range') range.paused = value; else sim.paused = value;
   previousFrame = performance.now();
@@ -853,6 +876,7 @@ function setPaused(value: boolean): void {
 }
 
 async function action(name: string): Promise<void> {
+  if (name === 'restart' || name === 'begin') playbackFocus.takePauseOwnership();
   if (name === 'range-controls' && mode === 'range') {
     if (healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open) return;
     rangeControlsExpanded = !rangeControlsExpanded;
@@ -865,7 +889,7 @@ async function action(name: string): Promise<void> {
     muted = false; audio.setMuted(false); preferences.muted = false; saveGamePreferences(preferences);
     activateSound(true); syncControls(); return;
   }
-  if (name === 'music') { audio.setMusicEnabled(!audio.musicEnabled); preferences.musicEnabled = audio.musicEnabled; saveGamePreferences(preferences); syncControls(); return; }
+  if (name === 'music') { audio.setMusicEnabled(!audio.musicEnabled); preferences.musicEnabled = audio.musicEnabled; saveGamePreferences(preferences); if (audio.musicEnabled && !muted) activateSound(); syncControls(); return; }
   if (name.startsWith('gunner-') && mode === 'range' && rangeView === 'inside') {
     const display = name.slice('gunner-'.length);
     if (display === 'expand') {
@@ -911,6 +935,7 @@ async function action(name: string): Promise<void> {
     updateRangeLive(); syncControls(); return;
   }
   if (name === 'menu') {
+    playbackFocus.takePauseOwnership();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset();
@@ -924,6 +949,7 @@ async function action(name: string): Promise<void> {
     previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return;
   }
   if (name === 'start-range' || (name === 'restart' && mode === 'range')) {
+    playbackFocus.takePauseOwnership();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset(); selectedFault = 'charging';
@@ -1076,10 +1102,15 @@ document.addEventListener('keydown', event => {
     return;
   }
   const code = gameKeyCode(event);
+  if (DRIVE_CODES.has(code) && event.repeat) { event.preventDefault(); return; }
+  const nativeSpace = code === 'Space' && gameFocus.nativeSpace(event.target instanceof HTMLElement && !!event.target.closest('button[data-action], summary'));
+  // Fresh movement resumes an away pause and then enters normal driving below.
+  // The old held input was cleared on blur; F/aim and repeats cannot wake play.
+  if (mode === 'range' && !nativeSpace) playbackFocus.resumeFromMovement(code, event.repeat);
   if (code === 'KeyM' && !event.repeat) { event.preventDefault(); void action('mute'); return; }
   if (code === 'KeyP' && !event.repeat) { event.preventDefault(); void action('pause'); return; }
   if (mode === 'range') {
-    if (code === 'Space' && gameFocus.nativeSpace(event.target instanceof HTMLElement && !!event.target.closest('button[data-action], summary'))) {
+    if (nativeSpace) {
       keyboard.up('Space');
       return;
     }
@@ -1166,7 +1197,26 @@ function setRangeDrawer(open: boolean): void {
   }
 }
 
-document.addEventListener('pointerdown', () => gameFocus.usePointer(), { capture: true });
+function resumeFromPlayPointer(event: MouseEvent): boolean {
+  if (event.button !== 0) return false;
+  const element = event.target instanceof Element ? event.target : null;
+  const driveControl = element?.closest('[data-hold], #drive-stick');
+  if (!driveControl && element?.closest('button, input, a, summary, dialog, [data-action], [role="dialog"]')) return false;
+  return playbackFocus.resumeFromGesture();
+}
+
+document.addEventListener('pointerdown', event => {
+  gameFocus.usePointer();
+  if (!resumeFromPlayPointer(event)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, { capture: true });
+// A click is also a deliberate return gesture when a browser used the initial
+// pointer event to restore tab/iframe focus before dispatching this click.
+document.addEventListener('click', event => {
+  if (!resumeFromPlayPointer(event)) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+}, { capture: true });
 document.addEventListener('pointerdown', event => {
   if (!rangePlayable() || event.button !== 0) return;
   const element = event.target instanceof Element ? event.target : null;
@@ -1218,7 +1268,7 @@ document.addEventListener('lostpointercapture', releasePointer);
 
 document.addEventListener('input', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') aimInput = -Number(event.target.value); });
 document.addEventListener('change', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') { aimInput = 0; event.target.value = '0'; } });
-window.addEventListener('blur', () => { cancelMapGesture(); healthInspection.interrupt(); mapInspection.interrupt(); rangeDrawerInspection.interrupt(); clearRangeInputs(); if (mode !== 'home') setPaused(true); });
+window.addEventListener('blur', suspendPage);
 dialog.addEventListener('close', () => { evidenceOpen = false; });
 mapDialog.addEventListener('cancel', event => { event.preventDefault(); closeMap(); });
 mapDialog.addEventListener('click', event => {
@@ -1229,7 +1279,7 @@ mapDialog.addEventListener('click', event => {
 healthDialog.addEventListener('cancel', event => { event.preventDefault(); closeHealth(); });
 debriefDialog.addEventListener('cancel', event => { event.preventDefault(); closeDebrief(); });
 document.addEventListener('fullscreenchange', () => { document.querySelector('[data-action="fullscreen"]')?.setAttribute('aria-pressed', String(!!document.fullscreenElement)); scene.resize(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelMapGesture(); healthInspection.interrupt(); mapInspection.interrupt(); rangeDrawerInspection.interrupt(); clearRangeInputs(); if (mode !== 'home') setPaused(true); } previousFrame = performance.now(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) suspendPage(); previousFrame = performance.now(); });
 motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
 // Measure captions rather than assuming a fixed height: long cues and phone text scaling
 // must reserve their real space below the persistent action.
@@ -1241,7 +1291,7 @@ function suspendPage(): void {
   cancelMapGesture();
   healthInspection.interrupt(); mapInspection.interrupt(); rangeDrawerInspection.interrupt();
   clearRangeInputs();
-  setPaused(true);
+  playbackFocus.suspend();
   previousFrame = performance.now();
 }
 const pageLifecycle = new PageLifecycle({

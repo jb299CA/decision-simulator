@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 45 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 46 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -63,7 +63,7 @@ Original dialogue follows the call order, digit pronunciation and proword distin
 
 ## Validation and limitations
 
-The initial handoff received a fresh `npm ci`. Release 45 passed **305 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. Release 46 passed **314 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 
@@ -86,3 +86,5 @@ Gun reports are about 4.3 dB louder at normal cadence, with priority ducking, a 
 Release44 adds a180-second movement clock from first LD crossing. A cleared, stopped arrival settles the clock; Drop ramp remains explicit. Timeout has its own debrief reason and preserves maintenance findings. Radio-only static follows speech lifecycle. Public demo: https://decision-simulator.jon-d-bate.chatgpt.site .
 
 Release45 hides the desktop driving panel by default behind Controls. Keyboard driving stays available; phones keep thumbstick/ACCEL/FIRE and collapse extra manual aim. The rear bumper carries the assigned company and platoon number, beneath the opening ramp. Inspection snapshots retain their original marking through immutable bounded texture caching. Browser visual review was blocked because Computer Use could not verify the browser URL.
+
+Release46 restores a subtle phone-audible score with sparse midrange melody and soft percussion. Music on/off is visible in the header and respects master mute. Auto-away pauses expose visible Resume and accept a fresh scene tap or movement key; manual/dialog/terminal pause ownership is preserved. Held input is cleared, and delayed AudioContext suspension cannot override newer Play. Regression tests cover these state and audio races; live browser/device verification remains unavailable.
