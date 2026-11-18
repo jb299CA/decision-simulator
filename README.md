@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 41 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 42 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -55,9 +55,15 @@ Inside offers Day, illustrative Thermal and MFoCS display modes, plus Focus disp
 
 To complete delivery, clear the contacts, stop inside the marked dismount zone and select Drop ramp. The hinged rear ramp lowers and nine soldiers exit in sequence. Dropping the ramp anywhere outside the zone commits mission failure, then shows the squad exiting before the debrief. Accepted commands switch to Chase; driving and firing stop during unloading. Pause freezes the sequence, restart clears it, and reduced motion removes limb cycling. The squad and ramp use pooled procedural geometry. Recorded maintenance outcomes remain intact.
 
+## Radio net
+
+Each run selects a company/platoon identity: Aztec, Brave or Crazy Horse with 1-6, 2-6 or 3-6. The opening order is Tomahawk 3 to that company's 6, followed by a matching company-to-platoon relay. Each prerecorded exchange includes its acknowledgment. Later background pairs vary without changing the player's displayed or debrief callsign.
+
+Original dialogue follows the call order, digit pronunciation and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 26 compact MP3s, using locally generated original voices. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
+
 ## Validation and limitations
 
-The initial handoff received a fresh `npm ci`. This release 41 update, with the same pinned dependency lockfile, passed **261 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. This release 42 update, with the same pinned dependency lockfile, passed **281 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 

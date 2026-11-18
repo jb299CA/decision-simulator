@@ -3,7 +3,7 @@ import type { GunnerDisplayMode } from './mission-contract.ts';
 import { shotAge } from './fire-effects.ts';
 
 export type GunnerFrame = {
-  time: number; paused: boolean; engine: boolean; phone: boolean;
+  callsign?: string; time: number; paused: boolean; engine: boolean; phone: boolean;
   lastShotTime: number; reducedMotion: boolean;
   x: number; z: number; height: number; heading: number; aimYaw: number; locked: boolean;
   aimPoint?: {x:number; y:number; z:number};
@@ -145,7 +145,7 @@ export class GunnerDisplay {
     ctx.clearRect(0,0,640,384);
     ctx.fillStyle = 'rgba(4,8,11,.82)'; ctx.fillRect(0,0,640,43); ctx.fillRect(0,354,640,30);
     ctx.fillStyle = '#f4f6f7'; ctx.font = 'bold 18px sans-serif';
-    ctx.fillText(frame.engine ? this.mode === 'thermal' ? 'THERMAL · WHITE HOT' : 'DAY · LIVE GAME VIEW' : 'NO SIGNAL · ENGINE OFF',18,27);
+    ctx.fillText(`${(frame.callsign ?? 'Vehicle').toUpperCase()} / ${frame.engine ? this.mode === 'thermal' ? 'THERMAL · WHITE HOT' : 'DAY · LIVE VIEW' : 'ENGINE OFF'}`,18,27);
     ctx.font = '13px sans-serif';
     ctx.fillText(this.mode === 'thermal' ? 'SIMULATED CONTRAST · NOT TEMPERATURE DATA' : 'FICTIONAL GAME CAMERA',18,374);
     if (this.logo?.complete && this.logo.naturalWidth > 0) {

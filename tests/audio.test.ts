@@ -23,12 +23,13 @@ class MockNode {
   buffer?: { id?: string; length?: number; getChannelData?: () => Float32Array };
   stopped = false;
   started = false;
+  startTime?: number;
   disconnected = false;
   onended: (() => void) | null = null;
   connections: MockNode[] = [];
   connect(node: MockNode): MockNode { this.connections.push(node); return node; }
   disconnect(): void { this.disconnected = true; }
-  start(): void { this.started = true; }
+  start(when?: number): void { this.started = true; this.startTime = when; }
   stop(): void { this.stopped = true; this.onended?.(); }
   finish(): void { this.onended?.(); }
 }
@@ -52,11 +53,12 @@ class MockContext {
   gains: MockNode[] = [];
   sources: MockNode[] = [];
   oscillators: MockNode[] = [];
+  filters: MockNode[] = [];
   constructor() { MockContext.latest = this; MockContext.created++; }
   createGain(): MockNode { const node = new MockNode(); this.gains.push(node); return node; }
   createOscillator(): MockNode { const node = new MockNode(); this.sources.push(node); this.oscillators.push(node); return node; }
   createBufferSource(): MockNode { const node = new MockNode(); this.sources.push(node); return node; }
-  createBiquadFilter(): MockNode { return new MockNode(); }
+  createBiquadFilter(): MockNode { const node = new MockNode(); this.filters.push(node); return node; }
   createBuffer(_channels: number, length: number): { length: number; getChannelData: () => Float32Array } {
     const data = new Float32Array(length);
     return { length, getChannelData: () => data };
@@ -83,11 +85,13 @@ function browser(t: { after: (fn: () => void) => void }, gates = new Map<string,
   const beforeWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const beforeFetch = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
   const files: string[] = [];
+  const originalRandom = Math.random; Math.random = () => 0;
+  t.after(() => { Math.random = originalRandom; });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: { AudioContext: MockContext } });
   Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (file: string) => {
     files.push(file);
     await gates.get(file);
-    return { ok: true, arrayBuffer: async () => new TextEncoder().encode(file.split('/').at(-1)!.replace(/\.(wav|mp3)$/, '')).buffer };
+    return { ok: true, arrayBuffer: async () => new TextEncoder().encode(file.split('/').at(-1)!.split('?')[0]!.replace(/\.(wav|mp3)$/, '')).buffer };
   } });
   MockContext.decodeGate = undefined; MockContext.failDecode = false; MockContext.resumeGate = undefined;
   MockContext.gestureRequired = false; MockContext.inGesture = false; MockContext.resumeFailures = 0;
@@ -104,7 +108,11 @@ function browser(t: { after: (fn: () => void) => void }, gates = new Map<string,
 }
 const settle = async (): Promise<void> => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
 const update = async (audio: SimulationAudio, sim: Simulation): Promise<void> => { audio.update(sim); await settle(); };
+const openingOrder = radioScript.radioOrders[0];
+const firstRelay = radioScript.radioRelays[0];
 const exact = (cue: { speaker: string; text: string }): string => `${cue.speaker}: ${cue.text}`;
+const pttEdges = (context: MockContext): MockNode[] => context.sources.filter(source =>
+  source.started && !source.loop && !source.buffer?.id && source.buffer?.length !== undefined && source.buffer.length < context.sampleRate * .1);
 
 function audioSession(t: { after: (fn: () => void) => void }, initial = 'auto', throws = false) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
@@ -129,15 +137,15 @@ test('every recorded phase has its exact speaker and dialogue caption', () => {
     assert.equal(captionForPhase(phase as keyof typeof radioScript.phase), exact(cue));
   }
   assert.match(captionForPhase('secured'), /Engine off/);
-  assert.match(captionForPhase('debrief'), /repair and verification/);
+  assert.match(captionForPhase('debrief'), /repair and verification/i);
 });
 
 test('unsupported audio keeps exact captions and simulation usable', async () => {
-  const audio = new SimulationAudio();
+  const audio = new SimulationAudio(() => 0);
   await audio.start();
   assert.equal(audio.soundState, 'unsupported');
   const sim = new Simulation(); sim.begin(); await update(audio, sim);
-  assert.equal(audio.caption, captionForPhase('exterior'));
+  assert.equal(audio.caption, exact(openingOrder));
   audio.setPaused(true); audio.setMuted(true); audio.restart(); audio.dispose();
 });
 
@@ -324,15 +332,15 @@ test('local recordings load progressively; title is silent; phase priority and f
   await audio.start();
   const context = MockContext.latest;
   assert.equal(files.length, 1, 'startup warms only the exterior recording');
-  assert.equal(files[0], radioScript.phase.exterior.file);
-  assert.ok(files.every(file => file.startsWith('/audio/') && /\.(wav|mp3)$/.test(file)));
+  assert.equal(files[0], openingOrder.file);
+  assert.ok(files.every(file => file.startsWith('/audio/') && /\.(wav|mp3)(\?|$)/.test(file)));
   const sim = new Simulation(); await update(audio, sim);
   assert.equal(context.voices.length, 0);
   assert.equal(context.gains[0]!.gain.value, 0, 'no title ambience');
   sim.begin(); await update(audio, sim);
   const exterior = context.voices.at(-1)!;
-  assert.equal(exterior.buffer?.id, 'crew_ready');
-  assert.equal(audio.caption, captionForPhase('exterior'));
+  assert.equal(exterior.buffer?.id, openingOrder.id);
+  assert.equal(audio.caption, exact(openingOrder));
   assert.ok(context.gains[1]!.gain.value > 0, 'diesel idles outside');
   assert.equal(context.gains[2]!.gain.value, 0, 'parked wheels silent');
   sim.board(); sim.tick(.1); await update(audio, sim);
@@ -353,18 +361,18 @@ test('local recordings load progressively; title is silent; phase priority and f
   context.voices.at(-1)!.finish();
   assert.equal(sim.time, frozenTime);
   assert.match(audio.caption, /Engine off/);
-  assert.doesNotMatch(audio.caption, /RAVEN 6/);
+  assert.doesNotMatch(audio.caption, /BRAVE/i, 'completed dialogue gives way to current engine-off ambience');
 });
 
 test('current cue plays while an unrelated startup fetch is still pending', async t => {
   let release!: () => void;
   const unrelated = new Promise<void>(resolve => { release = resolve; });
-  const files = browser(t, new Map([[radioScript.phase.exterior.file, unrelated]]));
+  const files = browser(t, new Map([[openingOrder.file, unrelated]]));
   const audio = new SimulationAudio(); t.after(() => { release(); audio.dispose(); });
   await audio.start();
   const sim = new Simulation(); sim.begin(); sim.board();
   await update(audio, sim);
-  assert.deepEqual(files, [radioScript.phase.exterior.file, radioScript.phase.cabin.file]);
+  assert.deepEqual(files, [openingOrder.file, radioScript.phase.cabin.file]);
   assert.deepEqual(MockContext.latest.voices.map(source => source.buffer?.id), ['moving'],
     'the cabin line never waits for the exterior download');
   release(); await settle();
@@ -372,10 +380,105 @@ test('current cue plays while an unrelated startup fetch is still pending', asyn
     'late exterior completion only fills the cache');
 });
 
+test('Start mission plays its net order once per run while guided boarding keeps crew intercom', async t => {
+  let release!: () => void;
+  const opening = radioScript.radioOrders[0];
+  const orderDownload = new Promise<void>(resolve => { release = resolve; });
+  const files = browser(t, new Map([[opening.file, orderDownload]]));
+  const audio = new SimulationAudio(() => 0); t.after(() => { release(); audio.dispose(); }); await audio.start();
+  const context = MockContext.latest, range = new DrivingRange();
+  const firstIdentity = audio.missionCallsign;
+  assert.equal(firstIdentity, 'Aztec 1-6', 'identity exists before the first update without another random draw');
+  audio.update(range.audioState, { inside: false, powertrain: range.powertrain }); await settle();
+  assert.equal(audio.caption, exact(opening), 'initial driving caption is the chosen mission order');
+  assert.equal(context.voices.length, 0, 'range waits for its current net order');
+  assert.ok(!files.includes(radioScript.phase.cabin.file) && !files.includes(radioScript.phase.feed.file),
+    'driving mode does not fetch skipped guided crew chapters');
+  release(); await settle();
+  assert.deepEqual(context.voices.map(source => source.buffer?.id), [opening.id]);
+  context.voices.at(-1)!.finish();
+  for (const inside of [true, false, true]) {
+    audio.update(range.audioState, { inside, powertrain: range.powertrain }); await settle();
+  }
+  audio.setPaused(true); audio.setPaused(false); await settle();
+  audio.update(range.audioState, { inside: true, powertrain: range.powertrain }); await settle();
+  assert.equal(context.voices.length, 1, 'camera changes and pause cannot repeat the order');
+  assert.equal(audio.missionCallsign, firstIdentity);
+  audio.restart();
+  assert.equal(audio.missionCallsign, 'Aztec 2-6', 'restart selects the next initial pair synchronously');
+  audio.update(new DrivingRange().audioState, { inside: false, training: true }); await settle();
+  assert.equal(context.voices.length, 2, 'new driving run plays its mission order again');
+  assert.ok(radioScript.radioOrders.some(cue => cue.id === context.voices.at(-1)!.buffer?.id));
+  audio.restart();
+  const guided = new Simulation(); guided.begin(); audio.update(guided, { inside: false }); await settle();
+  guided.board(); audio.update(guided, { inside: true }); await settle();
+  assert.equal(context.voices.at(-1)!.buffer?.id, radioScript.phase.cabin.id);
+  assert.equal(audio.caption, exact(radioScript.phase.cabin), 'guided boarding retains its separate intercom instruction');
+});
+
+test('driving net schedules matching relays and fresh order pairs without selecting again on every frame', async t => {
+  const files = browser(t);
+  let draws = 0;
+  const audio = new SimulationAudio(() => { draws++; return .5; }); t.after(() => audio.dispose()); await audio.start();
+  const identity = audio.missionCallsign;
+  assert.equal(identity, 'Brave 2-6');
+  const context = MockContext.latest, sim = new DrivingRange().audioState;
+  sim.speed = 1; audio.update(sim, { training: true }); await settle();
+  let order = radioScript.radioOrders.find(cue => cue.id === context.voices.at(-1)!.buffer?.id)!;
+  assert.ok(order); assert.equal(draws, 1);
+  context.voices.at(-1)!.finish();
+  for (let frame = 0; frame < 30; frame++) { sim.time = frame / 10; audio.update(sim, { training: true, inside: frame % 2 === 0 }); }
+  await settle(); assert.equal(draws, 1, 'prefetch and camera frames reuse the selected pair');
+  let previousRelay = '';
+  for (let i = 0; i < 3; i++) {
+    sim.time += 40; audio.update(sim, { training: true }); await settle();
+    const voice = context.voices.at(-1)!;
+    const relay = radioScript.radioRelays.find(cue => cue.id === voice.buffer?.id)!;
+    assert.ok(relay); assert.equal(relay.company, order.company);
+    assert.notEqual(relay.id, previousRelay, 'successive complete pairs avoid an immediate company/platoon repeat');
+    previousRelay = relay.id;
+    assert.equal(audio.caption, exact(relay));
+    assert.equal(draws, i + 2, 'consuming a relay selects exactly one upcoming pair');
+    voice.finish();
+    sim.time += 40; audio.update(sim, { training: true }); await settle();
+    order = radioScript.radioOrders.find(cue => cue.id === context.voices.at(-1)!.buffer?.id)!;
+    assert.ok(order); assert.equal(audio.caption, exact(order));
+    assert.equal(draws, i + 2, 'the next order preserves its already-prefetched relay');
+    context.voices.at(-1)!.finish();
+    assert.equal(audio.missionCallsign, identity, 'background net pairs do not rename the player');
+  }
+  assert.ok(!files.includes(radioScript.phase.cabin.file) && !files.includes(radioScript.phase.feed.file));
+  for (const cue of [...radioScript.radioOrders, ...radioScript.radioRelays]) {
+    assert.ok(files.filter(file => file === cue.file).length <= 1, 'stable prefetch shares one per-asset load');
+  }
+});
+
+for (const interruption of ['pause', 'mute', 'restart', 'dispose'] as const) {
+  test(`a selected driving order decoded after ${interruption} cannot play stale speech or PTT`, async t => {
+    const order = radioScript.radioOrders[0];
+    let release!: () => void;
+    const download = new Promise<void>(resolve => { release = resolve; });
+    browser(t, new Map([[order.file, download]]));
+    const audio = new SimulationAudio(() => 0); t.after(() => { release(); audio.dispose(); }); await audio.start();
+    const sim = new DrivingRange().audioState;
+    audio.update(sim, { training: true }); await settle();
+    assert.equal(audio.caption, exact(order));
+    if (interruption === 'pause') audio.setPaused(true);
+    if (interruption === 'mute') audio.setMuted(true);
+    if (interruption === 'restart') audio.restart();
+    if (interruption === 'dispose') audio.dispose();
+    release(); await settle();
+    assert.equal(MockContext.latest.voices.length, 0);
+    assert.equal(pttEdges(MockContext.latest).length, 0);
+    audio.setPaused(false); audio.setMuted(false); await settle();
+    assert.equal(MockContext.latest.voices.length, 0, 'transport recovery cannot replay the consumed order');
+  });
+}
+
 test('fetch/decode concurrency is bounded and latest phase wins queued priority over prefetch', async t => {
   const releases = new Map<string, () => void>();
   const gates = new Map<string, Promise<void>>();
-  for (const cue of Object.values(radioScript.phase)) {
+  for (const cue of [openingOrder, ...Object.values(radioScript.phase).filter(cue => cue !== radioScript.phase.exterior)]) {
     gates.set(cue.file, new Promise<void>(resolve => { releases.set(cue.file, resolve); }));
   }
   const files = browser(t, gates);
@@ -387,13 +490,13 @@ test('fetch/decode concurrency is bounded and latest phase wins queued priority 
   sim.advance(); await update(audio, sim);
   assert.equal(files.length, 2, 'only one speculative job plus one demanded job runs');
   releases.get(radioScript.phase.cabin.file)!(); await settle();
-  assert.deepEqual(files, [radioScript.phase.exterior.file, radioScript.phase.cabin.file, radioScript.phase.manifold.file],
+  assert.deepEqual(files, [openingOrder.file, radioScript.phase.cabin.file, radioScript.phase.manifold.file],
     'new current phase gets the free slot before speculative turbine or skipped feed');
   assert.equal(MockContext.latest.voices.length, 0, 'a completed obsolete phase cannot speak');
   releases.get(radioScript.phase.manifold.file)!(); await settle();
   assert.deepEqual(MockContext.latest.voices.map(source => source.buffer?.id), ['manifold']);
   assert.equal(files.length, 3, 'a stalled speculative exterior leaves no second speculative job running');
-  releases.get(radioScript.phase.exterior.file)!(); await settle();
+  releases.get(openingOrder.file)!(); await settle();
   assert.equal(files.at(-1), radioScript.phase.turbine.file, 'next relevant chapter warms once capacity is free');
   await update(audio, sim); await audio.start(); await update(audio, sim);
   assert.equal(files.filter(file => file === radioScript.phase.manifold.file).length, 1, 'per-cue demand is cached');
@@ -411,15 +514,15 @@ test('ambient net traffic uses simulation time, never overlaps, and ducks the ve
   assert.equal(context.voices.length, 1, 'no ambient cue before cadence');
   sim.time = 14; await update(audio, sim);
   const ambient = context.voices.at(-1)!;
-  assert.equal(ambient.buffer?.id, radioScript.ambient[0].id);
-  assert.equal(audio.caption, exact(radioScript.ambient[0]));
+  assert.equal(ambient.buffer?.id, firstRelay.id);
+  assert.equal(audio.caption, exact(firstRelay));
   assert.ok(context.gains[1]!.gain.value < normalEngine, 'vehicle mix ducks under voice');
   sim.time = 50; await update(audio, sim);
   assert.equal(context.voices.length, 2, 'ongoing transmission prevents overlap');
   ambient.finish(); await update(audio, sim);
   assert.equal(context.voices.length, 2, 'leave a simulation-time gap after the transmission');
   sim.time = 51.5; await update(audio, sim);
-  assert.equal(context.voices.at(-1)!.buffer?.id, radioScript.ambient[1].id);
+  assert.equal(context.voices.at(-1)!.buffer?.id, openingOrder.id);
   sim.phase = 'halted'; sim.speed = 0; await update(audio, sim); context.voices.at(-1)!.finish();
   const count = context.voices.length;
   sim.time = 100; await update(audio, sim);
@@ -447,7 +550,7 @@ test('pause, mute, restart and dispose cancel voice without interrupted or skipp
   assert.equal(context.voices.at(-1)!.stopped, true);
   assert.equal(context.gains[0]!.gain.value, 0);
   sim.begin(); await update(audio, sim);
-  assert.equal(context.voices.at(-1)!.buffer?.id, 'crew_ready');
+  assert.equal(context.voices.at(-1)!.buffer?.id, openingOrder.id);
   audio.dispose();
   assert.equal(context.state, 'closed');
   assert.ok(context.sources.every(source => source.stopped || (source.buffer?.id && source !== context.voices.at(-1))));
@@ -474,11 +577,47 @@ test('reasserting pause suspends a browser-restored context without resetting cu
   assert.equal(context.voices.length, 1, 'resume does not replay the consumed radio cue');
 });
 
-test('radio squelches release naturally and stay bounded across rapid phase changes', async t => {
+test('intercom stays clear; radio has a narrower speech path with quiet PTT outside the words', async t => {
+  browser(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+  const context = MockContext.latest, sim = new Simulation(); sim.begin(); await update(audio, sim);
+  const radio = context.voices.at(-1)!, high = radio.connections[0]!, low = high.connections[0]!, radioLevel = low.connections[0]!;
+  assert.equal(high.type, 'highpass'); assert.equal(low.type, 'lowpass');
+  assert.ok(high.frequency.value >= 200 && high.frequency.value < 400);
+  assert.ok(low.frequency.value >= 3000 && low.frequency.value <= 4000, 'speech remains intelligible while sounding like a net');
+  assert.ok(radioLevel.gain.value <= 1, 'offline-conditioned speech does not need output gain above unity');
+  const onset = pttEdges(context)[0]!;
+  assert.ok(onset && onset.startTime === undefined, 'PTT begins immediately');
+  assert.ok(radio.startTime! >= context.currentTime + onset.buffer!.length! / context.sampleRate,
+    'PTT finishes before scheduled speech, preserving the first syllable');
+  const samples = onset.buffer!.getChannelData!();
+  assert.ok(samples.reduce((peak, value) => Math.max(peak, Math.abs(value)), 0) < .05, 'PTT is restrained beneath speech');
+  assert.equal(samples[0], 0); assert.ok(Math.abs(samples.at(-1)!) < .00001);
+  onset.finish(); radio.finish();
+  const tail = pttEdges(context).at(-1)!; assert.notEqual(tail, onset); assert.ok(tail.started);
+  const loops = context.sources.filter(source => source.loop).length;
+  sim.board(); await update(audio, sim);
+  assert.ok(tail.stopped && tail.disconnected, 'next crew line cancels an obsolete radio tail');
+  const intercom = context.voices.at(-1)!, intercomHigh = intercom.connections[0]!, intercomLow = intercomHigh.connections[0]!;
+  assert.notEqual(intercomHigh, high, 'crew intercom has its own signal path');
+  assert.ok(intercomHigh.frequency.value < high.frequency.value && intercomLow.frequency.value > low.frequency.value,
+    'intercom keeps a wider, clearer voice band');
+  assert.equal(intercomLow.connections[0]!.gain.value, radioLevel.gain.value, 'channel distinction does not rely on a louder intercom');
+  assert.equal(intercom.startTime, context.currentTime, 'intercom needs no radio-key delay');
+  assert.equal(pttEdges(context).length, 2, 'intercom has no onset PTT');
+  intercom.finish(); assert.equal(pttEdges(context).length, 2, 'intercom has no tail PTT');
+  assert.equal(context.sources.filter(source => source.loop).length, loops, 'speech creates no hiss loop');
+  const vehicleBuses = context.gains.slice(1, 7);
+  const feedsVehicle = (node: MockNode): boolean => vehicleBuses.includes(node) || node.connections.some(feedsVehicle);
+  assert.ok(context.sources.filter(source => source.loop).every(feedsVehicle), 'continuous noise belongs to the vehicle; no independent speech static loop');
+  assert.equal(context.gains[0]!.gain.value, .48, 'master ceiling stays unchanged');
+});
+
+test('radio PTT releases naturally and obsolete edges cannot accumulate across rapid channel changes', async t => {
   browser(t);
   const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
   const context = MockContext.latest, sim = new Simulation(); sim.begin();
-  const squelches = () => context.sources.filter(source => source.started && !source.loop && source.buffer?.length === 65);
+  const squelches = () => pttEdges(context);
   await update(audio, sim);
   const first = squelches()[0]!;
   assert.ok(first, 'radio onset has one short synthesized chirp');
@@ -489,11 +628,15 @@ test('radio squelches release naturally and stay bounded across rapid phase chan
     await update(audio, sim);
   }
   const active = squelches().filter(source => !source.disconnected);
-  assert.equal(active.length, 2, 'rapid changes cannot create an unbounded transient graph');
-  assert.equal(squelches().length, 3, 'finished chirp releases capacity, and only two replacements remain active');
+  assert.equal(active.length, 1, 'only the current radio onset remains after rapid channel changes');
+  assert.ok(squelches().filter(source => source !== first && !active.includes(source)).every(source => source.stopped && source.disconnected),
+    'preempted onset nodes are stopped and disconnected');
   active.forEach(source => source.finish());
+  const count = squelches().length;
   sim.phase = 'feed'; await update(audio, sim);
-  assert.equal(squelches().length, 4, 'natural completion releases capacity for future radio feedback');
+  assert.equal(squelches().length, count, 'intercom adds no radio feedback');
+  sim.phase = 'exterior'; await update(audio, sim);
+  assert.equal(squelches().length, count + 1, 'natural completion releases capacity for future radio feedback');
   assert.ok(context.oscillators.every(source => !source.stopped), 'radio cleanup preserves continuous vehicle sound');
 });
 
@@ -502,18 +645,39 @@ for (const interruption of ['pause', 'mute', 'restart', 'dispose'] as const) {
     browser(t);
     const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
     const context = MockContext.latest, engineLoops = context.oscillators.slice(), sim = new Simulation(); sim.begin(); await update(audio, sim);
-    const squelches = () => context.sources.filter(source => source.started && !source.loop && source.buffer?.length === 65);
+    const squelches = () => pttEdges(context);
     const chirps = squelches();
     assert.equal(chirps.length, 1);
+    const speech = context.voices.at(-1)!;
+    assert.ok(speech.startTime! > context.currentTime, 'interruption is before the scheduled first syllable');
     if (interruption === 'pause') { sim.paused = true; audio.setPaused(true); }
     if (interruption === 'mute') audio.setMuted(true);
     if (interruption === 'restart') { audio.restart(); sim.restart(); }
     if (interruption === 'dispose') audio.dispose();
     assert.ok(chirps.every(source => source.stopped && source.disconnected));
+    assert.ok(speech.stopped && speech.disconnected, 'scheduled speech is cancelled as well as PTT');
     const count = squelches().length;
     sim.paused = false; audio.setPaused(false); audio.setMuted(false); await update(audio, sim);
     assert.equal(squelches().length, count, 'resuming cannot recreate the interrupted chirp');
     if (interruption !== 'dispose') assert.ok(engineLoops.every(source => !source.stopped), 'engine loops survive interruption');
+  });
+}
+
+for (const interruption of ['pause', 'mute', 'restart', 'dispose'] as const) {
+  test(`completed radio tail is cancelled on ${interruption} without another ending cue`, async t => {
+    browser(t);
+    const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+    const context = MockContext.latest, sim = new Simulation(); sim.begin(); await update(audio, sim);
+    pttEdges(context)[0]!.finish(); context.voices.at(-1)!.finish();
+    const tail = pttEdges(context).at(-1)!;
+    if (interruption === 'pause') audio.setPaused(true);
+    if (interruption === 'mute') audio.setMuted(true);
+    if (interruption === 'restart') audio.restart();
+    if (interruption === 'dispose') audio.dispose();
+    assert.ok(tail.stopped && tail.disconnected);
+    const count = context.sources.length;
+    tail.finish();
+    assert.equal(context.sources.length, count, 'late tail completion cannot queue more audio');
   });
 }
 
@@ -552,7 +716,7 @@ test('phase entered during progressive loading plays latest cue once, while fail
   assert.equal(MockContext.latest.voices.length, 0);
   assert.equal(fallback.caption, captionForPhase('cabin'));
   sim.time = 22; await update(fallback, sim);
-  assert.equal(fallback.caption, exact(radioScript.ambient[0]), 'missing audio still captions ambient cue');
+  assert.equal(fallback.caption, exact(firstRelay), 'missing audio still captions ambient cue');
 });
 
 
@@ -568,7 +732,7 @@ test('moving chapter transitions preserve radio cadence and defer due traffic be
     context.voices.at(-1)!.finish();
   }
   sim.time = 14; await update(audio, sim);
-  assert.equal(context.voices.at(-1)!.buffer?.id, radioScript.ambient[0].id,
+  assert.equal(context.voices.at(-1)!.buffer?.id, firstRelay.id,
     'first background cue still arrives fourteen seconds after boarding');
   context.voices.at(-1)!.finish();
   sim.time = 44; sim.phase = 'insight'; await update(audio, sim);
@@ -581,7 +745,7 @@ test('moving chapter transitions preserve radio cadence and defer due traffic be
   sim.time = 46; await update(audio, sim);
   assert.equal(context.voices.length, count, 'gap is measured in simulation seconds');
   sim.time = 46.5; await update(audio, sim);
-  assert.equal(context.voices.at(-1)!.buffer?.id, radioScript.ambient[1].id);
+  assert.equal(context.voices.at(-1)!.buffer?.id, openingOrder.id);
   context.voices.at(-1)!.finish();
   sim.time = 48; await update(audio, sim);
   assert.equal(context.voices.length, count + 1, 'only one ambient cue is emitted after deferral, without backlog');

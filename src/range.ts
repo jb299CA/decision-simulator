@@ -62,6 +62,7 @@ class RangeAudioState extends Simulation {
 /** Arcade sandbox: simulated metres and m/s, simplified motion and panel scoring. */
 export class DrivingRange {
   time = 0;
+  callsign = 'Unassigned';
   paused = false;
   position: { x: number; z: number } = { ...MISSION_START };
   /** Zero faces -z. Positive heading rotates the forward vector toward -x. */
@@ -324,7 +325,7 @@ export class DrivingRange {
             : repair ? 'Team delivered, with unresolved faults requiring repair before return to service.'
               : 'Team delivered. Early pace reduction limited damage; recorded trends still require inspection.';
     this.debrief = Object.freeze({
-      outcome, failureReason: this.mission.failureReason, endedAt: this.time, distanceTravelled: this.distanceTravelled,
+      outcome, callsign: this.callsign, failureReason: this.mission.failureReason, endedAt: this.time, distanceTravelled: this.distanceTravelled,
       optionalVisitedLabels: this.explorer.visitedLabels(),
       contactsCleared: this.mission.contacts.filter(contact => contact.neutralized).length, contactsTotal: this.mission.contacts.length,
       summary, vehicleStatus: outcome === 'breakdown' ? 'immobilized' : major ? 'major-repair' : repair ? 'repair-required' : 'requires-inspection',

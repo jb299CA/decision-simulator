@@ -53,6 +53,7 @@ export type VehicleHealthState = {
 };
 
 export type MissionDebrief = {
+  callsign?: string;
   outcome: 'complete' | 'failed' | 'recovery' | 'breakdown';
   failureReason?: MissionFailureReason | null;
   endedAt: number;

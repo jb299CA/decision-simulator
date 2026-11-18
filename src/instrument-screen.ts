@@ -5,12 +5,12 @@ import { systemHealthScore } from './health-score.ts';
 type InstrumentRow = { label: string; value: number | null; unit: string; severity: FaultSeverity; history: number[] };
 export type InstrumentInput = {
   mode: 'range' | 'guided'; time: number; engine: boolean; speed: number; rpm: number; load: number;
-  integrity: number; status: string; faults?: readonly VehicleFault[];
+  callsign?: string; integrity: number; status: string; faults?: readonly VehicleFault[];
   voltage?: number; voltageHistory?: readonly number[]; alert?: boolean;
 };
 export type InstrumentSnapshot = {
   mode: InstrumentInput['mode']; time: number; engine: boolean; speed: number; rpm: number; load: number;
-  integrity: number; status: string; rows: InstrumentRow[]; systems: ReturnType<typeof systemHealthScore>;
+  callsign: string; integrity: number; status: string; rows: InstrumentRow[]; systems: ReturnType<typeof systemHealthScore>;
 };
 const finite = (n: number, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const bounded = (n: number, min: number, max: number) => Math.max(min, Math.min(max, finite(n)));
@@ -22,7 +22,7 @@ export function instrumentSnapshot(input: InstrumentInput): InstrumentSnapshot {
     mode: input.mode, time: Math.floor(Math.max(0, finite(input.time)) * 5 + 1e-7) / 5,
     engine: input.engine, speed: input.engine ? Math.abs(finite(input.speed)) : 0,
     rpm: input.engine ? Math.max(0, finite(input.rpm)) : 0, load: input.engine ? bounded(input.load, 0, 1) * 100 : 0,
-    integrity: bounded(input.integrity, 0, 100), status: input.status, systems: systemHealthScore(input.faults ?? []),
+    integrity: bounded(input.integrity, 0, 100), status: input.status, callsign: input.callsign ?? 'Vehicle', systems: systemHealthScore(input.faults ?? []),
     rows: input.mode === 'range' ? (input.faults ?? []).map(fault => ({
       label: fault.severity === 'normal' ? fault.component : fault.label, value: Number.isFinite(fault.reading) ? fault.reading : null, unit: '% start', severity: severity(fault.severity),
       history: fault.observations.map(o => o.value).filter(Number.isFinite).slice(-48),
@@ -79,7 +79,7 @@ export class InstrumentScreen {
     };
     // A fixed instrument grid keeps physical controls and readings visually stable.
     c.fillStyle = '#202c33'; c.fillRect(0, 0, w, 68);
-    label('MFoCS', 28, 45, 32, white, true); label('VEHICLE / SYSTEMS', 214, 43, 23, white, true);
+    label('MFoCS', 28, 45, 32, white, true); label(`${s.callsign.toUpperCase()} / SYSTEMS`, 214, 43, 23, white, true);
     c.textAlign = 'right';
     label(`SIM ${Math.floor(s.time / 60).toString().padStart(2, '0')}:${Math.floor(s.time % 60).toString().padStart(2, '0')}  ?  ENGINE ON`, 1246, 42, 21, dim);
     c.textAlign = 'left';

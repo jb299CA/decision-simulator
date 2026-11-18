@@ -18,6 +18,15 @@ test('physical screen uses actual relative readings and categorical severity wit
   assert.equal(snapshot.rows[0].label, fault.label);
 });
 
+test('physical display snapshots carry the selected run identity without changing telemetry', () => {
+  const first = instrumentSnapshot({ ...input, callsign: 'Aztec 1-6' });
+  const next = instrumentSnapshot({ ...input, callsign: 'Crazy Horse 3-6' });
+  assert.equal(first.callsign, 'Aztec 1-6');
+  assert.equal(next.callsign, 'Crazy Horse 3-6');
+  assert.deepEqual(first.rows, next.rows);
+  assert.deepEqual(first.systems, next.systems);
+});
+
 test('normalization prevents NaN and uses zero drivetrain values after engine shutdown', () => {
   const snapshot = instrumentSnapshot({ ...input, engine: false, time: NaN, speed: Infinity, rpm: NaN, load: NaN, integrity: NaN, faults: [{ ...fault, reading: NaN, observations: [{ time: 0, value: NaN }] }] });
   assert.equal(snapshot.time, 0); assert.equal(snapshot.speed, 0); assert.equal(snapshot.rpm, 0); assert.equal(snapshot.load, 0);

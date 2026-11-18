@@ -672,7 +672,7 @@ export class VehicleScene {
   /** Independent GPU ownership; the inspection never changes driving geometry or pose. */
   createInspectionModel(): THREE.Group { return cloneInspectionModel(closedRampClone(this.vehicle)); }
 
-  update(sim: Simulation, delta: number, reducedMotion: boolean, faults?: readonly VehicleFault[]) {
+  update(sim: Simulation, delta: number, reducedMotion: boolean, faults?: readonly VehicleFault[], callsign = 'Vehicle') {
     this.screenMaterial.map = this.instrumentScreen.texture;
     this.screen.scale.y = 1;
     this.cabinTerminal.rotation.set(-.12,-.16,0);
@@ -771,7 +771,7 @@ export class VehicleScene {
     this.dust.visible = exterior && sim.moving && sim.speed > .1 && !reducedMotion;
     this.dust.position.z = -(sim.drivingTime * .8) % 1.5;
     // Physical equipment is dark after shutdown. The later exercise view is separate from the cabin.
-    this.instrumentScreen.update({ mode: 'guided', time: sim.time, engine: sim.engine, speed: sim.speed * 18,
+    this.instrumentScreen.update({ mode: 'guided', callsign, time: sim.time, engine: sim.engine, speed: sim.speed * 18,
       rpm: sim.engine ? 720 + sim.speed * 1500 : 0, load: sim.latest.load, integrity: 100,
       status: sim.alert ? 'CHARGING TREND ALERT  /  REVIEW EVIDENCE' : sim.secured ? 'ENGINE OFF  /  VEHICLE SECURED' : 'CREW SYSTEMS  /  MONITORING',
       voltage: sim.latest.voltage, voltageHistory: sim.observations.map(observation => observation.voltage), alert: sim.alert, faults });
@@ -813,7 +813,7 @@ export class VehicleScene {
       this.cabinTerminal.rotation.set(-.12,-.16,0);
     }
     const engine = range.audioState.engine;
-    this.instrumentScreen.update({ mode: 'range', time: range.time, engine, speed: range.speedMph,
+    this.instrumentScreen.update({ mode: 'range', callsign: range.callsign, time: range.time, engine, speed: range.speedMph,
       rpm: range.powertrain.rpm, load: range.powertrain.load, integrity: range.mission.integrity,
       status: range.health.phase === 'nominal' ? 'CREW SYSTEMS  /  MONITORING' : range.health.message,
       faults: range.health.faults });
@@ -1007,7 +1007,7 @@ export class VehicleScene {
       const lockedContact = lockedTarget ? range.mission.contacts.find(contact => contact.id === lockedTarget.id) : undefined;
       const aimPoint = lockedTarget ? {x:lockedTarget.x,z:lockedTarget.z,
         y:terrainAt(lockedTarget.x,lockedTarget.z).height + (lockedContact ? lockedContact.kind === 'troop' ? 1.25 : 2.2 : 2.4)} : undefined;
-      this.gunnerDisplay.capture(this.renderer,this.scene,{time:range.time,paused:range.paused,engine,phone:mobile,
+      this.gunnerDisplay.capture(this.renderer,this.scene,{callsign:range.callsign,time:range.time,paused:range.paused,engine,phone:mobile,
         lastShotTime:range.lastShotTime,reducedMotion,
         x:range.position.x,z:range.position.z,height:terrain.height,heading:range.heading,aimYaw:range.aimYaw,locked:!!lockedTarget && !range.missionEnded,aimPoint},
         [this.rangeWorld,this.exterior],hidden,hot);

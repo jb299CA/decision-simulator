@@ -30,7 +30,7 @@ export function missionDebriefMarkup(report: MissionDebrief): string {
     ...report.decisions.map(decision => ({ time: decision.time, text: `${decisions[decision.action]}${decision.faultId ? ` · ${report.findings.find(fault => fault.id === decision.faultId)?.label ?? decision.faultId}` : ''}` })),
     { time: report.endedAt, text: title },
   ].sort((a, b) => a.time - b.time);
-  return `<div class="health-hardware"><span>MFoCS / AFTER-ACTION RECORD</span><img class="health-corner-logo debrief-corner-logo" src="/branding/shift5-logo.svg" alt="Shift5"></div>
+  return `<div class="health-hardware"><span>${escapeHtml(report.callsign ?? 'Vehicle')} / AFTER-ACTION RECORD</span><img class="health-corner-logo debrief-corner-logo" src="/branding/shift5-logo.svg" alt="Shift5"></div>
     <div class="mission-debrief-content"><header class="mission-debrief-heading"><div><span class="eyebrow">MISSION DEBRIEF</span><h2 id="mission-debrief-title">${title}</h2></div><button class="health-close" data-action="close-debrief" aria-label="Close mission debrief">Close &times;</button></header>
     <p class="mission-debrief-summary">${escapeHtml(report.summary)}</p>
     <div class="debrief-metrics"><div><span>ELAPSED</span><strong>${exerciseTime(report.endedAt)}</strong></div><div><span>DISTANCE</span><strong>${Math.round(report.distanceTravelled)} <small>game units</small></strong></div><div><span>CONTACTS CLEARED</span><strong>${report.contactsCleared} / ${report.contactsTotal}</strong></div></div>

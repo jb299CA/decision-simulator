@@ -43,6 +43,18 @@ test('exact objective boundary succeeds; a drop just outside commits a distinct 
   }
 });
 
+test('completed debrief retains the assigned radio callsign after the next run changes identity', () => {
+  const range = ready();
+  range.callsign = 'Crazy Horse 2-6';
+  assert.equal(range.dropRamp(), true);
+  run(range, DISMOUNT.durationSeconds);
+  const report = range.debrief!;
+  range.restart();
+  range.callsign = 'Aztec 1-6';
+  assert.equal(report.callsign, 'Crazy Horse 2-6');
+  assert.equal(range.debrief, null);
+});
+
 test('outside drop accepts training, uncleared contacts and motion, then immobilizes the vehicle', () => {
   const range = new DrivingRange(); range.speed = 12;
   assert.equal(range.mission.departureCrossed, false); assert.ok(range.mission.remainingContacts > 0);
