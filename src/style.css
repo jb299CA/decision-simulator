@@ -333,6 +333,11 @@ body[data-mode="range"] .caption{font-size:11px;max-width:1000px}
 .range-weapon.firing{background:#ff5841;color:#171b23;border-color:#fff}
 .range-weapon.firing>span:not(.weapon-dot){color:#171b23}
 .range-controls{position:absolute;bottom:30px;left:0;right:0;border:1px solid #ffffff40;border-radius:7px;padding:12px 16px;background:#171b23e8;backdrop-filter:blur(12px)}
+.range-controls-tray{position:absolute;z-index:10;bottom:30px;left:0;right:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;pointer-events:none}
+.range-controls-tray>.range-controls{position:static;width:100%;pointer-events:auto}
+.range-controls-toggle{min-width:88px;min-height:44px;padding:10px 14px;border:1px solid #ffffff75;border-radius:6px;background:#14232ce6;color:#fff;font-size:12px;font-weight:600;pointer-events:auto;touch-action:manipulation}
+.range-controls-toggle:focus-visible{outline:2px solid #ffad66;outline-offset:3px}
+.range-controls[hidden],.weapon-controls input[hidden]{display:none!important}
 .range-key-guide{display:flex;justify-content:space-between;gap:14px;font-size:10px;color:#bfc8d7;padding-bottom:11px}
 .range-key-guide b{font-size:9px;color:#fff;font-weight:600;letter-spacing:.4px}
 .range-control-row{display:flex;align-items:center;justify-content:space-between;gap:28px}
@@ -583,6 +588,8 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
 .masthead .menu-control .control-icon { font-size: 18px; line-height: 18px; }
 .masthead .menu-control .control-name { position: static; display: block; width: auto; height: auto; padding: 0; margin: 0; overflow: visible; clip: auto; white-space: nowrap; font-size: 9px; line-height: 11px; }
 @media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  body[data-mode="range"] .range-controls-tray{display:contents}
+  body[data-mode="range"] .range-controls-toggle{position:fixed;z-index:11;left:var(--range-edge-left);bottom:calc(var(--range-controls-bottom) + 144px);min-width:88px;min-height:44px;padding:9px 12px;font-size:11px}
   body[data-mode="range"] {
     --range-edge-left: max(8px, env(safe-area-inset-left));
     --range-edge-right: max(8px, env(safe-area-inset-right));
@@ -660,7 +667,7 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
   body[data-mode="range"] .range-health-notice { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   body[data-mode="range"] .range-controls {
     position: fixed; z-index: 10; left: var(--range-edge-left); right: var(--range-edge-right);
-    bottom: var(--range-controls-bottom); height: 140px; padding: 0; border: 0;
+    bottom: var(--range-controls-bottom); width:auto; height: 140px; padding: 0; border: 0;
     background: transparent; backdrop-filter: none; pointer-events: none;
   }
   body[data-mode="range"] .range-control-row { display: flex; width: 100%; height: 100%; align-items: flex-end; justify-content: space-between; gap: 10px; }
@@ -741,6 +748,7 @@ body[data-range-view="top"] .range-weapon{top:auto;bottom:200px;left:auto;right:
   body[data-mode="range"] .mission-map { top: calc(env(safe-area-inset-top) + 54px); width: 80px; }
   body[data-mode="range"] .mission-map .map-content svg { height: 60px; }
   body[data-mode="range"] .range-controls { height: 116px; }
+  body[data-mode="range"] .range-controls-toggle { bottom:calc(var(--range-controls-bottom) + 120px); }
   body[data-mode="range"] .touch-stick { width: 112px; height: 112px; flex-basis: 112px; }
   body[data-mode="range"] .stick-hint { top: 50px; }
   body[data-mode="range"] .stick-forward { top: 6px; }

@@ -55,6 +55,8 @@ const heldPointers = new Map<number, string>();
 let aimInput = 0;
 let aimPointer: number | undefined;
 let cruise = false;
+let rangeControlsExpanded = false;
+const compactRangeControls = window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)');
 let lastRangeShots = 0;
 let lastRangeHits = 0;
 const observedBrokenBoards = new Set<string>();
@@ -480,6 +482,7 @@ function resetGunnerDisplay(): void {
 }
 
 function renderRange(): void {
+  rangeControlsExpanded = false;
   stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">${escapeHtml(range.callsign)} / ASSIGNED MISSION</span><h1>Practice. Cross the line. Complete the mission.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
     <div class="range-drawer-settings"><section class="range-status-details" aria-label="Current alerts"><p id="range-health-detail"></p><p id="range-contact-detail"></p><p id="range-event-detail"></p></section><p>Hold ACCEL or Space to accelerate; release to coast. Drag the left stick to drive and steer. Hold S / down or pull the stick back to slow, then reverse. Auto aim locks onto nearby targets ahead. Hold FIRE to shoot; the aim slider or Q / E temporarily takes manual control.</p><p>Clear the contacts, stop inside the marked dismount zone, then select Drop ramp or press R to unload the nine-person squad. Outside zone = mission failure. The ramp command commits the unload.</p><div><button data-action="sound-retry">Enable / retry sound</button><button class="drawer-music-control" data-action="music" aria-pressed="${audio.musicEnabled}">Music: ${audio.musicEnabled ? 'on' : 'off'}</button><button data-action="aim-assist" aria-pressed="${range.aimAssistEnabled}">Auto aim: ${range.aimAssistEnabled ? 'on' : 'off'}</button><button data-action="motion" aria-pressed="${reducedMotion}">Reduced motion</button><button data-action="fullscreen">Fullscreen</button><button data-action="restart">Restart mission</button><button data-action="menu">Main menu</button></div><p class="sound-help">Sound on but silent? Enable / retry sound refreshes the audio output and returns to the exercise. On iPhone, check media volume and the selected speaker or headphones.</p><p>Fictional game handling and combat. Simulated speed limits: road 60 mph, grass 45, wash 25, rock 18, reverse 10. Terrain and vehicle faults can reduce the current limit. These are game settings, not operational guidance. No operational procedures or ballistics.</p></div></aside>
     <div class="range-instrument-stack">
@@ -492,10 +495,11 @@ function renderRange(): void {
 
     <div class="range-edge-controls"><nav class="range-view-panel" aria-label="Camera views"><div class="range-view-buttons">${RANGE_VIEWS.map((view, i) => `<button data-action="range-view-${view}" aria-pressed="${rangeView === view}" title="${i + 1}: ${view}">${{hatch:'Hatch',inside:'Inside',chase:'Chase',top:'Top'}[view]}</button>`).join('')}</div><span>CAMERA &middot; KEYS 1&ndash;4</span></nav><div class="ramp-command"><div id="range-movement-clock" class="movement-clock" role="timer" aria-live="off"><span id="movement-clock-label">AFTER LD</span><strong id="movement-clock-value">03:00</strong></div><button data-action="drop-ramp" id="drop-ramp-button" aria-describedby="ramp-command-status">Drop ramp <small>R</small></button><span id="ramp-command-status" role="status" aria-live="polite">Outside zone = mission failure</span></div></div>
     <div class="range-announcements"><span id="range-health-notice" role="status" aria-live="assertive"></span><span id="range-contact-notice" role="status" aria-live="polite"></span><span id="range-event-notice" role="status" aria-live="polite"></span></div>
-    <section class="range-controls" aria-label="Driving and weapon controls"><div class="range-key-guide"><span><b>WASD / ARROWS</b> drive &middot; <b>SPACE</b> accelerate</span><span><b>Q / E</b> aim &middot; <b>F</b> fire &middot; <b>R</b> drop ramp &middot; <b>P</b> pause &middot; <b>M</b> mute</span><span>Fictional contacts may reduce vehicle integrity</span></div><div class="range-control-row"><div id="drive-stick" class="touch-stick" role="group" aria-label="Thumb drive stick: drag up to drive, down to reverse, left or right to steer"><span class="stick-direction stick-forward" aria-hidden="true">FORWARD</span><span class="stick-direction stick-reverse" aria-hidden="true">REVERSE</span><span class="stick-knob" aria-hidden="true"></span><span class="stick-hint" aria-hidden="true">DRAG TO DRIVE</span></div><div class="drive-pad" aria-label="Drive controls"><button data-hold="left" aria-label="Steer left">&#9664;</button><div class="drive-longitudinal"><button data-hold="forward" aria-label="Hold to drive forward">&#9650;<small>FORWARD</small></button><button data-hold="reverse" aria-label="Hold to reverse">&#9660;<small>REVERSE</small></button></div><button data-hold="right" aria-label="Steer right">&#9654;</button><div class="drive-toggles"><button data-action="cruise" id="cruise-toggle" aria-pressed="false">Drive lock<small>TAP TO CRUISE</small></button><button data-hold="accelerate" class="accelerate-button" aria-label="Hold to accelerate">Accelerate<small>HOLD / SPACE</small></button></div></div><div class="weapon-controls"><label for="range-aim-input"><span id="range-lock" class="aim-lock-status" role="status" aria-live="polite">AUTO AIM / READY</span><input id="range-aim-input" type="range" min="-1" max="1" value="0" step=".01" aria-label="Weapon rotation, springs back when released"></label><div class="weapon-actions"><button class="center-aim-button" data-action="center-aim">Center aim</button><button class="mobile-accelerate-button" data-hold="accelerate" aria-label="Hold to accelerate">ACCEL</button><button class="fire-button" data-hold="fire">FIRE<small>HOLD &middot; .50 CAL</small></button></div></div></div></section>
+    <div class="range-controls-tray"><button class="range-controls-toggle" data-action="range-controls" aria-expanded="false" aria-controls="range-controls">Controls</button><section id="range-controls" class="range-controls" aria-label="Driving and weapon controls" hidden inert><div class="range-key-guide"><span><b>WASD / ARROWS</b> drive &middot; <b>SPACE</b> accelerate</span><span><b>Q / E</b> aim &middot; <b>F</b> fire &middot; <b>R</b> drop ramp &middot; <b>P</b> pause &middot; <b>M</b> mute</span><span>Fictional contacts may reduce vehicle integrity</span></div><div class="range-control-row"><div id="drive-stick" class="touch-stick" role="group" aria-label="Thumb drive stick: drag up to drive, down to reverse, left or right to steer"><span class="stick-direction stick-forward" aria-hidden="true">FORWARD</span><span class="stick-direction stick-reverse" aria-hidden="true">REVERSE</span><span class="stick-knob" aria-hidden="true"></span><span class="stick-hint" aria-hidden="true">DRAG TO DRIVE</span></div><div class="drive-pad" aria-label="Drive controls"><button data-hold="left" aria-label="Steer left">&#9664;</button><div class="drive-longitudinal"><button data-hold="forward" aria-label="Hold to drive forward">&#9650;<small>FORWARD</small></button><button data-hold="reverse" aria-label="Hold to reverse">&#9660;<small>REVERSE</small></button></div><button data-hold="right" aria-label="Steer right">&#9654;</button><div class="drive-toggles"><button data-action="cruise" id="cruise-toggle" aria-pressed="false">Drive lock<small>TAP TO CRUISE</small></button><button data-hold="accelerate" class="accelerate-button" aria-label="Hold to accelerate">Accelerate<small>HOLD / SPACE</small></button></div></div><div class="weapon-controls"><label for="range-aim-input"><span id="range-lock" class="aim-lock-status" role="status" aria-live="polite">AUTO AIM / READY</span><input id="range-aim-input" type="range" min="-1" max="1" value="0" step=".01" aria-label="Weapon rotation, springs back when released"></label><div class="weapon-actions"><button class="center-aim-button" data-action="center-aim">Center aim</button><button class="mobile-accelerate-button" data-hold="accelerate" aria-label="Hold to accelerate">ACCEL</button><button class="fire-button" data-hold="fire">FIRE<small>HOLD &middot; .50 CAL</small></button></div></div></div></section></div>
     <section id="range-result" class="range-result" role="status" hidden><span class="eyebrow">MISSION RESULT</span><h2 id="range-result-title"></h2><p id="range-result-detail"></p><div>${button('Review debrief', 'review-debrief')}${button('Restart mission', 'restart', true)}${button('Main menu', 'menu', true)}</div></section>
     <p class="range-fiction">Fictional, non-graphic game combat &middot; no operational ballistics</p>`;
   stage.querySelector('.range-edge-controls')!.append(pauseBanner);
+  syncRangeControls();
   syncGunnerDisplay();
   syncSpeedometerView();
   updateRangeLive();
@@ -511,6 +515,7 @@ function render(): void {
   guidedInspector?.dispose(); guidedInspector = null;
   const p = sim.phase;
   document.body.dataset.mode = mode;
+  document.body.classList.remove('range-controls-open');
   document.querySelectorAll<HTMLElement>('[data-callsign]').forEach(el => { el.textContent = mode === 'range' ? range.callsign : audio.missionCallsign; });
   syncGunnerDisplay();
   // Reset any range effects once, then let the static home artwork rest the GPU.
@@ -760,6 +765,12 @@ function isPaused(): boolean { return mode === 'range' ? range.paused : sim.paus
 
 function clearRangeInputs(): void {
   keyboard.clear();
+  clearOnscreenRangeInputs();
+}
+
+/** Hidden controls cannot leave a captured pointer, fire request or cruise latched. */
+function clearOnscreenRangeInputs(): void {
+  keyboard.consumeFire();
   const pointers = [...heldPointers.keys(), ...(touchStick.pointerId === null ? [] : [touchStick.pointerId]), ...(aimPointer === undefined ? [] : [aimPointer])];
   heldPointers.clear(); touchStick.clear(); aimInput = 0; aimPointer = undefined; cruise = false;
   document.querySelectorAll<HTMLElement>('[data-hold], #drive-stick, #range-aim-input').forEach(el => {
@@ -823,7 +834,7 @@ function syncControls(): void {
   const dismounting = mode === 'range' && range.dismounting;
   stage.querySelectorAll<HTMLButtonElement>('button').forEach(el => {
     const name = el.dataset.action ?? '';
-    const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
+    const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
     el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
@@ -842,6 +853,13 @@ function setPaused(value: boolean): void {
 }
 
 async function action(name: string): Promise<void> {
+  if (name === 'range-controls' && mode === 'range') {
+    if (healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open) return;
+    rangeControlsExpanded = !rangeControlsExpanded;
+    if (!rangeControlsExpanded) clearOnscreenRangeInputs();
+    syncRangeControls();
+    return;
+  }
   if (name === 'sound-retry') {
     if (rangeDrawerInspection.open) setRangeDrawer(false);
     muted = false; audio.setMuted(false); preferences.muted = false; saveGamePreferences(preferences);
@@ -1096,6 +1114,32 @@ function syncStick(): void {
   control.style.setProperty('--stick-y', `${touchStick.position.y * 36}px`);
   control.classList.toggle('held', touchStick.pointerId !== null);
 }
+
+function syncRangeControls(): void {
+  const panel = document.querySelector<HTMLElement>('#range-controls');
+  const aim = document.querySelector<HTMLInputElement>('#range-aim-input');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-action="range-controls"]');
+  if (!panel || !aim || !toggle) return;
+  const compact = compactRangeControls.matches;
+  const hidePanel = !compact && !rangeControlsExpanded;
+  const hideAim = compact && !rangeControlsExpanded;
+  // Move focus before hiding the element that currently owns it.
+  if ((hidePanel && panel.contains(document.activeElement)) || (hideAim && aim.contains(document.activeElement))) toggle.focus({ preventScroll: true });
+  panel.hidden = hidePanel;
+  panel.inert = hidePanel;
+  aim.hidden = hideAim;
+  aim.inert = hideAim;
+  toggle.setAttribute('aria-controls', compact ? 'range-aim-input' : 'range-controls');
+  toggle.setAttribute('aria-expanded', String(rangeControlsExpanded));
+  toggle.textContent = rangeControlsExpanded ? 'Hide controls' : 'Controls';
+  document.body.classList.toggle('range-controls-open', rangeControlsExpanded);
+}
+
+compactRangeControls.addEventListener('change', () => {
+  if (mode !== 'range') return;
+  clearOnscreenRangeInputs();
+  syncRangeControls();
+});
 
 function setRangeDrawer(open: boolean): void {
   if (open === rangeDrawerInspection.open || (open && mapInspection.open)) return;

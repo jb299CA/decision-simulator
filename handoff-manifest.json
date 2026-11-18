@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 44,
+  "sourceRelease": 45,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 135,
-  "totalBytes": 4776923,
+  "fileCount": 137,
+  "totalBytes": 4791385,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -258,6 +258,11 @@
       "sha256": "7ec40a747ce8f6249ceed6ab0e00238243f60b94014a19666b7585a06daeb672"
     },
     {
+      "path": "src/bumper-marking.ts",
+      "bytes": 4239,
+      "sha256": "4e2fa923fd009c664e3b90a6b4e87203fbc828ff27a4d4948207b443af5a5129"
+    },
+    {
       "path": "src/cabin-display.ts",
       "bytes": 4458,
       "sha256": "fc0a39e2400991f51a7d18625d6192d97e03646aaf083156bff86452c3df6f1f"
@@ -364,8 +369,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 116291,
-      "sha256": "111b1597d1510f37e9c1bcf54def8e8e033c475eb8b25024ed837dd4690c411d"
+      "bytes": 118613,
+      "sha256": "da47f6fe0f2619ff3246275dcbf73a45c14714662920bbb9ec152316f9db737b"
     },
     {
       "path": "src/map-navigation.ts",
@@ -429,8 +434,8 @@
     },
     {
       "path": "src/scene.ts",
-      "bytes": 74742,
-      "sha256": "2f8e0796009f0b7057fc58cd5014fd5f1ab4915962c91d3492da90613c66909c"
+      "bytes": 75039,
+      "sha256": "d2e3761605cab524845edf35a03ec656b8a0952f2ea992a7d86e615a25089d99"
     },
     {
       "path": "src/simulation.ts",
@@ -439,8 +444,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 200334,
-      "sha256": "bfb25c51ca6e1864de1d92c667d9e2b010376512ef4b94d59f4dc29e1032b192"
+      "bytes": 201378,
+      "sha256": "cf94258ac273298b99f5ee96a086a9aca20eccd5b12a5f29908118856983f78e"
     },
     {
       "path": "src/target-debris.ts",
@@ -486,6 +491,11 @@
       "path": "tests/audio.test.ts",
       "bytes": 82348,
       "sha256": "bfb77efbf662d115bbfee1150047f61fc4904c527f6585b7306e468d437de2a2"
+    },
+    {
+      "path": "tests/bumper-marking.test.ts",
+      "bytes": 6560,
+      "sha256": "9bdca2f09e3f53c7de2c4c2a195e46d048d669188342a995ddf29500ce869bec"
     },
     {
       "path": "tests/cabin-display.test.ts",

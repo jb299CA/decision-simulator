@@ -22,6 +22,7 @@ import { applyWorldUV, createExplorationLandmark, createGroundTexture, createPol
 import { applyVehicleAppearance } from './vehicle-appearance';
 import type { GunnerDisplayMode, VehicleFault } from './mission-contract';
 import { closedRampClone, createRearRamp, DismountSquad, updateRearRamp } from './dismount-squad';
+import { RearBumperMarking } from './bumper-marking';
 
 /** Original, entirely procedural illustration. No asset downloads or live interfaces. */
 export class VehicleScene {
@@ -35,6 +36,7 @@ export class VehicleScene {
   private readonly vehicle = new THREE.Group();
   private readonly dismountSquad = new DismountSquad();
   private rearRamp!: ReturnType<typeof createRearRamp>;
+  private readonly bumperMarking = new RearBumperMarking();
   private readonly contactShadow = createVehicleContactShadow();
   private readonly guidedVehicleBounds = new THREE.Box3();
   private readonly guidedTerrain = new THREE.Group();
@@ -368,6 +370,7 @@ export class VehicleScene {
     // The hinge group stays separate from static hull compaction. A dark inset
     // masks the original closed illustrative hull only while the ramp is open.
     this.rearRamp = createRearRamp(panel,edge); this.vehicle.add(this.rearRamp.root);
+    this.vehicle.add(this.bumperMarking.root);
     // Commander's and driver's hatches, periscopes, low remote station, stowage and aerials.
     this.cylinder(this.vehicle,.46,.11,[-.6,2.29,1.25],panel);
     this.cylinder(this.vehicle,.4,.07,[-.6,2.36,1.25],armor);
@@ -673,6 +676,7 @@ export class VehicleScene {
   createInspectionModel(): THREE.Group { return cloneInspectionModel(closedRampClone(this.vehicle)); }
 
   update(sim: Simulation, delta: number, reducedMotion: boolean, faults?: readonly VehicleFault[], callsign = 'Vehicle') {
+    this.bumperMarking.update(callsign);
     this.screenMaterial.map = this.instrumentScreen.texture;
     this.screen.scale.y = 1;
     this.cabinTerminal.rotation.set(-.12,-.16,0);
@@ -787,6 +791,7 @@ export class VehicleScene {
   }
 
   updateRange(range: DrivingRange, delta: number, reducedMotion: boolean, view: RangeView) {
+    this.bumperMarking.update(range.callsign);
     this.camera.clearViewOffset();
     const entering = !this.rangeActive;
     if (entering || range.time < this.lastRangeTime) this.gunnerDisplay.reset();
@@ -1036,6 +1041,7 @@ export class VehicleScene {
   }
 
   dispose() {
+    this.bumperMarking.disposeTextures();
     this.dismountSquad.dispose();
     this.damageEffects.dispose(); this.aftermathClock.reset();
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
