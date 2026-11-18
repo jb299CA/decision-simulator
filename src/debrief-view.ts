@@ -13,8 +13,13 @@ export function severityLabel(severity: FaultSeverity): string {
   return { normal: 'Normal', moderate: 'Moderate', severe: 'Severe', failed: 'Breakdown' }[severity];
 }
 
+export function missionDebriefTitle(report: MissionDebrief): string {
+  if (report.outcome === 'failed' && report.failureReason === 'dismount-outside-zone') return 'Squad unloaded outside the dismount zone.';
+  return { complete: 'Dismount point reached.', failed: 'Vehicle lost to contact damage.', recovery: 'Recovery requested.', breakdown: 'Vehicle breakdown.' }[report.outcome];
+}
+
 export function missionDebriefMarkup(report: MissionDebrief): string {
-  const title = { complete: 'Dismount point reached.', failed: 'Vehicle lost to contact damage.', recovery: 'Recovery requested.', breakdown: 'Vehicle breakdown.' }[report.outcome];
+  const title = missionDebriefTitle(report);
   const status = { 'requires-inspection': 'Post-mission inspection', 'repair-required': 'Repair required', 'major-repair': 'Major repair required', immobilized: 'Vehicle immobilized' }[report.vehicleStatus];
   const decisions = { continue: 'Continued mission with fault unresolved', diagnose: 'Inspected fault; no repair performed', 'reduce-pace': 'Reduced pace to limit further damage', recovery: 'Called in-game recovery; vehicle stopped' };
   const findingLabel = (fault: MissionDebrief['findings'][number]) => fault.severity === 'normal'

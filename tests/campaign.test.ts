@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DrivingRange, RANGE_BOUNDS, terrainAt, type RangeContact } from '../src/range.ts';
 import { WORLD_BOUNDS, MISSION_START, DEPARTURE_Z, DISMOUNT_POINT, MISSION_ROUTE, PRACTICE_TARGETS, ENEMY_CONTACTS } from '../src/world-config.ts';
+import { DISMOUNT } from '../src/dismount.ts';
 
 const idle = { throttle: 0, steer: 0, aim: 0, fire: false };
 function run(range: DrivingRange, seconds: number, input = idle): void {
@@ -154,7 +155,7 @@ test('detection has a 130-unit radius and return fire a 70-unit radius', () => {
   range.position.z = contact.z + 70; range.tick(.025, idle); assert.equal(range.mission.integrity, 98);
 });
 
-test('reaching dismount early cannot complete; clearing every contact enables a stopped two-second hold', () => {
+test('reaching dismount early cannot complete; cleared contacts and a stop enable explicit Drop ramp', () => {
   const range = new DrivingRange(); range.position = { x: DISMOUNT_POINT.x, z: DISMOUNT_POINT.z };
   run(range, 2.5);
   assert.equal(range.mission.status, 'enroute'); assert.equal(range.mission.arrivalProgress, 0);
@@ -163,10 +164,13 @@ test('reaching dismount early cannot complete; clearing every contact enables a 
   assert.equal(range.mission.remainingContacts, 0); assert.equal(range.mission.phase, 'dismount');
   range.position = { x: DISMOUNT_POINT.x, z: DISMOUNT_POINT.z }; range.speed = 0;
   run(range, 1);
-  assert.equal(range.mission.status, 'arriving'); assert.ok(Math.abs(range.mission.arrivalProgress - .5) < 1e-8);
+  assert.equal(range.mission.status, 'arriving'); assert.equal(range.mission.arrivalProgress, 0);
   range.speed = 2; range.tick(.1, idle);
   assert.equal(range.mission.status, 'enroute'); assert.equal(range.mission.arrivalProgress, 0);
-  range.speed = 0; run(range, 2);
+  range.speed = 0; run(range, 3);
+  assert.equal(range.mission.status, 'arriving', 'a stopped vehicle never unloads automatically');
+  assert.equal(range.dropRamp(), true); assert.equal(range.mission.status, 'dismounting');
+  run(range, DISMOUNT.durationSeconds);
   assert.equal(range.mission.status, 'complete'); assert.equal(range.mission.arrivalProgress, 1);
   assert.equal(range.audioState.engine, false); assert.equal(range.powertrain.rpm, 0); assert.equal(range.powertrain.whine, 0);
   const position = { ...range.position }, aim = range.aimYaw, shots = range.shotsFired, integrity = range.mission.integrity;

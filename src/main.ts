@@ -11,7 +11,7 @@ import { RANGE_VIEWS } from './mission-contract';
 import type { FaultId, VehicleFault, MissionDebrief } from './mission-contract';
 import { CabinDisplayState } from './cabin-display';
 import { VehicleInspector } from './vehicle-inspector';
-import { escapeHtml, exerciseTime, missionDebriefMarkup, severityLabel } from './debrief-view';
+import { escapeHtml, exerciseTime, missionDebriefMarkup, missionDebriefTitle, severityLabel } from './debrief-view';
 import { WORLD_BOUNDS, MISSION_ROUTE, MISSION_START, DEPARTURE_Z, POINTS_OF_INTEREST, SIDE_ROADS } from './world-config';
 import { contactVisibility, mapHeading, mapPoint, mapWorldPoint, PLAYER_MARKER_PATH } from './mission-map';
 import { clientMapPoint, MapNavigation } from './map-navigation';
@@ -481,7 +481,7 @@ function resetGunnerDisplay(): void {
 
 function renderRange(): void {
   stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">ASSIGNED MISSION / ARCADE EXERCISE</span><h1>Practice. Cross the line. Complete the mission.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
-    <div class="range-drawer-settings"><section class="range-status-details" aria-label="Current alerts"><p id="range-health-detail"></p><p id="range-contact-detail"></p><p id="range-event-detail"></p></section><p>Hold ACCEL or Space to accelerate; release to coast. Drag the left stick to drive and steer. Hold S / down or pull the stick back to slow, then reverse. Auto aim locks onto nearby targets ahead. Hold FIRE to shoot; the aim slider or Q / E temporarily takes manual control.</p><div><button data-action="sound-retry">Enable / retry sound</button><button class="drawer-music-control" data-action="music" aria-pressed="${audio.musicEnabled}">Music: ${audio.musicEnabled ? 'on' : 'off'}</button><button data-action="aim-assist" aria-pressed="${range.aimAssistEnabled}">Auto aim: ${range.aimAssistEnabled ? 'on' : 'off'}</button><button data-action="motion" aria-pressed="${reducedMotion}">Reduced motion</button><button data-action="fullscreen">Fullscreen</button><button data-action="restart">Restart mission</button><button data-action="menu">Main menu</button></div><p class="sound-help">Sound on but silent? Enable / retry sound refreshes the audio output and returns to the exercise. On iPhone, check media volume and the selected speaker or headphones.</p><p>Fictional game handling and combat. Simulated speed limits: road 60 mph, grass 45, wash 25, rock 18, reverse 10. Terrain and vehicle faults can reduce the current limit. These are game settings, not operational guidance. No operational procedures or ballistics.</p></div></aside>
+    <div class="range-drawer-settings"><section class="range-status-details" aria-label="Current alerts"><p id="range-health-detail"></p><p id="range-contact-detail"></p><p id="range-event-detail"></p></section><p>Hold ACCEL or Space to accelerate; release to coast. Drag the left stick to drive and steer. Hold S / down or pull the stick back to slow, then reverse. Auto aim locks onto nearby targets ahead. Hold FIRE to shoot; the aim slider or Q / E temporarily takes manual control.</p><p>Clear the contacts, stop inside the marked dismount zone, then select Drop ramp or press R to unload the nine-person squad. Outside zone = mission failure. The ramp command commits the unload.</p><div><button data-action="sound-retry">Enable / retry sound</button><button class="drawer-music-control" data-action="music" aria-pressed="${audio.musicEnabled}">Music: ${audio.musicEnabled ? 'on' : 'off'}</button><button data-action="aim-assist" aria-pressed="${range.aimAssistEnabled}">Auto aim: ${range.aimAssistEnabled ? 'on' : 'off'}</button><button data-action="motion" aria-pressed="${reducedMotion}">Reduced motion</button><button data-action="fullscreen">Fullscreen</button><button data-action="restart">Restart mission</button><button data-action="menu">Main menu</button></div><p class="sound-help">Sound on but silent? Enable / retry sound refreshes the audio output and returns to the exercise. On iPhone, check media volume and the selected speaker or headphones.</p><p>Fictional game handling and combat. Simulated speed limits: road 60 mph, grass 45, wash 25, rock 18, reverse 10. Terrain and vehicle faults can reduce the current limit. These are game settings, not operational guidance. No operational procedures or ballistics.</p></div></aside>
     <div class="range-instrument-stack">
     <section class="range-speedometer" aria-label="Simulated vehicle speed" hidden><div class="speedometer-reading"><strong id="speedometer-speed">0</strong><span>MPH <b id="speedometer-direction" hidden>REV</b></span><small>SIM</small></div><div class="speedometer-limit"><span>LIMIT <b id="speedometer-limit">60</b></span><small id="speedometer-reason">Road</small></div><div class="speedometer-track" aria-hidden="true"><span id="speedometer-progress"></span></div></section>
     <button class="range-health" id="range-health-button" data-action="health" aria-haspopup="dialog"><span class="range-health-heading"><span class="range-health-icon" aria-hidden="true">!</span><span>Open MFoCS</span></span><b id="range-health-label">Systems normal</b></button>
@@ -490,9 +490,9 @@ function renderRange(): void {
     <section class="gunner-display-controls" aria-label="Inside gunner display" hidden><div class="gunner-display-buttons"><button data-action="gunner-day" data-gunner-mode="day" aria-pressed="true" aria-label="Day gunner display, live game view">Day</button><button data-action="gunner-thermal" data-gunner-mode="thermal" aria-pressed="false" aria-label="Thermal gunner display, simulated game imagery">Thermal</button><button data-action="gunner-mfocs" data-gunner-mode="mfocs" aria-pressed="false" aria-label="MFoCS vehicle data display">MFoCS</button><button data-action="gunner-expand" aria-expanded="false">Focus display</button></div><span class="gunner-display-caption" aria-live="polite">DAY / LIVE GAME VIEW</span></section>
     </div>
 
-    <div class="range-edge-controls"><nav class="range-view-panel" aria-label="Camera views"><div class="range-view-buttons">${RANGE_VIEWS.map((view, i) => `<button data-action="range-view-${view}" aria-pressed="${rangeView === view}" title="${i + 1}: ${view}">${{hatch:'Hatch',inside:'Inside',chase:'Chase',top:'Top'}[view]}</button>`).join('')}</div><span>CAMERA &middot; KEYS 1&ndash;4</span></nav></div>
+    <div class="range-edge-controls"><nav class="range-view-panel" aria-label="Camera views"><div class="range-view-buttons">${RANGE_VIEWS.map((view, i) => `<button data-action="range-view-${view}" aria-pressed="${rangeView === view}" title="${i + 1}: ${view}">${{hatch:'Hatch',inside:'Inside',chase:'Chase',top:'Top'}[view]}</button>`).join('')}</div><span>CAMERA &middot; KEYS 1&ndash;4</span></nav><div class="ramp-command"><button data-action="drop-ramp" id="drop-ramp-button" aria-describedby="ramp-command-status">Drop ramp <small>R</small></button><span id="ramp-command-status" role="status" aria-live="polite">Outside zone = mission failure</span></div></div>
     <div class="range-announcements"><span id="range-health-notice" role="status" aria-live="assertive"></span><span id="range-contact-notice" role="status" aria-live="polite"></span><span id="range-event-notice" role="status" aria-live="polite"></span></div>
-    <section class="range-controls" aria-label="Driving and weapon controls"><div class="range-key-guide"><span><b>WASD / ARROWS</b> drive &middot; <b>SPACE</b> accelerate</span><span><b>Q / E</b> aim &middot; <b>F</b> fire &middot; <b>P</b> pause &middot; <b>M</b> mute</span><span>Fictional contacts may reduce vehicle integrity</span></div><div class="range-control-row"><div id="drive-stick" class="touch-stick" role="group" aria-label="Thumb drive stick: drag up to drive, down to reverse, left or right to steer"><span class="stick-direction stick-forward" aria-hidden="true">FORWARD</span><span class="stick-direction stick-reverse" aria-hidden="true">REVERSE</span><span class="stick-knob" aria-hidden="true"></span><span class="stick-hint" aria-hidden="true">DRAG TO DRIVE</span></div><div class="drive-pad" aria-label="Drive controls"><button data-hold="left" aria-label="Steer left">&#9664;</button><div class="drive-longitudinal"><button data-hold="forward" aria-label="Hold to drive forward">&#9650;<small>FORWARD</small></button><button data-hold="reverse" aria-label="Hold to reverse">&#9660;<small>REVERSE</small></button></div><button data-hold="right" aria-label="Steer right">&#9654;</button><div class="drive-toggles"><button data-action="cruise" id="cruise-toggle" aria-pressed="false">Drive lock<small>TAP TO CRUISE</small></button><button data-hold="accelerate" class="accelerate-button" aria-label="Hold to accelerate">Accelerate<small>HOLD / SPACE</small></button></div></div><div class="weapon-controls"><label for="range-aim-input"><span id="range-lock" class="aim-lock-status" role="status" aria-live="polite">AUTO AIM / READY</span><input id="range-aim-input" type="range" min="-1" max="1" value="0" step=".01" aria-label="Weapon rotation, springs back when released"></label><div class="weapon-actions"><button class="center-aim-button" data-action="center-aim">Center aim</button><button class="mobile-accelerate-button" data-hold="accelerate" aria-label="Hold to accelerate">ACCEL</button><button class="fire-button" data-hold="fire">FIRE<small>HOLD &middot; .50 CAL</small></button></div></div></div></section>
+    <section class="range-controls" aria-label="Driving and weapon controls"><div class="range-key-guide"><span><b>WASD / ARROWS</b> drive &middot; <b>SPACE</b> accelerate</span><span><b>Q / E</b> aim &middot; <b>F</b> fire &middot; <b>R</b> drop ramp &middot; <b>P</b> pause &middot; <b>M</b> mute</span><span>Fictional contacts may reduce vehicle integrity</span></div><div class="range-control-row"><div id="drive-stick" class="touch-stick" role="group" aria-label="Thumb drive stick: drag up to drive, down to reverse, left or right to steer"><span class="stick-direction stick-forward" aria-hidden="true">FORWARD</span><span class="stick-direction stick-reverse" aria-hidden="true">REVERSE</span><span class="stick-knob" aria-hidden="true"></span><span class="stick-hint" aria-hidden="true">DRAG TO DRIVE</span></div><div class="drive-pad" aria-label="Drive controls"><button data-hold="left" aria-label="Steer left">&#9664;</button><div class="drive-longitudinal"><button data-hold="forward" aria-label="Hold to drive forward">&#9650;<small>FORWARD</small></button><button data-hold="reverse" aria-label="Hold to reverse">&#9660;<small>REVERSE</small></button></div><button data-hold="right" aria-label="Steer right">&#9654;</button><div class="drive-toggles"><button data-action="cruise" id="cruise-toggle" aria-pressed="false">Drive lock<small>TAP TO CRUISE</small></button><button data-hold="accelerate" class="accelerate-button" aria-label="Hold to accelerate">Accelerate<small>HOLD / SPACE</small></button></div></div><div class="weapon-controls"><label for="range-aim-input"><span id="range-lock" class="aim-lock-status" role="status" aria-live="polite">AUTO AIM / READY</span><input id="range-aim-input" type="range" min="-1" max="1" value="0" step=".01" aria-label="Weapon rotation, springs back when released"></label><div class="weapon-actions"><button class="center-aim-button" data-action="center-aim">Center aim</button><button class="mobile-accelerate-button" data-hold="accelerate" aria-label="Hold to accelerate">ACCEL</button><button class="fire-button" data-hold="fire">FIRE<small>HOLD &middot; .50 CAL</small></button></div></div></div></section>
     <section id="range-result" class="range-result" role="status" hidden><span class="eyebrow">MISSION RESULT</span><h2 id="range-result-title"></h2><p id="range-result-detail"></p><div>${button('Review debrief', 'review-debrief')}${button('Restart mission', 'restart', true)}${button('Main menu', 'menu', true)}</div></section>
     <p class="range-fiction">Fictional, non-graphic game combat &middot; no operational ballistics</p>`;
   stage.querySelector('.range-edge-controls')!.append(pauseBanner);
@@ -534,7 +534,7 @@ function render(): void {
   document.documentElement.style.setProperty('--progress', `${phaseIndex[p] / 10 * 100}%`);
   const location = '<div class="location-tag"><span class="location-cross">⌖</span> FRONT RANGE TRAINING AREA <span>38.7° N / 104.8° W · ILLUSTRATIVE</span></div>';
   if (p === 'title') {
-    stage.innerHTML = `<section class="hero home-hero" aria-labelledby="home-title"><h1 id="home-title">STRYKER<span>MISSION SIMULATOR</span></h1><p class="home-tagline">Start the mission. Watch your data.</p><div class="home-actions">${button('Start mission', 'start-range')}${button('Guided exercise', 'begin', true)}</div><div class="home-secondary"><details class="home-help"><summary>How to play</summary><div><p><strong>Mission:</strong> Practice on the boards, cross the departure line, clear fictional contacts and stop in the dismount zone. Check vehicle-health alerts in MFoCS.</p><p><strong>Controls:</strong> WASD / arrows to drive, Space to accelerate, F to fire. On a phone, use the thumb stick, ACCEL and FIRE.</p><p class="sound-help"><strong>Sound on but silent?</strong> Check media volume and the selected speaker or headphones. <button data-action="sound-retry">Enable / retry sound</button> Then start or resume the exercise.</p><p><strong>Guided exercise:</strong> Follow a charging-system warning and make the protective crew decision. About 3&ndash;5 minutes, at your pace.</p></div></details><a class="home-shift5-link" href="https://shift5.io/" target="_blank" rel="noopener noreferrer" aria-label="Visit Shift5 (opens in a new tab)">Visit Shift5 <span aria-hidden="true">&#8599;</span></a></div></section>`;
+    stage.innerHTML = `<section class="hero home-hero" aria-labelledby="home-title"><h1 id="home-title">STRYKER<span>MISSION SIMULATOR</span></h1><p class="home-tagline">Start the mission. Watch your data.</p><div class="home-actions">${button('Start mission', 'start-range')}${button('Guided exercise', 'begin', true)}</div><div class="home-secondary"><details class="home-help"><summary>How to play</summary><div><p><strong>Mission:</strong> Practice on the boards, cross the departure line, clear fictional contacts and stop in the dismount zone. Select Drop ramp to unload the nine-person squad. Outside zone = mission failure. Check vehicle-health alerts in MFoCS.</p><p><strong>Controls:</strong> WASD / arrows to drive, Space to accelerate, F to fire, R to drop the ramp. On a phone, use the thumb stick, ACCEL and FIRE.</p><p class="sound-help"><strong>Sound on but silent?</strong> Check media volume and the selected speaker or headphones. <button data-action="sound-retry">Enable / retry sound</button> Then start or resume the exercise.</p><p><strong>Guided exercise:</strong> Follow a charging-system warning and make the protective crew decision. About 3&ndash;5 minutes, at your pace.</p></div></details><a class="home-shift5-link" href="https://shift5.io/" target="_blank" rel="noopener noreferrer" aria-label="Visit Shift5 (opens in a new tab)">Visit Shift5 <span aria-hidden="true">&#8599;</span></a></div></section>`;
   } else if (p === 'exterior') {
     stage.innerHTML = `${location}<section class="exterior-card">${guidedDetails('Approach / exercise brief', '<span class="eyebrow">01 / APPROACH</span><h1>A routine movement.<br>An unseen change.</h1><p>The crew is preparing to move across the training area. The display inside shows output, electrical load and engine state.</p><p class="quiet-text">Your role: follow that evidence, then make the protective call.</p>', 'exterior-brief')}${button('Enter the cabin', 'board')}</section><div class="scene-annotation"><i></i><span>EXISTING VEHICLE DATA<br><b>The story starts here.</b></span></div>`;
   } else if (p === 'cabin') {
@@ -614,7 +614,7 @@ function updateLive(): void {
 
 function updateCaption(): void {
   const next = mode === 'range'
-    ? range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : range.mission.phase === 'training' ? 'Practice on boards, then drive across the yellow departure line.' : range.mission.notice
+    ? range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : range.mission.phase === 'training' ? 'Practice on boards, then drive across the yellow departure line.' : range.mission.notice
     : mode === 'home' ? 'Choose the dismount-point mission or follow the guided vehicle-health decision exercise.' : audio.caption || captionForPhase(sim.phase);
   if (next !== lastCaption) { caption.textContent = next; const dialogCaption = document.querySelector('#dialog-caption'); if (dialogCaption) dialogCaption.textContent = next; lastCaption = next; }
 }
@@ -695,7 +695,7 @@ function updateRangeLive(): void {
   set('range-integrity', `${Math.round(range.mission.integrity)}%`);
   set('range-mobile-speed', `${speedText}${reversing ? ' R' : ''}`);
   set('range-mobile-integrity', `${Math.round(range.mission.integrity)}%`);
-  set('range-mobile-phase', range.missionEnded ? 'RUN ENDED' : range.mission.phase === 'training' ? 'PRACTICE' : range.mission.phase === 'combat' ? `${range.mission.remainingContacts} CONTACTS` : 'DISMOUNT');
+  set('range-mobile-phase', range.dismounting ? 'UNLOADING' : range.missionEnded ? 'RUN ENDED' : range.mission.phase === 'training' ? 'PRACTICE' : range.mission.phase === 'combat' ? `${range.mission.remainingContacts} CONTACTS` : 'DISMOUNT');
   const health = range.health;
   syncHealthPulse();
   const healthButton = document.querySelector<HTMLButtonElement>('#range-health-button');
@@ -707,16 +707,24 @@ function updateRangeLive(): void {
   const terminal = range.missionEnded;
   const boards = range.targets.filter(t => t.kind === 'training');
   const broken = boards.filter(t => t.destroyedAt !== null).length;
-  set('range-mission-status', terminal ? (mission.status === 'complete' ? 'MISSION COMPLETE / dismount point reached' : mission.status === 'recovery' ? 'MISSION STOPPED / recovery requested' : range.health.phase === 'broken' ? 'MISSION STOPPED / vehicle breakdown' : 'MISSION ENDED / vehicle integrity depleted') : mission.phase === 'training' ? 'PRACTICE / Shoot or drive over boards, then cross the yellow departure line.' : mission.phase === 'combat' ? `CLEAR CONTACTS / ${mission.remainingContacts} remaining. Hollow map icons show estimated positions.` : `DISMOUNT / ${Math.round(mission.distance)} units to objective. Stop inside for two seconds.`);
-  set('range-objective-count', mission.phase === 'training' ? `${broken} / ${boards.length} practice boards broken (optional). Contacts activate beyond LD.` : mission.remainingContacts > 0 ? `${mission.remainingContacts} / ${mission.contacts.length} contacts remaining. Clear all before dismount can complete.` : `All ${mission.contacts.length} contacts cleared. ${mission.status === 'arriving' ? `Hold stopped: ${Math.min(2, mission.arrivalProgress * 2).toFixed(1)} / 2.0 seconds.` : 'Reach the marked zone and stop for 2 seconds.'}`);
+  const dismountStatus = range.dismount.phase === 'opening' ? 'Ramp lowering' : 'Squad exiting: nine troops unloading';
+  const rampAvailability = range.dropRampAvailability;
+  set('range-mission-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / Wrong dismount location. ' : 'DISMOUNT / '}${dismountStatus}.` : terminal ? (mission.status === 'complete' ? 'MISSION COMPLETE / squad delivered' : mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / squad unloaded outside the dismount zone' : mission.status === 'recovery' ? 'MISSION STOPPED / recovery requested' : range.health.phase === 'broken' ? 'MISSION STOPPED / vehicle breakdown' : 'MISSION ENDED / vehicle integrity depleted') : mission.phase === 'training' ? 'PRACTICE / Shoot or drive over boards, then cross the yellow departure line.' : mission.phase === 'combat' ? `CLEAR CONTACTS / ${mission.remainingContacts} remaining. Hollow map icons show estimated positions.` : `DISMOUNT / ${Math.round(mission.distance)} units to objective. Stop inside, then select Drop ramp.`);
+  set('range-objective-count', range.dismounting ? mission.notice : mission.phase === 'training' ? `${broken} / ${boards.length} practice boards broken (optional). Contacts activate beyond LD.` : mission.remainingContacts > 0 ? `${mission.remainingContacts} / ${mission.contacts.length} contacts remaining. Clear all before dropping the ramp in the zone.` : `All ${mission.contacts.length} contacts cleared. Reach the marked zone, stop and select Drop ramp.`);
+  set('ramp-command-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'Wrong zone: mission failed. ' : ''}${dismountStatus}.` : terminal ? 'Unload command closed.' : rampAvailability.reason);
+  const rampButton = document.querySelector<HTMLButtonElement>('#drop-ramp-button');
+  if (rampButton) {
+    rampButton.disabled = !rangePlayable();
+    rampButton.setAttribute('aria-label', `Drop ramp (R). ${rampAvailability.reason}`);
+  }
   const progress = document.querySelector<HTMLElement>('#range-progress');
-  if (progress) progress.style.width = `${terminal ? 100 : mission.status === 'arriving' ? 90 + mission.arrivalProgress * 10 : Math.min(90, mission.currentWaypoint / (mission.waypoints.length - 1) * 90)}%`;
+  if (progress) progress.style.width = `${terminal ? 100 : range.dismounting ? 95 : Math.min(90, mission.currentWaypoint / (mission.waypoints.length - 1) * 90)}%`;
   document.querySelector('#range-integrity')?.classList.toggle('integrity-low', mission.integrity < 40);
   const result = document.querySelector<HTMLElement>('#range-result');
   if (result) result.hidden = !terminal || (range.mission.status === 'breakdown' && shownDebrief !== range.debrief && !outcomeReveal.ready);
   if (terminal && range.debrief) {
     const report = range.debrief;
-    set('range-result-title', report.outcome === 'complete' ? 'Dismount point reached.' : report.outcome === 'recovery' ? 'Recovery requested.' : report.outcome === 'breakdown' ? 'Vehicle breakdown.' : 'Vehicle integrity depleted.');
+    set('range-result-title', missionDebriefTitle(report));
     set('range-result-detail', report.summary);
     if (shownDebrief !== report && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && (report.outcome !== 'breakdown' || outcomeReveal.ready)) openDebrief();
   }
@@ -730,7 +738,7 @@ function updateRangeLive(): void {
   set('range-event-notice', range.time < rangeEventFeedbackUntil ? rangeEventFeedback : '');
   set('range-event-detail', range.time < rangeEventFeedbackUntil ? rangeEventFeedback : '');
   updateMissionMap();
-  set('range-lock', range.missionEnded ? 'RUN ENDED' : range.aimLock ? `LOCK / ${range.aimLock.label}` : !range.aimAssistEnabled ? 'MANUAL AIM' : range.manualAimActive ? 'MANUAL / AUTO SOON' : 'AUTO AIM / READY');
+  set('range-lock', range.dismounting ? 'SQUAD UNLOADING' : range.missionEnded ? 'RUN ENDED' : range.aimLock ? `LOCK / ${range.aimLock.label}` : !range.aimAssistEnabled ? 'MANUAL AIM' : range.manualAimActive ? 'MANUAL / AUTO SOON' : 'AUTO AIM / READY');
   document.querySelector('#range-lock')?.classList.toggle('locked', !!range.aimLock);
   set('range-location', `GRID ${Math.round(range.position.x)} / ${Math.round(range.position.z)}`);
   set('elapsed', `${String(Math.floor(range.time / 60)).padStart(2, '0')}:${String(Math.floor(range.time % 60)).padStart(2, '0')}`);
@@ -801,15 +809,16 @@ function syncControls(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-action="motion"]').forEach(el => el.setAttribute('aria-pressed', String(reducedMotion)));
   document.querySelector<HTMLElement>('#pause-banner')!.hidden = mode === 'home' || !paused || healthInspection.open || mapInspection.open || (mode === 'range' && range.missionEnded);
   const terminalRange = mode === 'range' && range.missionEnded;
+  const dismounting = mode === 'range' && range.dismounting;
   stage.querySelectorAll<HTMLButtonElement>('button').forEach(el => {
     const name = el.dataset.action ?? '';
     const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
-    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
+    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
-  if (slider) slider.disabled = paused || terminalRange;
+  if (slider) slider.disabled = paused || terminalRange || dismounting;
   audio.setPaused(paused);
   syncSoundControls();
 }
@@ -924,6 +933,15 @@ async function action(name: string): Promise<void> {
     else if (name.startsWith('map-stop-')) { const id = name.slice(9); if (range.selectNavigationTarget(id)) { const point = range.navigationTarget!; const p = mapPoint(point.x, point.z); mapNavigation.center(p.x, p.y); } }
     updateMissionMap(); return;
   }
+  if (name === 'drop-ramp' && rangePlayable()) {
+    if (range.dropRamp()) {
+      clearRangeInputs();
+      await action('range-view-chase');
+      syncControls();
+    }
+    rangeFeedback = range.mission.notice; rangeFeedbackUntil = range.time + 5;
+    updateRangeLive(); return;
+  }
   if (name === 'cruise' && rangePlayable()) {
     cruise = !cruise;
     const toggle = document.querySelector('#cruise-toggle')!;
@@ -996,7 +1014,7 @@ document.addEventListener('click', event => {
   event.preventDefault();
   void action(target.dataset.action!);
 });
-function rangePlayable(): boolean { return mode === 'range' && !range.paused && !document.hidden && !range.missionEnded && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
+function rangePlayable(): boolean { return mode === 'range' && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
 
 function syncHealthPulse(): void {
   document.body.dataset.healthPulse = String(rangePlayable() && !reducedMotion && (range.health.phase === 'warning' || range.health.phase === 'critical'));
@@ -1036,6 +1054,7 @@ document.addEventListener('keydown', event => {
       keyboard.up('Space');
       return;
     }
+    if (code === 'KeyR' && !event.repeat) { event.preventDefault(); void action('drop-ramp'); return; }
     const camera = rangeViewForKey(code);
     if (camera && !event.repeat) { event.preventDefault(); void action(`range-view-${camera}`); return; }
     if (DRIVE_CODES.has(code)) {

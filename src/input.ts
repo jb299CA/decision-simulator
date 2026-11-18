@@ -9,9 +9,9 @@ export function rangeViewForKey(code: string) {
 
 /** Native/virtual keyboards can supply key while omitting a physical code. */
 export function gameKeyCode(event: { code?: string; key?: string }): string {
-  if (event.code && (DRIVE_CODES.has(event.code) || ['KeyM', 'KeyP', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Escape'].includes(event.code))) return event.code;
+  if (event.code && (DRIVE_CODES.has(event.code) || ['KeyM', 'KeyP', 'KeyR', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Escape'].includes(event.code))) return event.code;
   const key = event.key ?? '';
-  if (/^[wasdqefmp]$/i.test(key)) return `Key${key.toUpperCase()}`;
+  if (/^[wasdqefmpr]$/i.test(key)) return `Key${key.toUpperCase()}`;
   if (/^[1-4]$/.test(key)) return `Digit${key}`;
   if (key === 'Escape') return key;
   if (key === ' ' || key === 'Spacebar') return 'Space';

@@ -21,6 +21,7 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
   }
   let waypoint = 1;
   for (let step = 0; step < 24000 && !range.missionEnded; step++) {
+    if (range.dismounting) { range.tick(dt, { throttle: 0, steer: 0, aim: 0, fire: false }); continue; }
     const exposure = range.health.faults[0]!.exposure;
     if (!range.health.paceLimited && (response === 'early' && exposure >= 6 || response === 'late' && exposure >= 65)) {
       range.paused = true;
@@ -48,6 +49,7 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
     const headingError = wrap(Math.atan2(-dx, -dz) - range.heading);
     const inObjective = waypoint === MISSION_ROUTE.length - 1 && Math.hypot(dx, dz) < range.mission.objective.radius * .6;
     range.tick(dt, { throttle: inObjective ? 0 : Math.abs(headingError) > .6 ? .4 : .9, steer: clamp(headingError * 2), aim: 0, fire: false, brake: inObjective });
+    if (inObjective && range.dropRampAvailability.available) assert.equal(range.dropRamp(), true);
   }
   return range;
 }

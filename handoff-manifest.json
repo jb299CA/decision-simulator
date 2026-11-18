@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 40,
+  "sourceRelease": 41,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 102,
-  "totalBytes": 1883538,
+  "fileCount": 106,
+  "totalBytes": 1917316,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -33,14 +33,14 @@
       "sha256": "e21f4ff8c6d70f1e1faaa6ad46e34953daef5d4338215f7b296f1f12882adc7c"
     },
     {
-      "path": "package.json",
-      "bytes": 539,
-      "sha256": "07c983053e5efb8fcfb3e0e2394cbb73f58381e6e261160e6f945b5c089980d8"
-    },
-    {
       "path": "package-lock.json",
       "bytes": 43979,
       "sha256": "acb2e2162d7da863d17064516faa48241d43a4048c1964c4cb5343faca47efd6"
+    },
+    {
+      "path": "package.json",
+      "bytes": 539,
+      "sha256": "07c983053e5efb8fcfb3e0e2394cbb73f58381e6e261160e6f945b5c089980d8"
     },
     {
       "path": "public/art/stryker-start.jpg",
@@ -164,8 +164,18 @@
     },
     {
       "path": "src/debrief-view.ts",
-      "bytes": 4961,
-      "sha256": "bfcfaed7a5dfc99c12ce326a04cd6280a4723978f72561330196375a900c2317"
+      "bytes": 5216,
+      "sha256": "68a6fab3dff2ce319779f3ebb5580aed729bd3b3b5c17d12067309b9905defdf"
+    },
+    {
+      "path": "src/dismount-squad.ts",
+      "bytes": 8503,
+      "sha256": "215dfc12d1a48c240b8fa0fea70e06d5162059812e88d23fbe2f846719f00087"
+    },
+    {
+      "path": "src/dismount.ts",
+      "bytes": 903,
+      "sha256": "d93ab4711304b375f5a3abd91292b4cf92084eb76ae1d8ecec74515c542a9903"
     },
     {
       "path": "src/driving-dynamics.ts",
@@ -203,14 +213,14 @@
       "sha256": "9e023bd5613bb904fe21c8999b3c20985a6d86b41bef225a3e1a0c33f30ba2bb"
     },
     {
-      "path": "src/gunner-display.ts",
-      "bytes": 17213,
-      "sha256": "612aef7efb87eb2b2880e6e4edf4ee9173a7a12f9870b3ab27a06c1984ca6d71"
-    },
-    {
       "path": "src/gun-truck.ts",
       "bytes": 4327,
       "sha256": "0b71d1f838d28987b7b3e62d4c92a4d9ec7f86539057967c9a8683d3a72ced5b"
+    },
+    {
+      "path": "src/gunner-display.ts",
+      "bytes": 17213,
+      "sha256": "612aef7efb87eb2b2880e6e4edf4ee9173a7a12f9870b3ab27a06c1984ca6d71"
     },
     {
       "path": "src/health-score.ts",
@@ -219,8 +229,8 @@
     },
     {
       "path": "src/input.ts",
-      "bytes": 3689,
-      "sha256": "41f8a9ab36a0543b36424d11a1b2de53baae4d3a5f456930a9115c80879183c0"
+      "bytes": 3698,
+      "sha256": "767bb588dd2316e212a9d23631dc1582928f3cae08cf06691e2f1d03babebd47"
     },
     {
       "path": "src/inspection-model.ts",
@@ -234,8 +244,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 112339,
-      "sha256": "2f85ce89ef78d892cceb64348a94b81a6e4144122e78c7035e869d0250764a6a"
+      "bytes": 114413,
+      "sha256": "337bcb8df5f4db6447ed3719fea119ff276949c1d763fc0dc91dd5325bf0608c"
     },
     {
       "path": "src/map-navigation.ts",
@@ -244,8 +254,8 @@
     },
     {
       "path": "src/mission-contract.ts",
-      "bytes": 2361,
-      "sha256": "a16fee5c9d33f5087e1a61d9c054864fcff75ef79ebb8b4e2bc1322777b7337f"
+      "bytes": 2691,
+      "sha256": "968a8e045f0647a7ec2421eda91fddc153ec2f9b298540eea6193b38237e8263"
     },
     {
       "path": "src/mission-map.ts",
@@ -284,13 +294,13 @@
     },
     {
       "path": "src/range.ts",
-      "bytes": 24820,
-      "sha256": "5263267597ce8fb09f31bc3b25a7a751f4ce6203d063c23779772c67a83e2e33"
+      "bytes": 28891,
+      "sha256": "a45cb8ac9f34a904be51589f8436aa85f3c3beac965c99459561fa6569df3f11"
     },
     {
       "path": "src/scene.ts",
-      "bytes": 73735,
-      "sha256": "51c025bf765bb30255c70723d8973aa1db170bf80179f6e211f8d40cbd3a05f1"
+      "bytes": 74660,
+      "sha256": "dd79dced5db3638fe924cfdeb9fbf1680edfff766d96294064b24576a30d8703"
     },
     {
       "path": "src/simulation.ts",
@@ -299,8 +309,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 198614,
-      "sha256": "416d5bb5373466a31f1727577865098663287bbd772e9dc40d0aff4433e1288e"
+      "bytes": 199680,
+      "sha256": "0d2231a01fe6b6323c3ebaad2f137599d16fbe21f73d79cfa83bcfc8bd5ebd07"
     },
     {
       "path": "src/target-debris.ts",
@@ -344,8 +354,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 61230,
-      "sha256": "118712bbd1b83b6222bd66de2cc219c02154dda635dd25132c97a118f7e159bd"
+      "bytes": 61272,
+      "sha256": "b9b139cc5f4bd8baf74d7c3f7b83827f9cc381fdba5e915b5486e1e053b6722a"
     },
     {
       "path": "tests/cabin-display.test.ts",
@@ -363,14 +373,14 @@
       "sha256": "f495c5856f67afa253f8ff5b85a7afed4b8e6066ed54f242e58752b2a3760356"
     },
     {
-      "path": "tests/campaign.test.ts",
-      "bytes": 13536,
-      "sha256": "ea2df3bc0c9624a3572f8257eef511c4fbda3cdac0a160f46d8bdcdbb95f9075"
+      "path": "tests/campaign-route.test.ts",
+      "bytes": 8601,
+      "sha256": "b5f81bce6681bf990b83a033844eac5ba9dbb3eca86974878ca27f7117c3ca39"
     },
     {
-      "path": "tests/campaign-route.test.ts",
-      "bytes": 8395,
-      "sha256": "cd4c3be167636feec755e2e4deadab6ac53e65e16a4eb314a6ae4a6996cc3f3a"
+      "path": "tests/campaign.test.ts",
+      "bytes": 13798,
+      "sha256": "4e4780c3b9a93e63b19a9cfe3261b5bae99e48403cfca51361243467ac795b6e"
     },
     {
       "path": "tests/crew-camera.test.ts",
@@ -384,8 +394,18 @@
     },
     {
       "path": "tests/debrief-view.test.ts",
-      "bytes": 3332,
-      "sha256": "27eb7cad6ea3dad57e6a9d86575f7391d2b8f8e609444ee7bed53c0ba03917c8"
+      "bytes": 3978,
+      "sha256": "627d31feadefe36bf76a920ee49c46f0ea21677e903bb159cf6c9df5fc95f29e"
+    },
+    {
+      "path": "tests/dismount-squad.test.ts",
+      "bytes": 6039,
+      "sha256": "fef5356ca9c08ed20fbb30137684f73e895666cd4cda2825adfb7e152a3f7e50"
+    },
+    {
+      "path": "tests/dismount.test.ts",
+      "bytes": 7084,
+      "sha256": "52b53395cbea8a62ef43a32cc7fc0179852db8edb8ce5c245dfbd072702cb4fd"
     },
     {
       "path": "tests/driving-dynamics.test.ts",
@@ -398,14 +418,14 @@
       "sha256": "9f08ee2d1b796444b9933729a23df7a542ede026371ac525e4e761914b1f2509"
     },
     {
-      "path": "tests/exploration.test.ts",
-      "bytes": 6263,
-      "sha256": "a8e986cc6a8561ac943ef1da180f74124ef940d18b8ea64f3fe33edadd8e0c37"
-    },
-    {
       "path": "tests/exploration-route.test.ts",
       "bytes": 2236,
       "sha256": "17a22a274bf642a5c2a2351b5108179c0fe79f31a67acd5c73228baa82d84d88"
+    },
+    {
+      "path": "tests/exploration.test.ts",
+      "bytes": 6263,
+      "sha256": "a8e986cc6a8561ac943ef1da180f74124ef940d18b8ea64f3fe33edadd8e0c37"
     },
     {
       "path": "tests/fault-display.test.ts",
@@ -428,14 +448,14 @@
       "sha256": "1a9a57c7e2c8297d518cbccef7369dddd3b14a9bc6a0870bd42d142e0a042f24"
     },
     {
-      "path": "tests/gunner-display.test.ts",
-      "bytes": 21881,
-      "sha256": "48d639e86fe0a8bac8f4c74d6cc7692c76e10ee627f4958e669e1b5401bc65b5"
-    },
-    {
       "path": "tests/gun-truck.test.ts",
       "bytes": 2037,
       "sha256": "4c3e81b7f0e8fa095a422d9c823647aaa18dfe4288603e234f766298e55b3acd"
+    },
+    {
+      "path": "tests/gunner-display.test.ts",
+      "bytes": 21881,
+      "sha256": "48d639e86fe0a8bac8f4c74d6cc7692c76e10ee627f4958e669e1b5401bc65b5"
     },
     {
       "path": "tests/health-score.test.ts",
@@ -444,8 +464,8 @@
     },
     {
       "path": "tests/input.test.ts",
-      "bytes": 7777,
-      "sha256": "600bb3f7e684ef7926cdcd4d2be0dab1560bd2243cb4e1bfeee1ae6b69446cda"
+      "bytes": 9016,
+      "sha256": "bbbcfd405bd5a89e768aaa2c485ac311aed186a740e12fc8bd7db85496740723"
     },
     {
       "path": "tests/inspection-model.test.ts",
@@ -499,8 +519,8 @@
     },
     {
       "path": "tests/range.test.ts",
-      "bytes": 16019,
-      "sha256": "1839ec0568cc618a051c00b6ceba44359e25e142b4dab3a2cac633f060211793"
+      "bytes": 16143,
+      "sha256": "5fc06bcf3c20e179525fe8d1eb11a443f39201d2b69ec7e006ca387627c0755c"
     },
     {
       "path": "tests/simulation.test.ts",

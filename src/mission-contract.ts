@@ -3,6 +3,14 @@ export const RANGE_VIEWS = ['hatch', 'inside', 'chase', 'top'] as const;
 export type RangeView = typeof RANGE_VIEWS[number];
 /** Fictional display choice; thermal is an illustrative game rendering, not sensor data. */
 export type GunnerDisplayMode = 'day' | 'thermal' | 'mfocs';
+export type MissionFailureReason = 'dismount-outside-zone' | 'combat-damage';
+export type DismountState = {
+  phase: 'stowed' | 'opening' | 'unloading' | 'complete';
+  elapsed: number;
+  position: { x: number; z: number };
+  heading: number;
+  validDrop: boolean | null;
+};
 export type HealthDecision = 'continue' | 'diagnose' | 'reduce-pace' | 'recovery';
 export type HealthPhase = 'nominal' | 'warning' | 'critical' | 'broken' | 'recovery';
 export type HealthObservation = { time: number; value: number };
@@ -46,6 +54,7 @@ export type VehicleHealthState = {
 
 export type MissionDebrief = {
   outcome: 'complete' | 'failed' | 'recovery' | 'breakdown';
+  failureReason?: MissionFailureReason | null;
   endedAt: number;
   distanceTravelled: number;
   optionalVisitedLabels: readonly string[];

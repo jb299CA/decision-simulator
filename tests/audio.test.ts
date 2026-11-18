@@ -676,7 +676,8 @@ test('range powertrain drives distinct whine and revs at rest, muffles cabin, an
   range.position = { x: range.mission.objective.x, z: range.mission.objective.z }; range.speed = 0;
   range.mission.departureCrossed = true;
   for (const contact of range.mission.contacts) { contact.neutralized = true; contact.health = 0; }
-  for (let i = 0; i < 80; i++) range.tick(.025, { throttle: 0, steer: 0, aim: 0, fire: false });
+  assert.equal(range.dropRamp(), true);
+  for (let i = 0; i < 230; i++) range.tick(.025, { throttle: 0, steer: 0, aim: 0, fire: false });
   audio.update(range.audioState, { powertrain: range.powertrain, inside: true });
   assert.equal(range.mission.status, 'complete');
   assert.equal(context.gains[1]!.gain.value, 0); assert.equal(context.gains[5]!.gain.value, 0); assert.equal(context.gains[6]!.gain.value, 0);

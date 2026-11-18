@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 40 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 41 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -44,6 +44,7 @@ The renderer and audio follow simulation state. Inspection and map dialogs pause
 | Accelerate | Hold Space or W; release to coast | Hold ACCEL or push stick forward |
 | Aim | Automatic lock; Q / E temporarily overrides | Automatic lock; aim slider overrides |
 | Fire | Hold F | Hold FIRE |
+| Unload squad | R | Drop ramp beside the cameras |
 | Camera | 1 Hatch, 2 Inside, 3 Chase, 4 Top | Four camera buttons |
 | Pause / resume | P | Pause / Resume |
 | Mute | M | Sound control |
@@ -51,6 +52,8 @@ The renderer and audio follow simulation state. Inspection and map dialogs pause
 | Expand map | Activate minimap | Tap map header |
 
 Inside offers Day, illustrative Thermal and MFoCS display modes, plus Focus display / Back to seat. Mission instructions and secondary settings start collapsed; phone settings include the independent Music switch. The guided exercise uses its displayed phase actions and retains Space-to-pause. Space activates a keyboard-focused button when appropriate. Release, cancellation, focus loss, pause and dialogs clear held movement.
+
+To complete delivery, clear the contacts, stop inside the marked dismount zone and select Drop ramp. The hinged rear ramp lowers and nine soldiers exit in sequence. Dropping the ramp anywhere outside the zone commits mission failure, then shows the squad exiting before the debrief. Accepted commands switch to Chase; driving and firing stop during unloading. Pause freezes the sequence, restart clears it, and reduced motion removes limb cycling. The squad and ramp use pooled procedural geometry. Recorded maintenance outcomes remain intact.
 
 ## Validation and limitations
 

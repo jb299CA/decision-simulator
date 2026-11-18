@@ -30,6 +30,19 @@ test('debrief escapes state text, preserves repair findings and orders warnings 
   assert.ok(!html.includes('$')); assert.ok(!html.includes('hours'));
 });
 
+test('wrong-location unload has a distinct immutable failure record from contact damage', () => {
+  const wrongDrop = report('failed');
+  wrongDrop.failureReason = 'dismount-outside-zone';
+  const frozen = Object.freeze(wrongDrop);
+  const html = missionDebriefMarkup(frozen);
+  assert.ok(html.includes('Squad unloaded outside the dismount zone.'));
+  assert.ok(!html.includes('Vehicle lost to contact damage.'));
+  assert.equal(frozen.failureReason, 'dismount-outside-zone');
+  const combat = report('failed');
+  combat.failureReason = 'combat-damage';
+  assert.ok(missionDebriefMarkup(combat).includes('Vehicle lost to contact damage.'));
+});
+
 test('inspection and recovery are decisions, not a fabricated repair', () => {
   const data = report('recovery');
   data.decisions = [{ action: 'diagnose', time: 67, faultId: 'charging' }, { action: 'recovery', time: 68 }];
