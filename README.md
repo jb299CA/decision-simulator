@@ -57,7 +57,7 @@ To complete delivery, clear the contacts, stop inside the marked dismount zone a
 
 ## Validation and limitations
 
-The initial handoff received a fresh `npm ci`. This release 40 update, with the same pinned dependency lockfile, passed **246 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the handoff; a separate private-path/identifier scan also passed. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
+The initial handoff received a fresh `npm ci`. This release 41 update, with the same pinned dependency lockfile, passed **261 tests**, TypeScript checks and a production build on November 18, 2026. Every copied payload file matches the tested canonical source. The initial install/audit reported no known dependency vulnerabilities. Gitleaks 8.30.1 reported no detected secrets in the updated repository history; a separate private-path/identifier scan also passed for the initial handoff. These checks are useful safeguards, not a guarantee that every vulnerability or sensitive item has been detected.
 
 Manual browser verification of the latest expanded-world visuals, inspection/display layouts and phone gestures remains incomplete. Physical-phone performance, audio activation and final listening/mix quality are unverified. Automated tests do not establish device usability. The production build emits a non-blocking JavaScript chunk-size warning. No service worker or supported offline reload is included.
 
