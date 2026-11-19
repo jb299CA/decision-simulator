@@ -14,7 +14,7 @@ function exercise() {
   const focus = new PlaybackFocus({
     clearInputs() { keyboard.clear(); pointers.clear(); },
     resetFrame() { state.previous = state.now; },
-    syncAudio() { state.audioPaused = state.hidden || range.paused; },
+    syncAudio() { state.audioPaused = range.paused; },
   });
   const frame = (now: number) => {
     state.now = now;
@@ -51,7 +51,7 @@ test('hidden suspension preserves playback state and excludes away time on autom
   visibility(true, 100); frame(30_000);
   assert.equal(range.time, time);
   assert.equal(range.paused, false, 'browser suspension never sets manual Pause');
-  assert.equal(state.audioPaused, true);
+  assert.equal(state.audioPaused, false, 'hidden pages keep already allowed audio playing');
   visibility(false, 40_000);
   assert.equal(state.audioPaused, false, 'already allowed audio is reconciled automatically');
   assert.equal(range.time, time);

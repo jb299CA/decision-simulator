@@ -2,6 +2,7 @@ import './style.css';
 import { TouchStick, withTouchStick } from './touch-stick';
 import { OutcomeReveal } from './outcome-reveal';
 import { MissionBriefing, practicePrompt } from './mission-briefing';
+import { MissionStaging, MISSION_STAGING_CAPTION } from './mission-staging';
 import { Simulation } from './simulation';
 import type { Phase } from './simulation';
 import { VehicleScene } from './scene';
@@ -30,6 +31,7 @@ let lastSoundState: SimulationAudio['soundState'] | undefined;
 const range = new DrivingRange(Math.random);
 type Mode = 'home' | 'briefing' | 'mission' | 'range';
 const missionBriefing = new MissionBriefing();
+const missionStaging = new MissionStaging();
 let mode: Mode = 'home';
 let rangeView: RangeView = 'chase';
 const cabinDisplay = new CabinDisplayState();
@@ -661,7 +663,7 @@ function updateCaption(): void {
     if (healthCaption && healthCaption.textContent !== background) healthCaption.textContent = background;
   }
   const next = mode === 'range'
-    ? outcomeReveal.recoveryElapsed !== null ? recoveryCaption() : range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : audio.distantCaption ?? (range.mission.phase === 'training' ? practicePrompt(range.shotsFired, range.targets.filter(target => target.kind === 'training' && target.destroyedAt !== null).length) : range.mission.notice)
+    ? missionStaging.active ? MISSION_STAGING_CAPTION : outcomeReveal.recoveryElapsed !== null ? recoveryCaption() : range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : audio.distantCaption ?? (range.mission.phase === 'training' ? practicePrompt(range.shotsFired, range.targets.filter(target => target.kind === 'training' && target.destroyedAt !== null).length) : range.mission.notice)
     : mode === 'briefing' ? 'Read your orders. The vehicle and mission clock wait for Accept Mission.' : mode === 'home' ? 'Choose the dismount-point mission or follow the guided vehicle-health decision exercise.' : audio.caption || captionForPhase(sim.phase);
   if (next !== lastCaption) { caption.textContent = next; const dialogCaption = document.querySelector('#dialog-caption'); if (dialogCaption) dialogCaption.textContent = next; lastCaption = next; }
 }
@@ -816,9 +818,9 @@ function updateRangeLive(): void {
 }
 
 function isPaused(): boolean { return mode === 'range' ? range.paused : sim.paused; }
-function audioPaused(): boolean { return document.hidden || (mode !== 'home' && (isPaused() || evidenceOpen || debriefDialog.open)); }
+function audioPaused(): boolean { return mode !== 'home' && (isPaused() || evidenceOpen || debriefDialog.open); }
 function inspectionAudioContinues(): boolean {
-  if (document.hidden || debriefDialog.open) return false;
+  if (debriefDialog.open) return false;
   if (mode === 'range') return !range.missionEnded && (healthInspection.audioContinues || mapInspection.audioContinues);
   return mode === 'mission' && evidenceOpen && !sim.paused;
 }
@@ -908,11 +910,11 @@ function syncControls(): void {
     const name = el.dataset.action ?? '';
     const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
-    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
+    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting || missionStaging.active)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
-  if (slider) slider.disabled = paused || terminalRange || dismounting;
+  if (slider) slider.disabled = paused || terminalRange || dismounting || missionStaging.active;
   audio.setPaused(audioPaused(), inspectionAudioContinues());
   syncSoundControls();
 }
@@ -1001,7 +1003,7 @@ async function action(name: string): Promise<void> {
     updateRangeLive(); syncControls(); return;
   }
   if (name === 'menu') {
-    missionBriefing.cancel();
+    missionBriefing.cancel(); missionStaging.cancel();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset();
@@ -1012,6 +1014,8 @@ async function action(name: string): Promise<void> {
     mode = 'home'; sim.restart(); range.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
     displayExpanded = false; insideView = true; scene.setViewMode('inside');
+    // Seed the home mixer before a tab switch can suspend its first RAF.
+    audio.updateHome(0, audioPaused());
     previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return;
   }
   if (name === 'start-range' || (name === 'restart' && (mode === 'range' || mode === 'briefing'))) {
@@ -1020,7 +1024,7 @@ async function action(name: string): Promise<void> {
     closeDebrief(); shownDebrief = null; outcomeReveal.reset(); selectedFault = 'charging';
     if (!graphicsAvailable) return;
     if (healthInspection.open) closeHealth();
-    clearRangeInputs(); mode = 'briefing'; range.restart(); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
+    missionStaging.cancel(); clearRangeInputs(); mode = 'briefing'; range.restart(); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
     mapNavigation.fit();
     rangeView = 'chase'; document.body.dataset.rangeView = rangeView; lastMissionStatus = ''; lastRangeShots = 0; lastRangeHits = 0; rangeFeedbackUntil = 0; lastHealthAlertSerial = 0; observedBrokenBoards.clear(); rangeEventFeedbackUntil = 0;
@@ -1034,7 +1038,7 @@ async function action(name: string): Promise<void> {
     missionBriefing.skip(); updateBriefing(); document.querySelector<HTMLButtonElement>('[data-action="accept-mission"]')?.focus({ preventScroll: true }); return;
   }
   if (name === 'accept-mission' && mode === 'briefing' && !isPaused() && !document.hidden && missionBriefing.accept()) {
-    clearRangeInputs(); mode = 'range'; previousFrame = performance.now();
+    missionStaging.begin(); clearRangeInputs(); mode = 'range'; previousFrame = performance.now();
     render(); stage.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); activateSound(); return;
   }
   if (name.startsWith('range-view-') && mode === 'range') {
@@ -1137,7 +1141,7 @@ document.addEventListener('click', event => {
   // Native click covers taps, keyboard buttons and ordinary home links/details.
   if (event.isTrusted && !audioPaused() && ((mode === 'home' || mode === 'briefing') ? audio.musicNeedsActivation : audio.soundState === 'blocked') && !['music', 'mute', 'sound-retry', 'begin', 'start-range', 'restart', 'pause'].includes(target?.dataset.action ?? '')) activateSound();
 });
-function rangePlayable(): boolean { return mode === 'range' && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
+function rangePlayable(): boolean { return mode === 'range' && !missionStaging.active && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
 
 function syncHealthPulse(): void {
   document.body.dataset.healthPulse = String(rangePlayable() && !reducedMotion && (range.health.phase === 'warning' || range.health.phase === 'critical'));
@@ -1336,7 +1340,16 @@ healthDialog.addEventListener('cancel', event => { event.preventDefault(); close
 healthDialog.addEventListener('close', () => { if (!healthDialog.open) closeHealth(); });
 debriefDialog.addEventListener('cancel', event => { event.preventDefault(); closeDebrief(); });
 document.addEventListener('fullscreenchange', () => { document.querySelector('[data-action="fullscreen"]')?.setAttribute('aria-pressed', String(!!document.fullscreenElement)); scene.resize(); });
-document.addEventListener('visibilitychange', () => { playbackFocus.visibilityChanged(); syncHealthPulse(); document.body.classList.toggle('briefing-held', mode === 'briefing' && (isPaused() || document.hidden)); });
+let backgroundAudioTimer: ReturnType<typeof setInterval> | undefined;
+let backgroundAudioAt = performance.now();
+function syncBackgroundAudio(): void {
+  if (backgroundAudioTimer !== undefined) { clearInterval(backgroundAudioTimer); backgroundAudioTimer = undefined; }
+  backgroundAudioAt = performance.now();
+  if (document.hidden) backgroundAudioTimer = setInterval(() => {
+    const now = performance.now(); audio.updateBackground((now - backgroundAudioAt) / 1000); backgroundAudioAt = now;
+  }, 100);
+}
+document.addEventListener('visibilitychange', () => { syncBackgroundAudio(); playbackFocus.visibilityChanged(); syncHealthPulse(); document.body.classList.toggle('briefing-held', mode === 'briefing' && (isPaused() || document.hidden)); });
 motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; if (mode === 'briefing' && reducedMotion) { missionBriefing.skip(); updateBriefing(); } document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
 // Measure captions rather than assuming a fixed height: long cues and phone text scaling
 // must reserve their real space below the persistent action.
@@ -1345,9 +1358,9 @@ const captionObserver = new ResizeObserver(() => { document.documentElement.styl
 captionObserver.observe(captionBar);
 window.addEventListener('resize', () => { cancelMapGesture(); clearRangeInputs(); if (!window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)').matches) setRangeDrawer(false); scene.resize(); });
 const pageLifecycle = new PageLifecycle({
-  suspend() { playbackFocus.visibilityChanged(); audio.setPaused(true); },
-  dispose() { captionObserver.disconnect(); guidedLayoutObserver?.disconnect(); healthInspector?.dispose(); guidedInspector?.dispose(); audio.dispose(); scene.dispose(); },
-  restore() { playbackFocus.visibilityChanged(); scene.resize(); },
+  suspend() { playbackFocus.visibilityChanged(); syncBackgroundAudio(); },
+  dispose() { if (backgroundAudioTimer !== undefined) clearInterval(backgroundAudioTimer); captionObserver.disconnect(); guidedLayoutObserver?.disconnect(); healthInspector?.dispose(); guidedInspector?.dispose(); audio.dispose(); scene.dispose(); },
+  restore() { syncBackgroundAudio(); playbackFocus.visibilityChanged(); scene.resize(); },
 });
 window.addEventListener('pagehide', event => pageLifecycle.hide(event.persisted));
 window.addEventListener('pageshow', event => pageLifecycle.show(event.persisted));
@@ -1355,11 +1368,13 @@ window.addEventListener('pageshow', event => pageLifecycle.show(event.persisted)
 function frame(now: number): void {
   const delta = Math.max(0, Math.min((now - previousFrame) / 1000, .15));
   previousFrame = now;
-  // Browsers may suspend hidden frames. Never replay that wall time or audio.
+  // Hidden world frames never advance; native audio has its own clock below.
   if (document.hidden) { requestAnimationFrame(frame); return; }
   const active = !isPaused() && !evidenceOpen;
   if (mode === 'range') {
-    if (active) range.tick(delta, rangeInput());
+    const staged = missionStaging.active;
+    if (missionStaging.update(delta, active && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open)) { clearRangeInputs(); syncControls(); }
+    if (active && !staged) range.tick(delta, rangeInput());
     outcomeReveal.update(range.debrief, delta, active && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open);
     const recoveryElapsed = outcomeReveal.recoveryElapsed;
     scene.updateRange(range, active ? delta : 0, reducedMotion, rangeView, recoveryElapsed);
@@ -1368,7 +1383,7 @@ function frame(now: number): void {
       contact: range.mission.departureCrossed && range.mission.contacts.some(contact => !contact.neutralized && Math.hypot(contact.x - range.position.x, contact.z - range.position.z) <= 130),
       health: range.health.phase, terminal: range.missionEnded, breakdown: range.health.phase === 'broken',
       faultInspection: inspectionAudioContinues(), transportPaused: debriefDialog.open, departureCrossed: range.mission.departureCrossed && !range.dismounting,
-      recoveryReveal: recoveryElapsed !== null }, delta);
+      recoveryReveal: recoveryElapsed !== null, staging: missionStaging.active, stagingTime: missionStaging.elapsed }, delta);
     if (range.health.alertSerial !== lastHealthAlertSerial) {
       if (range.health.alertSerial > lastHealthAlertSerial && range.health.phase !== 'broken') audio.healthAlert(range.health.phase === 'critical' ? 'critical' : 'warning');
       lastHealthAlertSerial = range.health.alertSerial;

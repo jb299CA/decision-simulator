@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 57,
+  "sourceRelease": 58,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 146,
-  "totalBytes": 10338067,
+  "fileCount": 148,
+  "totalBytes": 10351260,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -274,8 +274,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 55598,
-      "sha256": "f3c5925867abcbe6fc3f13538518443b4f0c7c85b876610c686aa7682c660128"
+      "bytes": 57624,
+      "sha256": "f9ce0f0dc07d5f24261dfea632f7a4e6e47898d8bc00597769b3ae67e569573e"
     },
     {
       "path": "src/cabin-display.ts",
@@ -384,8 +384,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 129115,
-      "sha256": "35def2f3893ac60d3a2c0346518659f85d9224624b8a7e6eea19ce8f03af90e5"
+      "bytes": 130466,
+      "sha256": "1cbfb819903e1c34d9f229e9e668feed46139e633e8ca71a87eb065c0c266a04"
     },
     {
       "path": "src/map-navigation.ts",
@@ -411,6 +411,11 @@
       "path": "src/mission-map.ts",
       "bytes": 2652,
       "sha256": "3dcd4a31d2ce621387d7f782b26f16055b1bbdf9db210d70973b8cb52d165b62"
+    },
+    {
+      "path": "src/mission-staging.ts",
+      "bytes": 955,
+      "sha256": "b20c63933e43690f9521d561232e80d7d43c8528d0f0af354b1dd26639ab515c"
     },
     {
       "path": "src/mounted-gun.ts",
@@ -519,8 +524,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 113323,
-      "sha256": "946dc1908a786a1775c1afefb9e6468b3b9c1802a1ec73ac85737a1d1a5d1d3c"
+      "bytes": 120386,
+      "sha256": "6e367ec2a0cf933016cad5aa3445b2640c09d35ead96250a3bfb6a36f8e8b0b4"
     },
     {
       "path": "tests/cabin-display.test.ts",
@@ -668,6 +673,11 @@
       "sha256": "f7447288649242bd921fef268d6a804905fe7f79e33187dff48ef2f3ce90fb79"
     },
     {
+      "path": "tests/mission-staging.test.ts",
+      "bytes": 1762,
+      "sha256": "5c04a465dbf07cd316575bf224baf9aba684ff2bc50290652d695bdc92114db4"
+    },
+    {
       "path": "tests/mounted-gun.test.ts",
       "bytes": 2255,
       "sha256": "c191f0b0977dd85c85bfc7045462efd4413c3a506518b698bbc26a373244de1b"
@@ -689,8 +699,8 @@
     },
     {
       "path": "tests/playback-focus.test.ts",
-      "bytes": 5408,
-      "sha256": "0ff307c71144ff1f1b641275137179a66f8a0f61ba6c92b27d5db72980efaf84"
+      "bytes": 5444,
+      "sha256": "37bc8175c0177c97931e925dc485293d4d0f215f4f6b342d4ff2f39632e38646"
     },
     {
       "path": "tests/powertrain.test.ts",
