@@ -4,6 +4,7 @@ import { captionForPhase, SimulationAudio } from '../src/audio.ts';
 import { radioScript } from '../src/radio-script.ts';
 import { Simulation } from '../src/simulation.ts';
 import { DrivingRange } from '../src/range.ts';
+import { DISMOUNT } from '../src/dismount.ts';
 
 class MockParameter {
   value = 0;
@@ -1091,7 +1092,7 @@ test('range powertrain drives distinct whine and revs at rest, muffles cabin, an
   range.mission.departureCrossed = true;
   for (const contact of range.mission.contacts) { contact.neutralized = true; contact.health = 0; }
   assert.equal(range.dropRamp(), true);
-  for (let i = 0; i < 230; i++) range.tick(.025, { throttle: 0, steer: 0, aim: 0, fire: false });
+  for (let i = 0; i <= Math.ceil(DISMOUNT.durationSeconds / .025); i++) range.tick(.025, { throttle: 0, steer: 0, aim: 0, fire: false });
   audio.update(range.audioState, { powertrain: range.powertrain, inside: true });
   assert.equal(range.mission.status, 'complete');
   assert.equal(context.gains[1]!.gain.value, 0); assert.equal(context.gains[5]!.gain.value, 0); assert.equal(context.gains[6]!.gain.value, 0);

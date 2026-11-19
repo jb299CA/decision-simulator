@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 60 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 61 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -116,3 +116,5 @@ Release 58 adds a four-second visible staging soundscape after Accept Mission: i
 Release 59 removes the visible combat/ballistics disclaimer line from the driving screen. TypeScript and build pass; gameplay is unchanged from the 373-test baseline.
 
 Release 60 adds hold-B braking in all driving views, including b/B fallback for keyboards without physical codes. Brake takes priority over throttle/reverse/thumbstick, cancels Drive lock and prevents it being enabled while braking. Releasing B disengages it; focus loss and pause clear it. Controls hints are updated. All 376 tests, TypeScript and build pass.
+
+Release 61 spreads the nine dismount soldiers into distinct positions with outward-facing rifle poses. Both hands follow their rifle grips; moving carry transitions to a level settled pose. The unload lasts eight seconds, including about one second with all soldiers settled, and Chase framing fits the wider group on desktop/phone. Pooled resources, terrain contact, pause/reset and mission rules remain intact. All 378 tests and the build pass. Actual model geometry was checked in a static projection; browser gameplay visuals remain unverified.

@@ -19,6 +19,8 @@ function ready(offset = 0): DrivingRange {
 
 test('unload timings open ramp before nine staggered exits and finish all troops within the sequence', () => {
   assert.equal(DISMOUNT.troopCount, 9);
+  const lastArrival = DISMOUNT.rampOpenSeconds + (DISMOUNT.troopCount - 1) * DISMOUNT.troopStaggerSeconds + DISMOUNT.troopRunSeconds;
+  assert.ok(DISMOUNT.durationSeconds - lastArrival >= 1, 'the complete spread remains visible before debrief');
   assert.equal(rampOpenProgress(0), 0); assert.equal(rampOpenProgress(DISMOUNT.rampOpenSeconds), 1);
   for (let index = 0; index < DISMOUNT.troopCount; index++) {
     const start = DISMOUNT.rampOpenSeconds + index * DISMOUNT.troopStaggerSeconds;

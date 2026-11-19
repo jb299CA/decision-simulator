@@ -21,7 +21,7 @@ import { cabinDisplayBounds, cabinDisplayFov, frameCabinDisplay, RANGE_TERMINAL 
 import { applyWorldUV, createExplorationLandmark, createGroundTexture, createPolylineRoadRibbon, createRoadRibbon, createScenery, createSceneryLayout, createVehicleContactShadow, placeVehicleContactShadow, groundTint } from './environment-appearance';
 import { applyVehicleAppearance } from './vehicle-appearance';
 import type { GunnerDisplayMode, VehicleFault } from './mission-contract';
-import { closedRampClone, createRearRamp, DismountSquad, updateRearRamp } from './dismount-squad';
+import { closedRampClone, createRearRamp, dismountCameraFrame, DismountSquad, updateRearRamp } from './dismount-squad';
 import { RecoveryVehicle } from './recovery-vehicle';
 
 /** Original, entirely procedural illustration. No asset downloads or live interfaces. */
@@ -876,11 +876,9 @@ export class VehicleScene {
         this.target.set(mobile ? 5.0 : 7.3,8.5,mobile ? 19 : 15);
         this.aim.set(2.5,1,-4.1);
       } else if (range.dismount.phase !== 'stowed') {
-        // Centerline rear observer sees the hinge and all nine exits. Portrait
-        // framing fits the side fan without soldiers passing through the camera.
-        const distance = Math.max(12.6,6.0 / (Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect));
-        this.target.set(0,Math.max(6.8,distance * .52),distance);
-        this.aim.set(0,.8,1.0);
+        // Keep the broad fan, open ramp and full vehicle visible in portrait and landscape.
+        const frame = dismountCameraFrame(this.camera.aspect,this.camera.fov);
+        this.target.fromArray(frame.eye); this.aim.fromArray(frame.lookAt);
       } else {
         this.target.set(0,mobile ? 6.1 : 5.2,mobile ? 13.0 : 11.4);
         this.aim.set(0,1.6,-4.2);
