@@ -22,7 +22,7 @@ export const radioScript = {
           "text": "Tomahawk three, this is Brave six. Wilco. Out."
         }
       ],
-      "file": "/audio/crew_ready.mp3?v=natural-radio-r59"
+      "file": "/audio/crew_ready.mp3?v=crisp-radio-r63"
     },
     "cabin": {
       "id": "moving",
@@ -30,7 +30,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Crew checks complete. Driver, move when ready.",
       "voice": "am_fenrir",
-      "file": "/audio/moving.mp3?v=natural-radio-r59"
+      "file": "/audio/moving.mp3?v=crisp-radio-r63"
     },
     "feed": {
       "id": "feed",
@@ -38,7 +38,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Bring up the charging trend. Keep engine state and electrical load beside it.",
       "voice": "am_fenrir",
-      "file": "/audio/feed.mp3?v=natural-radio-r59"
+      "file": "/audio/feed.mp3?v=crisp-radio-r63"
     },
     "manifold": {
       "id": "manifold",
@@ -46,7 +46,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Data's coming through. Timestamps and signal quality are included.",
       "voice": "am_eric",
-      "file": "/audio/manifold.mp3?v=natural-radio-r59"
+      "file": "/audio/manifold.mp3?v=crisp-radio-r63"
     },
     "turbine": {
       "id": "turbine",
@@ -54,7 +54,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "The signals are lined up now. Check the trend against the load.",
       "voice": "am_fenrir",
-      "file": "/audio/turbine.mp3?v=natural-radio-r59"
+      "file": "/audio/turbine.mp3?v=crisp-radio-r63"
     },
     "insight": {
       "id": "insight",
@@ -62,7 +62,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "That charging trend needs a look. If it stays abnormal, we'll halt. The alternator is only suspected.",
       "voice": "am_fenrir",
-      "file": "/audio/insight.mp3?v=natural-radio-r59"
+      "file": "/audio/insight.mp3?v=crisp-radio-r63"
     },
     "halted": {
       "id": "halted",
@@ -70,7 +70,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Vehicle stopped. Holding here. Ready to secure.",
       "voice": "am_eric",
-      "file": "/audio/halted.mp3?v=natural-radio-r59"
+      "file": "/audio/halted.mp3?v=crisp-radio-r63"
     },
     "secured": {
       "id": "secured",
@@ -78,7 +78,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Vehicle secured. Engine off. Keep it shut down for maintenance.",
       "voice": "am_fenrir",
-      "file": "/audio/secured.mp3?v=natural-radio-r59"
+      "file": "/audio/secured.mp3?v=crisp-radio-r63"
     },
     "service": {
       "id": "service",
@@ -86,7 +86,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Keep it shut down. The alternator is still suspected. Maintenance must confirm the fault before repair.",
       "voice": "am_fenrir",
-      "file": "/audio/service.mp3?v=natural-radio-r59"
+      "file": "/audio/service.mp3?v=crisp-radio-r63"
     },
     "debrief": {
       "id": "debrief",
@@ -94,7 +94,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Hold for maintenance. Repair and verification are still required.",
       "voice": "am_fenrir",
-      "file": "/audio/debrief.mp3?v=natural-radio-r59"
+      "file": "/audio/debrief.mp3?v=crisp-radio-r63"
     }
   },
   "crew": {
@@ -104,7 +104,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Dropping ramp!",
       "voice": "am_eric",
-      "file": "/audio/ics_dropping_ramp.mp3?v=natural-radio-r59"
+      "file": "/audio/ics_dropping_ramp.mp3?v=crisp-radio-r63"
     },
     "rampDown": {
       "id": "ics_ramp_down",
@@ -112,7 +112,7 @@ export const radioScript = {
       "channel": "intercom",
       "text": "Ramp down. Dismount!",
       "voice": "am_fenrir",
-      "file": "/audio/ics_ramp_down.mp3?v=natural-radio-r59"
+      "file": "/audio/ics_ramp_down.mp3?v=crisp-radio-r63"
     }
   },
   "ambient": [
@@ -122,7 +122,7 @@ export const radioScript = {
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Keep transmissions brief. Report changes as they occur. Out.",
       "voice": "am_fenrir",
-      "file": "/audio/net_interval.mp3?v=natural-radio-r59"
+      "file": "/audio/net_interval.mp3?v=crisp-radio-r63"
     },
     {
       "id": "net_check",
@@ -130,7 +130,7 @@ export const radioScript = {
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Watch your vehicle health. Report faults early. Out.",
       "voice": "am_fenrir",
-      "file": "/audio/net_check.mp3?v=natural-radio-r59"
+      "file": "/audio/net_check.mp3?v=crisp-radio-r63"
     },
     {
       "id": "net_copy",
@@ -138,7 +138,7 @@ export const radioScript = {
       "channel": "radio",
       "text": "All Brave stations, this is Brave six. Send your status when you reach the dismount point. Out.",
       "voice": "am_fenrir",
-      "file": "/audio/net_copy.mp3?v=natural-radio-r59"
+      "file": "/audio/net_copy.mp3?v=crisp-radio-r63"
     },
     {
       "id": "net_rear",
@@ -146,7 +146,7 @@ export const radioScript = {
       "channel": "radio",
       "text": "Brave six, this is Brave one two. No change to report. Out.",
       "voice": "am_eric",
-      "file": "/audio/net_rear.mp3?v=natural-radio-r59"
+      "file": "/audio/net_rear.mp3?v=crisp-radio-r63"
     }
   ],
   "radioOrders": [
@@ -171,7 +171,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Aztec six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_aztec.mp3?v=natural-radio-r59"
+      "file": "/audio/order_aztec.mp3?v=crisp-radio-r63"
     },
     {
       "id": "order_brave",
@@ -194,7 +194,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Brave six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_brave.mp3?v=natural-radio-r59"
+      "file": "/audio/order_brave.mp3?v=crisp-radio-r63"
     },
     {
       "id": "order_crazy_horse",
@@ -217,7 +217,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Crazy Horse six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_crazy_horse.mp3?v=natural-radio-r59"
+      "file": "/audio/order_crazy_horse.mp3?v=crisp-radio-r63"
     }
   ],
   "radioRelays": [
@@ -243,7 +243,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_1_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_aztec_1_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_aztec_2_6",
@@ -267,7 +267,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_2_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_aztec_2_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_aztec_3_6",
@@ -291,7 +291,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_3_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_aztec_3_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_brave_1_6",
@@ -315,7 +315,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_1_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_brave_1_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_brave_2_6",
@@ -339,7 +339,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_2_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_brave_2_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_brave_3_6",
@@ -363,7 +363,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_3_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_brave_3_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_crazy_horse_1_6",
@@ -387,7 +387,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_1_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_crazy_horse_1_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_crazy_horse_2_6",
@@ -411,7 +411,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_2_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_crazy_horse_2_6.mp3?v=crisp-radio-r63"
     },
     {
       "id": "relay_crazy_horse_3_6",
@@ -435,7 +435,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_3_6.mp3?v=natural-radio-r59"
+      "file": "/audio/relay_crazy_horse_3_6.mp3?v=crisp-radio-r63"
     }
   ],
   "radioFemale": [
@@ -460,7 +460,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Aztec six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_aztec_female.mp3?v=natural-radio-r59",
+      "file": "/audio/order_aztec_female.mp3?v=crisp-radio-r63",
       "baseId": "order_aztec"
     },
     {
@@ -484,7 +484,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Brave six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_brave_female.mp3?v=natural-radio-r59",
+      "file": "/audio/order_brave_female.mp3?v=crisp-radio-r63",
       "baseId": "order_brave"
     },
     {
@@ -508,7 +508,7 @@ export const radioScript = {
           "spokenText": "Tomahawk three, this is Crazy Horse six. Wilco. Out."
         }
       ],
-      "file": "/audio/order_crazy_horse_female.mp3?v=natural-radio-r59",
+      "file": "/audio/order_crazy_horse_female.mp3?v=crisp-radio-r63",
       "baseId": "order_crazy_horse"
     },
     {
@@ -533,7 +533,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_1_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_aztec_1_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_aztec_1_6"
     },
     {
@@ -558,7 +558,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_2_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_aztec_2_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_aztec_2_6"
     },
     {
@@ -583,7 +583,7 @@ export const radioScript = {
           "spokenText": "Aztec six, this is Aztec three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_aztec_3_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_aztec_3_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_aztec_3_6"
     },
     {
@@ -608,7 +608,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_1_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_brave_1_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_brave_1_6"
     },
     {
@@ -633,7 +633,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_2_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_brave_2_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_brave_2_6"
     },
     {
@@ -658,7 +658,7 @@ export const radioScript = {
           "spokenText": "Brave six, this is Brave three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_brave_3_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_brave_3_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_brave_3_6"
     },
     {
@@ -683,7 +683,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse one six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_1_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_crazy_horse_1_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_crazy_horse_1_6"
     },
     {
@@ -708,7 +708,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse two six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_2_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_crazy_horse_2_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_crazy_horse_2_6"
     },
     {
@@ -733,7 +733,7 @@ export const radioScript = {
           "spokenText": "Crazy Horse six, this is Crazy Horse three six. Wilco. Out."
         }
       ],
-      "file": "/audio/relay_crazy_horse_3_6_female.mp3?v=natural-radio-r59",
+      "file": "/audio/relay_crazy_horse_3_6_female.mp3?v=crisp-radio-r63",
       "baseId": "relay_crazy_horse_3_6"
     }
   ],
@@ -743,6 +743,6 @@ export const radioScript = {
     "channel": "radio",
     "text": "Recovery copies. Help is on the way.",
     "voice": "am_eric",
-    "file": "/audio/recovery_ack.mp3?v=natural-radio-r59"
+    "file": "/audio/recovery_ack.mp3?v=crisp-radio-r63"
   }
 } as const;

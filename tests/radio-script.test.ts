@@ -118,11 +118,12 @@ test('primary commanders and all replies are male with matching female commander
 });
 
 test('every caption resolves to a compact, versioned public MP3 asset', () => {
+  assert.equal(cues.length + 1, 41, 'all guided, radio, recovery and ICS assets are bundled');
   const payloadTexts = new Map<string, string>();
-  for (const cue of cues) {
+  for (const cue of [...cues, radioScript.recovery]) {
     const publicUrl = new URL(cue.file, 'https://example.invalid');
     assert.equal(publicUrl.pathname, `/audio/${cue.id}.mp3`);
-    assert.equal(publicUrl.searchParams.get('v'), 'natural-radio-r59');
+    assert.equal(publicUrl.searchParams.get('v'), 'crisp-radio-r63');
     const mp3 = readFileSync(new URL(`public${publicUrl.pathname}`, root));
     assert.ok(mp3.length > 1000 && mp3.length < 180000, 'nonempty mobile-sized speech asset, including the complete opening order');
     assert.equal(mp3[0], 0xff, 'MP3 starts with a frame sync');
@@ -137,7 +138,7 @@ test('recovery acknowledgment is a bundled, versioned fictional line', () => {
   const cue=radioScript.recovery;
   assert.equal(cue.text,'Recovery copies. Help is on the way.');
   assert.equal(cue.channel,'radio');
-  assert.equal(cue.file,'/audio/recovery_ack.mp3?v=natural-radio-r59');
+  assert.equal(cue.file,'/audio/recovery_ack.mp3?v=crisp-radio-r63');
   const audio=readFileSync(new URL('public/audio/recovery_ack.mp3',root));
   assert.ok(audio.length>=1000 && audio.length<40000);
   assert.equal(audio[0],0xff); assert.equal(audio[1]&0xe0,0xe0);

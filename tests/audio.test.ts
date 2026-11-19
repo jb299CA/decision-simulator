@@ -32,7 +32,7 @@ class MockNode {
   disconnect(): void { this.disconnected = true; }
   start(when?: number): void {
     if (this.buffer?.id && MockContext.failVoiceStart) throw new Error('voice source unavailable');
-    if (this.loop && this.connections[0]?.connections[0]?.frequency.value === 185 && MockContext.failStaticStart) throw new Error('static source unavailable');
+    if (this.loop && this.connections[0]?.connections[0]?.frequency.value === 125 && MockContext.failStaticStart) throw new Error('static source unavailable');
     this.started = true; this.startTime = when;
   }
   stop(): void { this.stopped = true; this.onended?.(); }
@@ -128,7 +128,7 @@ const exact = (cue: { speaker: string; text: string }): string => `${cue.speaker
 const pttEdges = (context: MockContext): MockNode[] => context.sources.filter(source =>
   source.started && !source.loop && !source.buffer?.id && source.buffer?.length !== undefined && source.buffer.length <= context.sampleRate * .12);
 const radioStaticSources = (context: MockContext): MockNode[] => context.sources.filter(source =>
-  source.loop && source.connections[0]?.connections[0]?.type === 'highpass' && source.connections[0]?.connections[0]?.frequency.value === 185);
+  source.loop && source.connections[0]?.connections[0]?.type === 'highpass' && source.connections[0]?.connections[0]?.frequency.value === 125);
 
 function audioSession(t: { after: (fn: () => void) => void }, initial = 'auto', throws = false) {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
@@ -689,11 +689,16 @@ test('intercom stays clear; radio has a narrower speech path, bounded static and
   browser(t);
   const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
   const context = MockContext.latest, sim = new Simulation(); sim.begin(); await update(audio, sim);
-  const radio = context.voices.at(-1)!, high = radio.connections[0]!, low = high.connections[0]!, radioLevel = low.connections[0]!;
+  const radio = context.voices.at(-1)!, high = radio.connections[0]!, low = high.connections[0]!, presence = low.connections[0]!, radioLevel = presence.connections[0]!;
   assert.equal(high.type, 'highpass'); assert.equal(low.type, 'lowpass');
-  assert.ok(high.frequency.value >= 160 && high.frequency.value < 400);
-  assert.ok(low.frequency.value >= 3000 && low.frequency.value <= 4000, 'speech remains intelligible while sounding like a net');
-  assert.ok(radioLevel.gain.value <= 1, 'offline-conditioned speech does not need output gain above unity');
+  assert.ok(high.frequency.value >= 90 && high.frequency.value <= 140, 'radio retains natural lower voice body');
+  assert.ok(low.frequency.value >= 4500 && low.frequency.value <= 5200, 'radio preserves consonants on small speakers');
+  assert.equal(presence.type, 'peaking');
+  assert.ok(presence.frequency.value >= 2000 && presence.frequency.value <= 3000 && presence.Q.value < 1, 'presence is broad rather than a resonant whistle');
+  assert.ok(presence.gain.value > 0 && presence.gain.value <= 1, 'speech has only a moderate presence lift');
+  assert.ok(radioLevel.gain.value * 10 ** (presence.gain.value / 20) <= 1, 'output attenuation reserves the full EQ boost without exceeding the mastered peak');
+  assert.equal(radioLevel.connections[0], context.gains[0], 'voice retains the shared master ceiling');
+  assert.equal(radio.playbackRate.events.length, 0, 'the voice is never pitch shifted or slowed');
   const onset = pttEdges(context)[0]!;
   assert.ok(onset && onset.startTime === undefined, 'PTT begins immediately');
   assert.ok(onset.buffer!.length! / context.sampleRate >= .08 && onset.buffer!.length! / context.sampleRate <= .12, 'audible soft squelch lasts 80?120 milliseconds');
@@ -712,7 +717,13 @@ test('intercom stays clear; radio has a narrower speech path, bounded static and
   assert.notEqual(intercomHigh, high, 'crew intercom has its own signal path');
   assert.ok(intercomHigh.frequency.value < high.frequency.value && intercomLow.frequency.value > low.frequency.value,
     'intercom keeps a wider, clearer voice band');
-  assert.equal(intercomLow.connections[0]!.gain.value, radioLevel.gain.value, 'channel distinction does not rely on a louder intercom');
+  const intercomPresence = intercomLow.connections[0]!, intercomLevel = intercomPresence.connections[0]!;
+  assert.equal(intercomPresence.type, 'peaking');
+  assert.ok(intercomPresence.gain.value >= 0 && intercomPresence.gain.value <= presence.gain.value, 'clean ICS needs less presence lift than radio');
+  assert.equal(intercomLevel.gain.value, radioLevel.gain.value, 'channel distinction does not rely on a louder intercom');
+  assert.ok(intercomLevel.gain.value * 10 ** (intercomPresence.gain.value / 20) <= 1, 'ICS also reserves its EQ headroom');
+  assert.equal(intercomLevel.connections[0], context.gains[0]);
+  assert.equal(intercom.playbackRate.events.length, 0);
   assert.equal(intercom.startTime, context.currentTime, 'intercom needs no radio-key delay');
   assert.equal(pttEdges(context).length, 2, 'intercom has no onset PTT');
   intercom.finish(); assert.equal(pttEdges(context).length, 2, 'intercom has no tail PTT');
@@ -758,7 +769,7 @@ test('radio static is quiet, shares one buffer and follows actual calls without 
   const voice = context.voices.at(-1)!, first = radioStaticSources(context)[0]!, gain = first.connections[0]!;
   assert.ok(first.started && first.loop);
   assert.equal(first.startTime, voice.startTime, 'static begins with scheduled speech after the PTT lead-in');
-  assert.equal(gain.gain.value, .018, 'static remains well below unity conditioned speech');
+  assert.equal(gain.gain.value, .009, 'quiet static preserves radio character without masking consonants');
   assert.equal(gain.connections[0], voice.connections[0], 'static uses the same band-limited radio path');
   const nodes = context.sources.length, oscillators = context.oscillators.length;
   for (let frame = 0; frame < 120; frame++) audio.update(sim, { inside: frame % 2 === 0 });
@@ -1325,7 +1336,7 @@ test('radio and health reduce vehicle and shot masking immediately with smoothed
   const speaking = engine.value;
   context.voices.at(-1)!.finish();
   const normal = engine.value;
-  assert.ok(Math.abs(speaking / normal - .38) < 1e-9);
+  assert.ok(Math.abs(speaking / normal - .28) < 1e-9);
   assert.equal(engine.events.at(-1)!.seconds, .16, 'radio release is gradual');
   audio.fireRangeShot(); const shot = context.sources.at(-1)!, shotGain = shot.connections[0]!;
   const report = shotGain.gain.value;
@@ -1342,6 +1353,35 @@ test('radio and health reduce vehicle and shot masking immediately with smoothed
   const count = context.sources.length; audio.setPaused(false); await settle();
   assert.equal(context.sources.length, count, 'resume cannot replay the faded transients');
   assert.equal(engine.value, 0, 'transport resume alone cannot resurrect the previous vehicle mix');
+});
+
+test('speech clears the whole loaded vehicle mix without retuning engines or increasing weapon or master levels', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  const sim = new Simulation(); sim.begin(); sim.board(); sim.speed = 1;
+  const vehicle = { inside: true, powertrain: { rpm: 2000, load: .8, throttle: 1, gear: 2, whine: .8, roughness: .2 } };
+  audio.update(sim, vehicle); await settle();
+  const context = MockContext.latest;
+  context.voices.at(-1)!.finish();
+  const buses = context.gains.slice(1, 7), baseline = buses.map(bus => bus.gain.value);
+  assert.ok(baseline.every(value => value > 0), 'engine, rolling, cabin, wind, whine and load all contribute');
+  const pitches = context.oscillators.slice(0, 12).map(node => node.frequency.value);
+  audio.fireRangeShot(); const shot = context.sources.at(-1)!, reportLevel = shot.connections[0]!.gain.value;
+  sim.phase = 'feed'; audio.update(sim, vehicle); await settle();
+  const voice = context.voices.at(-1)!;
+  buses.forEach((bus, i) => {
+    assert.ok(Math.abs(bus.gain.value / baseline[i]! - .28) < 1e-9, 'each vehicle layer yields to speech');
+    assert.equal(bus.gain.events.at(-1)!.seconds, .025, 'masking clears quickly');
+  });
+  assert.deepEqual(context.oscillators.slice(0, 12).map(node => node.frequency.value), pitches, 'speech ducking preserves vehicle pitch');
+  assert.ok(Math.abs(shot.connections[0]!.gain.value / reportLevel - .55) < 1e-9, 'weapon report keeps its existing speech priority');
+  assert.equal(context.gains[0]!.gain.value, .48, 'clarity never increases the global ceiling');
+  voice.finish();
+  buses.forEach((bus, i) => {
+    assert.equal(bus.gain.value, baseline[i]);
+    assert.equal(bus.gain.events.at(-1)!.seconds, .16, 'ambience releases gradually after the line');
+  });
+  assert.equal(shot.connections[0]!.gain.value, reportLevel, 'full report level returns when dialogue ends');
 });
 
 test('real firing gets a 4.3 dB report lift with its full buffered attack and unchanged master gain', async t => {
