@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 48 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 49 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -92,3 +92,5 @@ Release46 restores a subtle phone-audible score with sparse midrange melody and 
 Release 47 adds a prominent Shift5 website link with the bundled logo and the tagline ?Real Data. Rapid Analysis. Right Decision.? TypeScript and production build passed; gameplay and audio are unchanged from the 314-test release 46 baseline. Live browser layout inspection remains outstanding.
 
 Release 48: prominent mission countdown in all four camera views, with the three-minute clock starting at LD and freezing during pause/inspection. Original equipment-style two-pulse caution and three-pulse critical MFoCS cues respect mute/pause and do not queue. Guided telemetry alerts also trigger the caution cue. All 320 tests, TypeScript and production build pass. Browser/device listening verification remains outstanding.
+
+Release 49: assisted, manual and center aim slew at a bounded game rate. Shots follow the actual barrel; lock indication waits for alignment. The six practice boards start about 92 game metres away and have at least 46 metres between them, leaving the road clear. All 325 tests and production build pass. Longer encounters can cause ignored severe faults to break down before arrival; early and late pace mitigation still permit completion. Browser play verification remains outstanding.

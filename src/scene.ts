@@ -918,7 +918,7 @@ export class VehicleScene {
     this.rangeAimMarker.position.set(range.position.x + cos * .48 + dx * aimDistance,terrain.height + 3,range.position.z - sin * .48 + dz * aimDistance);
     this.rangeAimMarker.lookAt(this.camera.position);
     const lockedTarget = range.aimLock ? range.targets.find(target => target.id === range.aimLock!.targetId && target.destroyedAt === null) : undefined;
-    this.rangeLockMarker.visible = !!lockedTarget && !range.missionEnded && view !== 'inside';
+    this.rangeLockMarker.visible = !!lockedTarget && range.aimLockReady && !range.missionEnded && view !== 'inside';
     if (lockedTarget) {
       const contact = range.mission.contacts.find(item => item.id === lockedTarget.id);
       const targetHeight = contact ? contact.kind === 'troop' ? 1.25 : 2.2 : 2.4;

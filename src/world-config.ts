@@ -8,12 +8,12 @@ export const MISSION_ROUTE = [
   { x: -65, z: -340 }, { x: 75, z: -570 }, { x: 55, z: -760 }, DISMOUNT_POINT,
 ] as const;
 export const PRACTICE_TARGETS = [
-  { id: 'practice-1', x: 0, z: 40, radius: 1.6 },
-  { id: 'practice-2', x: -12, z: 20, radius: 1.6 },
-  { id: 'practice-3', x: 12, z: -5, radius: 1.6 },
-  { id: 'practice-4', x: 0, z: -40, radius: 1.6 },
-  { id: 'practice-5', x: -14, z: -70, radius: 1.6 },
-  { id: 'practice-6', x: 15, z: -100, radius: 1.6 },
+  { id: 'practice-1', x: -26, z: -8, radius: 1.6 },
+  { id: 'practice-2', x: 38, z: -28, radius: 1.6 },
+  { id: 'practice-3', x: -38, z: -65, radius: 1.6 },
+  { id: 'practice-4', x: 45, z: -88, radius: 1.6 },
+  { id: 'practice-5', x: -47, z: -119, radius: 1.6 },
+  { id: 'practice-6', x: 73, z: -125, radius: 1.6 },
 ] as const;
 export type ContactKind = 'troop' | 'vehicle';
 // Vehicle contacts are fictional soft-skin trucks with mounted guns, not armored vehicles.

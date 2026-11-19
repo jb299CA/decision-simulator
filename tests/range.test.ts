@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DrivingRange, RANGE_BOUNDS, terrainAt } from '../src/range.ts';
-import { MISSION_START, roadCenterAt } from '../src/world-config.ts';
+import { AIM_ASSIST, DrivingRange, RANGE_BOUNDS, terrainAt } from '../src/range.ts';
+import { DEPARTURE_Z, MISSION_START, PRACTICE_TARGETS, roadCenterAt } from '../src/world-config.ts';
 import { mphToMps } from '../src/driving-dynamics.ts';
 
 const idle = { throttle: 0, steer: 0, aim: 0, fire: false };
@@ -93,6 +93,7 @@ test('surface and health reductions decelerate gradually while pause preserves a
 
 test('arcade shots permanently break boards, respect cooldown, expire and bound effect history', () => {
   const range = new DrivingRange();
+  run(range, .6);
   range.tick(.025, { ...idle, fire: true });
   assert.equal(range.shotsFired, 1); assert.equal(range.hits, 1);
   assert.equal(range.shots[0]!.hitTargetId, 'practice-1');
@@ -116,13 +117,32 @@ test('arcade shots permanently break boards, respect cooldown, expire and bound 
 
 test('aim is a relative rate; pause freezes every range field and resume has no catchup', () => {
   const range = new DrivingRange(); run(range, 1, { ...idle, aim: 1 });
-  assert.ok(Math.abs(range.aimYaw - 1.35) < 1e-8);
+  assert.ok(Math.abs(range.aimYaw - AIM_ASSIST.slewRate) < 1e-8);
   range.tick(.05, { ...idle, fire: true });
   range.paused = true; const snapshot = JSON.stringify(range);
   range.tick(100, { throttle: 1, steer: 1, aim: 1, fire: true });
   assert.equal(JSON.stringify(range), snapshot);
   const before = range.time; range.paused = false; range.tick(.05, idle);
   assert.ok(Math.abs(range.time - before - .05) < 1e-9);
+});
+
+test('practice boards start farther out, spread apart and leave the main road open', () => {
+  assert.equal(PRACTICE_TARGETS.length, 6);
+  const distances = PRACTICE_TARGETS.map(target => Math.hypot(target.x - MISSION_START.x, target.z - MISSION_START.z));
+  assert.ok(Math.min(...distances) >= 90);
+  assert.ok(Math.min(...distances) < AIM_ASSIST.acquireDistance, 'starter target remains available to assist');
+  for (const [i, target] of PRACTICE_TARGETS.entries()) {
+    assert.equal(target.id, `practice-${i + 1}`); assert.equal(target.radius, 1.6);
+    assert.ok(target.z > DEPARTURE_Z && target.z < MISSION_START.z);
+    assert.ok(Math.abs(target.x - roadCenterAt(target.z)) > 8 + target.radius + 1.9);
+    for (const other of PRACTICE_TARGETS.slice(i + 1)) assert.ok(Math.hypot(target.x - other.x, target.z - other.z) >= 45);
+  }
+  const range = new DrivingRange(), target = range.targets[0]!;
+  range.position = { x: target.x, z: target.z + 8 }; range.speed = 10;
+  run(range, 1, { ...idle, throttle: 1 });
+  assert.equal(target.destroyedBy, 'vehicle'); assert.notEqual(target.destroyedAt, null);
+  const destroyedAt = target.destroyedAt;
+  run(range, 2); assert.equal(target.destroyedAt, destroyedAt); assert.ok(range.speed > 0, 'debris does not block the vehicle');
 });
 
 test('audio adapter is stable, follows movement and never advances the guided fault', () => {
