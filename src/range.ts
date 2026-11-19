@@ -38,7 +38,7 @@ const finite = (value: number): number => Number.isFinite(value) ? value : 0;
 const normalized = (value: number): number => clamp(finite(value), -1, 1);
 const wrap = (value: number): number => Math.atan2(Math.sin(value), Math.cos(value));
 /** Accessibility tuning in fictional game units, unrelated to real weapon performance. */
-export const AIM_ASSIST = { acquireDistance: 120, retainDistance: 135, acquireAngle: 55 * Math.PI / 180, retainAngle: 75 * Math.PI / 180, manualGrace: 1.5 } as const;
+export const AIM_ASSIST = { acquireDistance: 120, retainDistance: 135, acquireAngle: 55 * Math.PI / 180, retainAngle: 75 * Math.PI / 180, manualGrace: 1.5, slewRate: 35 * Math.PI / 180 } as const;
 
 /** Fictional game terrain coefficients, never vehicle specifications. */
 export function terrainAt(x: number, z: number): RangeTerrain {
@@ -73,6 +73,7 @@ export class DrivingRange {
   aimLock: AimLock | null = null;
   aimAssistEnabled = true;
   private manualAimUntil = 0;
+  private centeringAim = false;
   shotsFired = 0;
   hits = 0;
   lastShotTime = -Infinity;
@@ -103,6 +104,21 @@ export class DrivingRange {
   get missionEnded(): boolean { return this.mission.status === 'complete' || this.mission.status === 'failed' || this.mission.status === 'recovery' || this.mission.status === 'breakdown'; }
   get dismounting(): boolean { return this.mission.status === 'dismounting'; }
   get manualAimActive(): boolean { return this.time < this.manualAimUntil; }
+  /** Selection can precede alignment; a selected target never awards a hidden hit. */
+  get aimLockReady(): boolean {
+    const target = this.targets.find(candidate => candidate.id === this.aimLock?.targetId);
+    if (this.missionEnded || this.dismounting || !target || !this.targetActive(target)) return false;
+    const angle = this.heading + this.aimYaw, dx = -Math.sin(angle), dz = -Math.cos(angle);
+    const pivot = this.weaponPivot(), tx = target.x - pivot.x - dx, tz = target.z - pivot.z - dz;
+    const along = tx * dx + tz * dz;
+    if (along <= 0 || along >= 140 || Math.abs(tx * dz - tz * dx) > target.radius) return false;
+    return !this.targets.some(other => {
+      if (other === target || !this.targetActive(other)) return false;
+      const ox = other.x - pivot.x - dx, oz = other.z - pivot.z - dz;
+      const otherAlong = ox * dx + oz * dz;
+      return otherAlong > 0 && otherAlong < along && Math.abs(ox * dz - oz * dx) <= other.radius;
+    });
+  }
   get speedMph(): number { return mpsToMph(this.speed); }
   /** Effective road-wheel angle in radians after the game grip limit. */
   get steeringAngle(): number { return this.dynamics.appliedSteeringAngle; }
@@ -159,7 +175,7 @@ export class DrivingRange {
 
   centerAim(): void {
     if (this.paused || this.missionEnded || this.dismounting) return;
-    this.aimYaw = 0; this.aimLock = null;
+    this.centeringAim = true; this.aimLock = null;
     this.manualAimUntil = this.time + AIM_ASSIST.manualGrace;
   }
 
@@ -174,10 +190,26 @@ export class DrivingRange {
         && this.mission.contacts.some(contact => contact.id === target.id && !contact.neutralized && contact.health > 0)));
   }
 
-  private updateAimAssist(aim: number): void {
+  /** Bounded shortest-arc movement also prevents overshoot at the wrap boundary. */
+  private slewAimTo(yaw: number, dt: number): void {
+    const maxStep = AIM_ASSIST.slewRate * dt;
+    this.aimYaw = wrap(this.aimYaw + clamp(wrap(yaw - this.aimYaw), -maxStep, maxStep));
+  }
+
+  private updateAimAssist(aim: number, dt: number): void {
     if (aim !== 0) {
+      this.centeringAim = false;
       this.manualAimUntil = this.time + AIM_ASSIST.manualGrace;
       this.aimLock = null;
+      this.aimYaw = wrap(this.aimYaw + aim * AIM_ASSIST.slewRate * dt);
+      return;
+    }
+    if (this.centeringAim) {
+      this.slewAimTo(0, dt);
+      this.centeringAim = Math.abs(this.aimYaw) > 1e-9;
+      this.manualAimUntil = this.time + AIM_ASSIST.manualGrace;
+      this.aimLock = null;
+      return;
     }
     if (!this.aimAssistEnabled || this.manualAimActive) { this.aimLock = null; return; }
     const pivot = this.weaponPivot();
@@ -203,7 +235,7 @@ export class DrivingRange {
     if (!selected) { this.aimLock = null; return; }
     const contact = this.mission.contacts.find(contact => contact.id === selected.target.id);
     this.aimLock = { targetId: selected.target.id, label: selected.target.kind === 'training' ? `Board ${selected.target.id.replace('practice-', '')}` : `${contact?.kind === 'vehicle' ? 'Gun truck' : 'Contact'} ${selected.target.id.split('-').at(-1)}` };
-    this.aimYaw = wrap(selected.angle - this.heading);
+    this.slewAimTo(wrap(selected.angle - this.heading), dt);
   }
 
   /** Crew commands remain available during an explicitly paused inspection. */
@@ -278,7 +310,6 @@ export class DrivingRange {
       const motion = this.dynamics.step(step, this.speed, { throttle, steer, brake: !!input.brake, limit: mphToMps(limitMph), grip: terrain.grip });
       this.speed = motion.speed;
       this.heading = wrap(this.heading + motion.yawRate * step);
-      this.aimYaw = wrap(this.aimYaw + aim * 1.35 * step);
       const nextX = this.position.x - Math.sin(this.heading) * this.speed * step;
       const nextZ = this.position.z - Math.cos(this.heading) * this.speed * step;
       const previousX = this.position.x, previousZ = this.position.z;
@@ -301,7 +332,7 @@ export class DrivingRange {
         this.mission.notice = 'Line of departure crossed. Three minutes to clear the fictional contacts and stop at the dismount point.';
       }
       this.crushPracticeTargets(previousX, previousZ);
-      this.updateAimAssist(aim);
+      this.updateAimAssist(aim, step);
       if (input.fire && this.time - this.lastShotTime >= .14 - 1e-9) this.fire();
       this.updateMission();
       if (this.missionEnded) { this.finishMission(); break; }
@@ -447,7 +478,7 @@ export class DrivingRange {
     this.explorer.reset();
     this.movementTimer.reset();
     this.aimYaw = 0; this.shotsFired = 0; this.hits = 0; this.lastShotTime = -Infinity;
-    this.aimLock = null; this.manualAimUntil = 0;
+    this.aimLock = null; this.manualAimUntil = 0; this.centeringAim = false;
     this.shots = []; this.mission = this.makeMission(); this.targets = this.makeTargets(); this.soundState.restart(); this.drivetrain.restart(); this.vehicleHealth.restart(); this.dynamics.restart(); this.lastThrottle = 0;
   }
 }

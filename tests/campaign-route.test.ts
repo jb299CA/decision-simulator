@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DrivingRange } from '../src/range.ts';
+import { AIM_ASSIST, DrivingRange } from '../src/range.ts';
 import { MISSION_ROUTE } from '../src/world-config.ts';
 
 const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -40,7 +40,7 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
       const ox = range.position.x + Math.cos(range.heading) * .48;
       const oz = range.position.z - Math.sin(range.heading) * .48;
       const aimError = wrap(Math.atan2(-(enemy.x - ox), -(enemy.z - oz)) - range.heading - range.aimYaw);
-      range.tick(dt, { throttle: 0, steer: 0, aim: clamp(aimError / (1.35 * dt)), fire: Math.abs(aimError) < .006, brake: true });
+      range.tick(dt, { throttle: 0, steer: 0, aim: clamp(aimError / (AIM_ASSIST.slewRate * dt)), fire: Math.abs(aimError) < .006, brake: true });
       continue;
     }
     let target = MISSION_ROUTE[waypoint]!;
@@ -54,21 +54,21 @@ function driveMission(response: 'ignore' | 'early' | 'late', extraPractice = fal
   return range;
 }
 
-test('shorter gun truck encounters allow ignored faults to deliver with major unrepaired damage', () => {
+test('ignored faults during slower gun encounters cause breakdown with major unrepaired damage', () => {
   const range = driveMission('ignore');
-  // Softer truck targets shorten combat pauses; this driver now reaches the objective
-  // before overheating immobilizes it. Persistent health damage must still be reported.
-  assert.equal(range.mission.status, 'complete', `ended ${range.mission.status} at ${range.time.toFixed(1)}s with exposure ${range.health.faults[0]!.exposure}`);
-  assert.equal(range.debrief?.outcome, 'complete'); assert.equal(range.debrief?.vehicleStatus, 'major-repair');
-  assert.equal(range.movementClock.status, 'arrived'); assert.ok(range.movementClock.remainingSeconds > 0);
+  // Slewing adds time to combat stops. Ignoring severe faults now exhausts the
+  // vehicle before arrival; later pace reduction still permits a damaged finish.
+  assert.equal(range.mission.status, 'breakdown', `ended ${range.mission.status} at ${range.time.toFixed(1)}s with exposure ${range.health.faults[0]!.exposure}`);
+  assert.equal(range.debrief?.outcome, 'breakdown'); assert.equal(range.debrief?.vehicleStatus, 'immobilized');
+  assert.equal(range.movementClock.status, 'running'); assert.ok(range.movementClock.remainingSeconds > 0);
   assert.equal(range.debrief?.movementClock, range.movementClock);
   assert.equal(range.health.continued, false); assert.equal(range.health.paceLimited, false);
-  assert.equal(range.health.breakdownCause, null); assert.equal(range.mission.remainingContacts, 0);
+  assert.equal(range.health.breakdownCause, 'cooling'); assert.equal(range.mission.remainingContacts, 0);
   assert.deepEqual(range.debrief?.decisions, []);
   assert.equal(range.debrief?.findings.find(finding => finding.id === 'charging')?.maintenance, 'major');
   assert.equal(range.debrief?.findings.find(finding => finding.id === 'wheel-end')?.maintenance, 'major');
   assert.ok(range.debrief?.findings.some(finding => finding.firstWarningAt !== null && finding.severeAt !== null));
-  assert.match(range.debrief!.summary, /major repair required after deferred action/);
+  assert.equal(range.debrief?.findings.find(finding => finding.id === 'cooling')?.maintenance, 'major');
   assert.equal(range.speed, 0); assert.equal(range.audioState.engine, false);
   const frozen = JSON.stringify(range.debrief), time = range.time;
   range.tick(.1, { throttle: 1, steer: 1, aim: 1, fire: true });
@@ -100,7 +100,7 @@ test('early reduced pace can clear all encounters and deliver with only minor in
   assert.equal(range.mission.status, 'complete', `ended ${range.mission.status} at ${JSON.stringify(range.position)} after ${range.time.toFixed(1)}s`);
   assert.equal(range.mission.departureCrossed, true); assert.equal(range.mission.remainingContacts, 0);
   assert.ok(range.mission.contacts.every(c => c.neutralized && c.health === 0));
-  assert.ok(range.targets.filter(t => t.kind === 'training' && t.destroyedBy === 'vehicle').length >= 2);
+  assert.ok(range.targets.filter(t => t.kind === 'training').every(t => t.destroyedAt === null), 'the road route leaves the spaced off-road practice boards intact');
   assert.equal(range.debrief?.vehicleStatus, 'requires-inspection');
   assert.equal(range.movementClock.status, 'arrived'); assert.ok(range.movementClock.remainingSeconds > 0);
   assert.ok(range.debrief?.findings.every(finding => finding.maintenance === 'inspection' || finding.maintenance === 'none'));

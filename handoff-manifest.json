@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 48,
+  "sourceRelease": 49,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 139,
-  "totalBytes": 4819638,
+  "totalBytes": 4827241,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -369,8 +369,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 122275,
-      "sha256": "798bbbd324f90cbbd2d90704ad814819b9dfb89537df44e9b71923970498f4b5"
+      "bytes": 122391,
+      "sha256": "fef3448032960d5c7f8fc9a3b7b530f7ac9e25920677392a64fd4b671e175efc"
     },
     {
       "path": "src/map-navigation.ts",
@@ -434,13 +434,13 @@
     },
     {
       "path": "src/range.ts",
-      "bytes": 30290,
-      "sha256": "8025205515ef896d3962e57aa9440f63494f4a30a1f351f591c7287f409e603f"
+      "bytes": 31979,
+      "sha256": "75b229c975696ad188fe8dac7185e179f228f22e7c21d2c994b7ac39aaeda525"
     },
     {
       "path": "src/scene.ts",
-      "bytes": 75039,
-      "sha256": "d2e3761605cab524845edf35a03ec656b8a0952f2ea992a7d86e615a25089d99"
+      "bytes": 75061,
+      "sha256": "5e64e101afbc30a03511494093ab7f31c21f1ac8924078019cdb512d0077ac6b"
     },
     {
       "path": "src/simulation.ts",
@@ -484,13 +484,13 @@
     },
     {
       "path": "src/world-config.ts",
-      "bytes": 4425,
-      "sha256": "de2890c636eb079e41359f61efcc626562e73e197a231c81f3d6593a31ad0bb7"
+      "bytes": 4431,
+      "sha256": "3d3a1300e59bdbd0d1c80f6c97971ea8e4e98527ffdfcf3a874b21591348b091"
     },
     {
       "path": "tests/aim-assist.test.ts",
-      "bytes": 7631,
-      "sha256": "70fcbb77154be334c25aa793d9ede6c02b7858ef5efa3cd17b8fe9e976832d9a"
+      "bytes": 11928,
+      "sha256": "2283381fd93fbd985f7caf80efe1edd039ccc2cda35aedfe146be43dd1279974"
     },
     {
       "path": "tests/audio.test.ts",
@@ -519,8 +519,8 @@
     },
     {
       "path": "tests/campaign-route.test.ts",
-      "bytes": 9105,
-      "sha256": "9b5c1c7b7f6796822d532ca19d6ae53af127a8a02eee4add3ce386f0e3ecfbb2"
+      "bytes": 9201,
+      "sha256": "d3ca05c014ea6338e82cac37f77d38ce83980074dc5f2bce4941f104d4cb8276"
     },
     {
       "path": "tests/campaign.test.ts",
@@ -684,8 +684,8 @@
     },
     {
       "path": "tests/range.test.ts",
-      "bytes": 16143,
-      "sha256": "5fc06bcf3c20e179525fe8d1eb11a443f39201d2b69ec7e006ca387627c0755c"
+      "bytes": 17520,
+      "sha256": "da7286541782233d8c39227907939d87184c2b8d12c8ffa9cb92065814579fa8"
     },
     {
       "path": "tests/simulation.test.ts",
