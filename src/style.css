@@ -932,6 +932,30 @@ body[data-mode="range"] .range-health[data-health] > b {
 }
 body[data-mode="range"] .range-health[data-health="nominal"] .range-health-icon,
 body[data-mode="range"] .range-health[data-health="recovery"] .range-health-icon { display: none; }
+/* Healthy telemetry uses a static emerald instrument treatment. Keep this
+   state-specific so fault colors, alert pulses and recovery remain distinct. */
+body[data-mode="range"] .range-health[data-health="nominal"] {
+  background:
+    linear-gradient(#83efbe70, #83efbe70) right 4px top 4px / 7px 1px no-repeat,
+    linear-gradient(#83efbe70, #83efbe70) right 4px top 4px / 1px 7px no-repeat,
+    linear-gradient(110deg, #10372df5, #0a211cf5);
+  border-color: #47bf8e;
+  border-left-color: #79e6ad;
+  border-radius: 3px;
+  color: #88edb9;
+  box-shadow: inset 0 0 0 1px #69dfaa12, inset 0 1px 0 #b4ffda18, 0 2px 8px #0005;
+  font-family: "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+body[data-mode="range"] .range-health[data-health="nominal"] .range-health-heading {
+  color: #e4fff1;
+  letter-spacing: .15px;
+}
+body[data-mode="range"] .range-health[data-health="nominal"] > b {
+  color: #88edb9;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
 /* Alert light stays in the compact control; its glow never changes the footprint. */
 body[data-mode="range"] .range-health[data-health="warning"],
 body[data-mode="range"] .range-health[data-health="critical"],
