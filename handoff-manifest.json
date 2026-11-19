@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 55,
+  "sourceRelease": 56,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 137,
-  "totalBytes": 4933685,
+  "totalBytes": 4928081,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -349,8 +349,8 @@
     },
     {
       "path": "src/input.ts",
-      "bytes": 3698,
-      "sha256": "767bb588dd2316e212a9d23631dc1582928f3cae08cf06691e2f1d03babebd47"
+      "bytes": 3519,
+      "sha256": "3d0c1d96e82629e907dae6c572c0504704aaa179d7de8c27a9ea5d4ab1cc8fa5"
     },
     {
       "path": "src/inspection-model.ts",
@@ -364,8 +364,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 123152,
-      "sha256": "e5f9482b732e119cceac6d1426c40982de57d04aec4372b845b2d6f81189bba9"
+      "bytes": 121421,
+      "sha256": "881eead0379ebfbf8e012696cba34ef4f23579d44c8a082ef0d286bd3fbeeb8a"
     },
     {
       "path": "src/map-navigation.ts",
@@ -404,13 +404,13 @@
     },
     {
       "path": "src/page-lifecycle.ts",
-      "bytes": 769,
-      "sha256": "84770d9c1df23bafaa787680b9e0e5e675514438903b115518115aafe9ea8d0d"
+      "bytes": 782,
+      "sha256": "38d045f676a8a33bc937bf987f7fce431a61b6183089be02d7678c601f279c07"
     },
     {
       "path": "src/playback-focus.ts",
-      "bytes": 1729,
-      "sha256": "23fcc47556dc7c1c5c86307557fec899c0ca0fbe4f05a4763f61dd31b60e769e"
+      "bytes": 616,
+      "sha256": "142b4803b3a218c17102477dd9d16a4691cf40dbfcc617fda7f9d81af6b7fb37"
     },
     {
       "path": "src/powertrain.ts",
@@ -444,8 +444,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 203073,
-      "sha256": "c7055f87cad7514d45f06627a94bedd6dd1f69d9639f0a7061089e1195e46d28"
+      "bytes": 200769,
+      "sha256": "6bd9ca901e530c03bbd5374ceb01456b6522e02807ecc27503c42bbbca8267f2"
     },
     {
       "path": "src/target-debris.ts",
@@ -599,8 +599,8 @@
     },
     {
       "path": "tests/input.test.ts",
-      "bytes": 9016,
-      "sha256": "bbbcfd405bd5a89e768aaa2c485ac311aed186a740e12fc8bd7db85496740723"
+      "bytes": 8936,
+      "sha256": "37bc9c939a401c99740e7287f282f491b155f92706f99b55311a22a4f43e5c1a"
     },
     {
       "path": "tests/inspection-model.test.ts",
@@ -614,8 +614,8 @@
     },
     {
       "path": "tests/map-inspection.test.ts",
-      "bytes": 1722,
-      "sha256": "c75a92054ad214c931abce5aa9a7737a800423e25c1187a1d49b5135910b6b99"
+      "bytes": 1891,
+      "sha256": "b076aebdd79b32d782c0c86b5181c93753f5203276e90ba5cc60dedb4229f4b3"
     },
     {
       "path": "tests/map-navigation.test.ts",
@@ -649,13 +649,13 @@
     },
     {
       "path": "tests/page-lifecycle.test.ts",
-      "bytes": 1489,
-      "sha256": "2a463b161ea0763ff625de65225c61b8b89547b50db9b906fa2b37513f4d2008"
+      "bytes": 1548,
+      "sha256": "85f09340be0320784920587edb14c0480250cb37b184106e108f16f952bc4c43"
     },
     {
       "path": "tests/playback-focus.test.ts",
-      "bytes": 5846,
-      "sha256": "3b83a3436bec90a036fb61aa75db99c4da5a0b2a3e04bd0daee08eea5dc5e3ee"
+      "bytes": 5408,
+      "sha256": "0ff307c71144ff1f1b641275137179a66f8a0f61ba6c92b27d5db72980efaf84"
     },
     {
       "path": "tests/powertrain.test.ts",

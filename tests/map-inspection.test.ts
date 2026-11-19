@@ -27,15 +27,18 @@ test('map inspection freezes the run and discards queued driving and fire before
   assert.equal(range.shotsFired, 0);
 });
 
-test('map dismissal preserves preexisting pause and focus loss, with a fresh inspection after restart', () => {
+test('map dismissal restores preexisting manual Pause and a restarted run stays playable', () => {
   const keyboard = new RangeKeyboard();
   const map = new RangeInspection();
-  for (const reason of ['manual pause', 'blur', 'hidden']) {
-    map.begin(reason === 'manual pause', keyboard);
-    if (reason === 'blur') map.interrupt();
-    assert.equal(map.end(keyboard, reason === 'hidden'), true, reason);
-  }
   const range = new DrivingRange();
+  for (const manuallyPaused of [false, true]) {
+    range.paused = manuallyPaused;
+    map.begin(range.paused, keyboard); range.paused = true;
+    range.tick(10, drivingInput(keyboard, new Set()));
+    assert.equal(range.time, 0, 'inspection remains paused throughout the visit');
+    range.paused = map.end(keyboard);
+    assert.equal(range.paused, manuallyPaused);
+  }
   range.restart();
   map.begin(range.paused, keyboard);
   assert.equal(map.end(keyboard), false);

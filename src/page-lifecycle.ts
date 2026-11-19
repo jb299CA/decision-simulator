@@ -1,10 +1,10 @@
 export interface PageLifecycleEffects {
   suspend(): void;
   dispose(): void;
-  restorePaused(): void;
+  restore(): void;
 }
 
-/** A cached page is suspended, not destroyed. Restoring never resumes play. */
+/** A cached page keeps its resources and user-selected playback state. */
 export class PageLifecycle {
   private cached = false;
   private disposed = false;
@@ -25,6 +25,6 @@ export class PageLifecycle {
   show(persisted: boolean): void {
     if (!persisted || !this.cached || this.disposed) return;
     this.cached = false;
-    this.effects.restorePaused();
+    this.effects.restore();
   }
 }

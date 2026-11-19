@@ -111,18 +111,17 @@ test('MFoCS inspection owns focused buttons and cannot leak pending fire or driv
   assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, {}, inspection.open), true);
 });
 
-test('closing inspection preserves manual pause and never resumes after blur or visibility loss', () => {
+test('closing inspection restores the preceding manual pause and clears fresh held input', () => {
   const keyboard = new RangeKeyboard();
-  for (const scenario of ['already paused', 'blur', 'hidden']) {
-    const inspection = new RangeInspection();
-    inspection.begin(scenario === 'already paused', keyboard);
-    if (scenario === 'blur') inspection.interrupt();
-    assert.equal(inspection.end(keyboard, scenario === 'hidden'), true, scenario);
-  }
   const inspection = new RangeInspection();
-  inspection.begin(false, keyboard); inspection.interrupt(); inspection.end(keyboard);
-  inspection.begin(false, keyboard);
-  assert.equal(inspection.end(keyboard), false, 'fresh inspection does not inherit an old interruption');
+  for (const manuallyPaused of [false, true, false]) {
+    inspection.begin(manuallyPaused, keyboard);
+    inspection.begin(!manuallyPaused, keyboard); // duplicate open cannot overwrite ownership
+    keyboard.down('KeyW'); keyboard.down('KeyF');
+    assert.equal(inspection.end(keyboard), manuallyPaused);
+    assert.equal(inspection.open, false);
+    assert.deepEqual(drivingInput(keyboard, new Set()), { throttle: 0, steer: 0, aim: 0, fire: false, brake: false });
+  }
 });
 
 
