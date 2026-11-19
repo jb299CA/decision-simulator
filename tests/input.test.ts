@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, RangeInspection, RangeKeyboard } from '../src/input.ts';
+import { drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from '../src/input.ts';
 import { DrivingRange } from '../src/range.ts';
+import { RANGE_VIEWS } from '../src/mission-contract.ts';
+import type { GameKeyEvent, KeyboardTarget } from '../src/input.ts';
 
 test('game keyboard routes through camera buttons and aim slider in every view', () => {
   for (const view of ['hatch', 'inside', 'chase', 'top']) {
@@ -192,5 +194,122 @@ test('B stops actual forward and reverse motion without changing travel directio
     keyboard.up(direction); keyboard.up('KeyB');
     range.tick(.1, drivingInput(keyboard, new Set()));
     assert.equal(range.speed, 0, 'release stays stopped with no throttle');
+  }
+});
+
+
+test('legacy arrow event fields reach the same drive controls as modern arrow keys', () => {
+  for (const [key, code, keyCode] of [['Left', 'ArrowLeft', 37], ['Up', 'ArrowUp', 38], ['Right', 'ArrowRight', 39], ['Down', 'ArrowDown', 40]] as const) {
+    for (const event of [{ key }, { key: 'Unidentified', keyCode }, { code: 'Unidentified', keyCode }]) {
+      const keyboard = new RangeKeyboard();
+      const normalized = gameKeyCode(event);
+      keyboard.down(normalized);
+      const controls = drivingInput(keyboard, new Set());
+      assert.equal(normalized, code);
+      assert.equal(controls.steer, key === 'Left' ? 1 : key === 'Right' ? -1 : 0);
+      assert.equal(controls.throttle, key === 'Up' ? 1 : key === 'Down' ? -1 : 0);
+      keyboard.up(gameKeyCode(event));
+      assert.equal(keyboard.keys.size, 0);
+    }
+  }
+});
+
+
+function documentKeyboard() {
+  const document = new EventTarget();
+  const keyboard = new RangeKeyboard();
+  const context = { inRange: true, playable: true, target: { tagName: 'MAIN' } as KeyboardTarget, blocked: false, nativeSpace: false };
+  let cruise = true;
+  document.addEventListener('keydown', raw => {
+    const result = routeDrivingKeyDown(raw as Event & GameKeyEvent, keyboard, context);
+    if (result.cancelCruise) cruise = false;
+  });
+  // The real document releases keys before consulting focus or modifier state.
+  document.addEventListener('keyup', raw => keyboard.up(gameKeyCode(raw as GameKeyEvent)));
+  const dispatch = (type: 'keydown' | 'keyup', fields: GameKeyEvent) => {
+    const event = new Event(type, { cancelable: true });
+    Object.assign(event, fields);
+    document.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  return { keyboard, context, dispatch, cruise: () => cruise };
+}
+
+test('document driving boundary consumes first arrow presses, holds and releases across views', () => {
+  for (const view of RANGE_VIEWS) {
+    for (const target of [{ tagName: 'MAIN' }, { tagName: 'BUTTON' }, { tagName: 'INPUT', type: 'range' }]) {
+      for (const fields of [{ code: 'ArrowLeft', key: 'ArrowLeft' }, { key: 'ArrowLeft' }, { key: 'Left' }, { keyCode: 37 }]) {
+        const { keyboard, context, dispatch } = documentKeyboard();
+        context.target = target;
+        assert.equal(dispatch('keydown', { key: 'ArrowUp' }), true, view);
+        assert.equal(dispatch('keydown', fields), true, view);
+        assert.equal(dispatch('keydown', { key: 'f' }), true, view);
+        const controls = drivingInput(keyboard, new Set());
+        assert.equal(controls.steer, 1); assert.equal(controls.throttle, 1); assert.equal(controls.fire, true);
+        const range = new DrivingRange(); range.tick(.1, controls);
+        assert.ok(range.speed > 0 && range.heading > 0); assert.equal(range.shotsFired, 1);
+        assert.equal(dispatch('keydown', { ...fields, repeat: true }), true);
+        assert.equal(drivingInput(keyboard, new Set()).steer, 1, 'repeat preserves the current hold');
+        context.target = { tagName: 'INPUT', type: 'text' };
+        dispatch('keyup', { ...fields, metaKey: true });
+        dispatch('keyup', { key: 'ArrowUp' }); dispatch('keyup', { key: 'f' });
+        assert.deepEqual(drivingInput(keyboard, new Set()), { throttle: 0, steer: 0, aim: 0, fire: false, brake: false });
+      }
+    }
+  }
+});
+
+test('document boundary retains native editor, dialog and browser shortcut ownership', () => {
+  for (const target of [{ tagName: 'INPUT', type: 'text' }, { tagName: 'TEXTAREA' }, { tagName: 'SELECT' }, { editable: true }]) {
+    const { keyboard, context, dispatch } = documentKeyboard();
+    dispatch('keydown', { key: 'ArrowUp' });
+    context.target = target;
+    assert.equal(dispatch('keydown', { key: 'ArrowLeft' }), false);
+    assert.equal(keyboard.keys.size, 0);
+  }
+  for (const modifiers of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }]) {
+    const { keyboard, dispatch } = documentKeyboard();
+    dispatch('keydown', { key: 'ArrowUp' });
+    assert.equal(dispatch('keydown', { key: 'ArrowLeft', ...modifiers }), false);
+    assert.equal(keyboard.keys.size, 0);
+  }
+  for (const state of [{ blocked: true }, { inRange: false }]) {
+    const { keyboard, context, dispatch } = documentKeyboard();
+    Object.assign(context, state);
+    assert.equal(dispatch('keydown', { key: 'ArrowLeft', repeat: true }), false);
+    assert.equal(keyboard.keys.size, 0);
+  }
+  const { keyboard, context, dispatch } = documentKeyboard();
+  context.nativeSpace = true;
+  assert.equal(dispatch('keydown', { key: ' ' }), false, 'Tab-focused buttons keep native Space');
+  assert.equal(dispatch('keydown', { key: 'Home' }), false);
+  assert.equal(keyboard.keys.size, 0);
+  assert.equal(gameKeyCode({ key: 'Home', keyCode: 37 }), '', 'a present semantic key wins over legacy numeric data');
+});
+
+test('document boundary requires a fresh drive press after staging, pause and input cleanup', () => {
+  for (const key of ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', ' ', 'b', 'f']) {
+    const { keyboard, context, dispatch } = documentKeyboard();
+    context.playable = false;
+    assert.equal(dispatch('keydown', { key }), true);
+    context.playable = true;
+    assert.equal(dispatch('keydown', { key, repeat: true }), true);
+    assert.equal(keyboard.keys.size, 0, 'held staging/pause input cannot acquire on repeat');
+    dispatch('keyup', { key });
+    dispatch('keydown', { key });
+    assert.equal(keyboard.keys.size, 1);
+    keyboard.clear();
+    dispatch('keydown', { key, repeat: true });
+    assert.equal(keyboard.keys.size, 0, 'focus loss or a camera/state change cannot reacquire a cleared hold');
+    assert.equal(keyboard.consumeFire(), false);
+    dispatch('keyup', { key }); dispatch('keydown', { key });
+    assert.equal(keyboard.keys.size, 1, 'fresh press works after cleanup');
+    dispatch('keyup', { key }); keyboard.consumeFire();
+    assert.equal(keyboard.keys.size, 0);
+  }
+  for (const key of ['ArrowUp', 'ArrowDown', ' ', 'b']) {
+    const { dispatch, cruise } = documentKeyboard();
+    dispatch('keydown', { key });
+    assert.equal(cruise(), false, 'manual throttle, reverse and brake cancel Drive lock');
   }
 });
