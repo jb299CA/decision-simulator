@@ -28,6 +28,7 @@ let lastSoundState: SimulationAudio['soundState'] | undefined;
 const range = new DrivingRange();
 type Mode = 'home' | 'mission' | 'range';
 let mode: Mode = 'home';
+let homeAudioSuspended = false;
 let rangeView: RangeView = 'chase';
 const cabinDisplay = new CabinDisplayState();
 const keyboard = new RangeKeyboard();
@@ -767,6 +768,7 @@ function updateRangeLive(): void {
 }
 
 function isPaused(): boolean { return mode === 'range' ? range.paused : sim.paused; }
+function audioPaused(): boolean { return mode === 'home' ? homeAudioSuspended || document.hidden : isPaused(); }
 
 function clearRangeInputs(): void {
   keyboard.clear();
@@ -801,7 +803,7 @@ function renderEvidenceRows(): void {
 function syncSoundControls(): void {
   const state = audio.soundState;
   lastSoundState = state;
-  const retry = state === 'unstarted' || state === 'blocked';
+  const retry = state === 'unstarted' || state === 'blocked' || (mode === 'home' && state === 'paused');
   const label = muted ? 'Sound off' : retry ? 'Tap sound' : state === 'paused' ? 'Sound paused' : state === 'unsupported' ? 'Sound unavailable' : 'Sound on';
   const description = muted ? 'Turn sound on (M)' : retry ? 'Tap to enable sound (M)' : state === 'unsupported' ? 'Sound unavailable on this device; tap to retry (M)' : state === 'paused' ? 'Sound paused with exercise; turn sound off (M)' : 'Turn sound off (M)';
   document.querySelectorAll<HTMLButtonElement>('[data-action="mute"]').forEach(el => {
@@ -813,16 +815,20 @@ function syncSoundControls(): void {
   });
   document.querySelector('#sound-label')!.textContent = label;
   document.querySelectorAll<HTMLButtonElement>('[data-action="music"]').forEach(el => {
-    const status = !audio.musicEnabled ? 'Music off' : muted ? 'Music on; master sound muted' : isPaused() ? 'Music on; paused with exercise' : retry ? 'Music on; tap sound to enable audio' : 'Music on';
-    el.setAttribute('aria-label', `${status}. ${audio.musicEnabled ? 'Turn music off' : 'Turn music on'}`);
+    const playMusic = mode === 'home' && audio.musicNeedsActivation;
+    const status = !audio.musicEnabled ? 'Music off' : muted ? 'Music on; master sound muted' : playMusic ? 'Play music' : audioPaused() ? 'Music on; paused with exercise' : retry ? 'Music on; tap sound to enable audio' : 'Music on';
+    el.setAttribute('aria-label', playMusic ? 'Play music' : `${status}. ${audio.musicEnabled ? 'Turn music off' : 'Turn music on'}`);
     el.title = status;
+    if (el.classList.contains('drawer-music-control')) el.textContent = `Music: ${audio.musicEnabled ? 'on' : 'off'}`;
   });
+  document.querySelector('#music-label')!.textContent = mode === 'home' && audio.musicNeedsActivation ? 'Play music' : audio.musicEnabled ? 'Music on' : 'Music off';
   document.querySelector('#sound-icon')!.textContent = muted ? '◖×' : retry ? '♪↻' : state === 'unsupported' ? '♪×' : '◖))';
 }
 
 /** Keep context activation in the original click/key gesture, before any await. */
 function activateSound(retryOutput = false): void {
-  audio.setPaused(isPaused());
+  if (mode === 'home' && !document.hidden) homeAudioSuspended = false;
+  audio.setPaused(audioPaused());
   void audio.start(retryOutput).then(syncSoundControls, syncSoundControls);
   syncSoundControls();
 }
@@ -857,7 +863,7 @@ function syncControls(): void {
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
   if (slider) slider.disabled = paused || terminalRange || dismounting;
-  audio.setPaused(paused);
+  audio.setPaused(audioPaused());
   syncSoundControls();
 }
 
@@ -887,7 +893,14 @@ async function action(name: string): Promise<void> {
     muted = false; audio.setMuted(false); preferences.muted = false; saveGamePreferences(preferences);
     activateSound(true); syncControls(); return;
   }
-  if (name === 'music') { audio.setMusicEnabled(!audio.musicEnabled); preferences.musicEnabled = audio.musicEnabled; saveGamePreferences(preferences); if (audio.musicEnabled && !muted) activateSound(); syncControls(); return; }
+  if (name === 'music') {
+    // The first home tap honors enabled music and unlocks it; a later tap toggles.
+    if (!(mode === 'home' && audio.musicNeedsActivation)) {
+      audio.setMusicEnabled(!audio.musicEnabled); preferences.musicEnabled = audio.musicEnabled; saveGamePreferences(preferences);
+    }
+    if (audio.musicEnabled && !muted) activateSound();
+    syncControls(); return;
+  }
   if (name.startsWith('gunner-') && mode === 'range' && rangeView === 'inside') {
     const display = name.slice('gunner-'.length);
     if (display === 'expand') {
@@ -1026,7 +1039,7 @@ async function action(name: string): Promise<void> {
   }
   if (name === 'pause') { if (mapInspection.open) return; if (rangeDrawerInspection.open) { setRangeDrawer(false); if (!isPaused()) activateSound(); return; } if (!document.hidden && mode !== 'home' && !healthInspection.open) { setPaused(!isPaused()); if (!isPaused()) activateSound(); } return; }
   if (name === 'mute') {
-    const retry = !muted && (audio.soundState === 'blocked' || audio.soundState === 'unstarted' || audio.soundState === 'unsupported');
+    const retry = !muted && (audio.soundState === 'blocked' || audio.soundState === 'unstarted' || audio.soundState === 'unsupported' || (mode === 'home' && audio.soundState === 'paused'));
     if (!retry) {
       muted = !muted;
       audio.setMuted(muted);
@@ -1063,9 +1076,10 @@ async function action(name: string): Promise<void> {
 
 document.addEventListener('click', event => {
   const target = (event.target as Element).closest<HTMLElement>('[data-action]');
-  if (!target) return;
-  event.preventDefault();
-  void action(target.dataset.action!);
+  if (target) { event.preventDefault(); void action(target.dataset.action!); }
+  // Run after action state changes so explicit Music off / Sound off wins.
+  // Native click covers taps, keyboard buttons and ordinary home links/details.
+  if (event.isTrusted && mode === 'home' && !document.hidden && audio.musicNeedsActivation && !['music', 'mute', 'sound-retry'].includes(target?.dataset.action ?? '')) activateSound();
 });
 function rangePlayable(): boolean { return mode === 'range' && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
 
@@ -1290,6 +1304,7 @@ function suspendPage(): void {
   healthInspection.interrupt(); mapInspection.interrupt(); rangeDrawerInspection.interrupt();
   clearRangeInputs();
   playbackFocus.suspend();
+  if (mode === 'home') { homeAudioSuspended = true; audio.setPaused(true); syncSoundControls(); }
   previousFrame = performance.now();
 }
 const pageLifecycle = new PageLifecycle({
@@ -1342,7 +1357,8 @@ function frame(now: number): void {
   } else {
     if (active && mode === 'mission') sim.tick(delta);
     if (mode === 'mission') scene.update(sim, active ? delta : 0, reducedMotion, guidedFaults(), audio.missionCallsign);
-    audio.update(sim, { inside: insideView });
+    if (mode === 'home') audio.updateHome(delta, audioPaused());
+    else audio.update(sim, { inside: insideView });
     if (lastPhase !== sim.phase) render();
     updateLive();
   }

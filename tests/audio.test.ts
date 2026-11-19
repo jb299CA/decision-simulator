@@ -1446,3 +1446,123 @@ test('normal held-fire cadence never exhausts report voices and every natural ta
   const count = context.sources.length; audio.fireRangeShot();
   assert.equal(context.sources.length, count + 1, 'all voice slots are available after the final decay');
 });
+
+
+test('home theme advances on its own frame clock while simulation, radio and vehicle sound stay idle', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose());
+  const sim = new Simulation(), before = JSON.stringify(sim);
+  assert.equal(audio.musicNeedsActivation, true, 'enabled home music offers activation before its first tap');
+  audio.updateHome(.1);
+  assert.equal(MockContext.created, 0, 'home frames do not create an autoplay context');
+  await audio.start(); await settle();
+  const context = MockContext.latest, base = context.oscillators.length;
+  assert.equal(audio.musicNeedsActivation, false);
+  audio.updateHome(.1);
+  const score = context.oscillators.slice(base), initial = score.map(node => node.connections[0]!.gain.value);
+  for (let i = 0; i < 40; i++) audio.updateHome(.1);
+  assert.equal(context.oscillators.length, base + 4, 'one bounded score reuses the existing audio engine');
+  assert.notDeepEqual(score.map(node => node.connections[0]!.gain.value), initial, 'theme rhythm progresses even though the simulation clock stays zero');
+  const current = score.map(node => node.connections[0]!.gain.value);
+  audio.updateHome(NaN); audio.updateHome(-100);
+  assert.deepEqual(score.map(node => node.connections[0]!.gain.value), current, 'invalid or negative frame deltas cannot corrupt the home clock');
+  assert.equal(JSON.stringify(sim), before);
+  assert.equal(context.voices.length, 0); assert.equal(audio.radioActive, false);
+  assert.equal(audio.caption, captionForPhase('title'));
+  assert.ok(context.gains.slice(1, 7).every(node => node.gain.value === 0), 'engine, rolling, cabin, wind, whine and load stay silent');
+  const sourceCount = context.sources.length;
+  audio.fireRangeShot(); audio.healthAlert();
+  assert.equal(context.sources.length, sourceCount, 'home cannot emit weapon or health feedback');
+  assert.equal(context.gains[0]!.gain.value, .48, 'home uses the existing unchanged master ceiling');
+});
+
+test('home activation observes autoplay blocking and never silently disables the enabled preference', async t => {
+  browser(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose());
+  MockContext.gestureRequired = true;
+  await audio.start();
+  const context = MockContext.latest, base = context.oscillators.length;
+  audio.updateHome(.15);
+  assert.equal(audio.soundState, 'blocked'); assert.equal(audio.musicNeedsActivation, true);
+  assert.equal(audio.musicEnabled, true); assert.equal(context.oscillators.length, base);
+  MockContext.inGesture = true;
+  const activation = audio.start();
+  MockContext.inGesture = false;
+  await activation; audio.updateHome(.15);
+  assert.equal(audio.soundState, 'running'); assert.equal(audio.musicNeedsActivation, false);
+  assert.equal(context.oscillators.length, base + 4);
+  audio.setPaused(true); assert.equal(audio.musicNeedsActivation, true, 'a home return can offer Play music after a focus interruption');
+});
+
+test('home music and master preferences survive restarts without implicit activation or source leaks', async t => {
+  browser(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose());
+  audio.setMuted(true); audio.updateHome(.15); await audio.start();
+  assert.equal(MockContext.created, 0);
+  assert.equal(audio.musicNeedsActivation, false, 'general home taps cannot override Sound off');
+  audio.setMusicEnabled(false); audio.restart(); audio.updateHome(.15);
+  assert.equal(audio.musicEnabled, false);
+  audio.setMuted(false); await audio.start();
+  const context = MockContext.latest, base = context.oscillators.length;
+  audio.updateHome(.15);
+  assert.equal(context.oscillators.length, base, 'Sound on preserves explicit Music off');
+  assert.equal(context.gains[0]!.gain.value, 0);
+  audio.setMusicEnabled(true); audio.updateHome(.15);
+  const score = context.oscillators.slice(base);
+  assert.equal(score.length, 4);
+  audio.setMusicEnabled(false); assert.ok(score.every(node => node.stopped && node.disconnected));
+  audio.updateHome(600);
+  assert.equal(context.oscillators.length, base + 4);
+  audio.setMusicEnabled(true); audio.setMuted(true); audio.updateHome(600);
+  assert.equal(context.oscillators.length, base + 4, 'Music on never overrides the master mute');
+});
+
+test('home blur/hidden suspension freezes its clock and resumes only the current phrase without catchup', async t => {
+  browser(t);
+  const audio = new SimulationAudio(); t.after(() => audio.dispose()); await audio.start();
+  const context = MockContext.latest;
+  audio.updateHome(.1);
+  const first = context.oscillators.slice(-4), levels = first.map(node => node.connections[0]!.gain.value);
+  audio.setPaused(true); await settle();
+  assert.ok(first.every(node => node.stopped && node.disconnected));
+  const base = context.oscillators.length;
+  context.currentTime += 3600;
+  audio.updateHome(3600, true); audio.updateHome(.15, true);
+  assert.equal(audio.soundState, 'paused'); assert.equal(context.oscillators.length, base);
+  assert.equal(context.gains[0]!.gain.value, 0);
+  audio.setPaused(false); await audio.start(); audio.updateHome(0);
+  assert.equal(context.oscillators.length, base + 4);
+  assert.deepEqual(context.oscillators.slice(-4).map(node => node.connections[0]!.gain.value), levels, 'wall time and hidden deltas do not advance home rhythm');
+  for (let i = 0; i < 4; i++) {
+    audio.updateHome(.1); audio.setPaused(true); audio.updateHome(100, true);
+    audio.setPaused(false); await audio.start(); audio.updateHome(0);
+  }
+  assert.equal(context.oscillators.filter(node => !node.stopped).length, base - 4 + 4, 'only original vehicle oscillators and one score remain live');
+});
+
+test('returning home cancels mission cues and pending decodes; starting an exercise replaces the theme clock', async t => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  browser(t, new Map([[radioScript.phase.cabin.file, pending]]));
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  const context = MockContext.latest, sim = new Simulation();
+  sim.begin(); sim.board(); sim.time = 25;
+  audio.update(sim); await settle();
+  assert.equal(audio.radioActive, true, 'guided caption waits for its recording');
+  audio.updateHome(.1); release(); await settle();
+  assert.equal(audio.radioActive, false); assert.equal(context.voices.length, 0);
+  assert.equal(audio.caption, captionForPhase('title'));
+  assert.ok(context.gains.slice(1, 7).every(node => node.gain.value === 0));
+  const homeScore = context.oscillators.slice(-4);
+  sim.restart(); sim.begin(); audio.update(sim); await settle();
+  assert.ok(homeScore.every(node => node.stopped && node.disconnected));
+  assert.equal(audio.caption, exact(openingOrder));
+  assert.equal(context.voices.length, 1, 'exercise starts its normal phase cue exactly once');
+  const missionVoice = context.voices[0]!;
+  audio.restart(); audio.updateHome(.15); await settle();
+  assert.ok(missionVoice.stopped && missionVoice.disconnected);
+  assert.equal(audio.soundState, 'running'); assert.equal(audio.radioActive, false);
+  assert.equal(audio.caption, captionForPhase('title'));
+  assert.ok(context.oscillators.slice(-4).every(node => !node.stopped), 'unlocked return home starts a fresh theme without another audio engine');
+  assert.equal(MockContext.created, 1);
+});
