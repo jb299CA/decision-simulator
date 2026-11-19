@@ -3,7 +3,7 @@ import test from 'node:test';
 import { radioScript } from '../src/radio-script.ts';
 
 type VoiceLine = { speaker: string; voice: string; segments?: readonly { speaker: string; voice: string }[] };
-const character = (speaker: string) => speaker.split(/\s+[·—]\s+/)[0]!;
+const character = (speaker: string) => speaker.split(/\s+(?:\u00b7|\u2014|\?)\s+/)[0]!;
 const primary = [...Object.values(radioScript.phase), ...radioScript.ambient, ...radioScript.radioOrders, ...radioScript.radioRelays, radioScript.recovery, ...Object.values(radioScript.crew)];
 
 function castFor(cues: readonly VoiceLine[]): Map<string, string> {
@@ -19,6 +19,10 @@ function castFor(cues: readonly VoiceLine[]): Map<string, string> {
 test('each character keeps the same performer across all campaign and guided cues', () => {
   const cast = castFor(primary);
   for (const name of ['TOMAHAWK 3', 'BRAVE 6', 'COMMANDER', 'DRIVER', 'RECOVERY']) assert.ok(cast.has(name));
+  assert.equal(cast.get('TOMAHAWK 3'), 'am_michael');
+  assert.equal(cast.get('COMMANDER'), 'am_fenrir');
+  assert.equal(cast.get('DRIVER'), 'am_eric');
+  assert.equal(cast.get('RECOVERY'), 'am_eric');
   assert.equal(cast.get('BRAVE 6'), cast.get('COMMANDER'), 'guided radio and intercom use the same commander');
   assert.notEqual(cast.get('COMMANDER'), cast.get('DRIVER'), 'crew leads stay distinguishable');
 });

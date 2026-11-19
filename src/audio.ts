@@ -482,15 +482,19 @@ export class SimulationAudio {
     const rattles = filter('highpass', 330); rattles.connect(this.cabinGain); loop(noise(5, 'rattle'), rattles);
     oscillator(31, .24, this.cabinGain);
     const wind = filter('lowpass', 420); wind.connect(this.windGain); loop(white, wind);
-    // Recorded speech is conditioned offline. Keep unity gain and output
-    // headroom here; clarity comes from channel tone and foreground ducking.
-    const radioHigh = filter('highpass', 185), radioLow = filter('lowpass', 3750);
-    const radioLevel = context.createGain(); radioLevel.gain.value = 1;
-    radioHigh.connect(radioLow).connect(radioLevel).connect(master);
+    // Keep the natural voice body and consonants instead of a thin telephone
+    // band. A broad, gentle presence lift separates speech from vehicle noise;
+    // .88 output offsets the maximum +1 dB EQ boost (net gain stays below unity).
+    // Recordings are conditioned offline; neither route changes pitch or speed.
+    const radioHigh = filter('highpass', 125), radioLow = filter('lowpass', 4800);
+    const radioPresence = filter('peaking', 2300, .65); radioPresence.gain.value = 1;
+    const radioLevel = context.createGain(); radioLevel.gain.value = .88;
+    radioHigh.connect(radioLow).connect(radioPresence).connect(radioLevel).connect(master);
     this.radioInput = radioHigh;
-    const intercomHigh = filter('highpass', 115), intercomLow = filter('lowpass', 5200);
-    const intercomLevel = context.createGain(); intercomLevel.gain.value = 1;
-    intercomHigh.connect(intercomLow).connect(intercomLevel).connect(master);
+    const intercomHigh = filter('highpass', 90), intercomLow = filter('lowpass', 6500);
+    const intercomPresence = filter('peaking', 2600, .65); intercomPresence.gain.value = .5;
+    const intercomLevel = context.createGain(); intercomLevel.gain.value = .88;
+    intercomHigh.connect(intercomLow).connect(intercomPresence).connect(intercomLevel).connect(master);
     this.intercomInput = intercomHigh;
     this.distantBuffers = [true,false].map(boom => {
       // Original abstract, distant game sound: diffuse pops and rumble, not recorded weapons.
@@ -742,7 +746,7 @@ export class SimulationAudio {
   /** A newly decoded line or alert gets headroom in the calling frame. Releases
    * are slower than attacks, avoiding a pumping engine between radio words. */
   private mixPriority(newReport?: AudioBufferSourceNode): void {
-    const duck = this.breakdownSource ? .3 : this.voice ? .38 : this.healthAlertSource ? .55 : 1;
+    const duck = this.voice ? .28 : this.breakdownSource ? .3 : this.healthAlertSource ? .55 : 1;
     if (this.distantSource) this.smooth(this.distantSource.gain.gain, this.voice || this.healthAlertSource || this.breakdownSource || this.rangeShots.size ? .024 : .135, .025);
     for (const [node, base] of this.vehicleLevels) {
       const target = base * duck;
@@ -935,9 +939,9 @@ export class SimulationAudio {
     this.cancelRadioStatic();
     const source = context.createBufferSource(), gain = context.createGain();
     source.buffer = this.radioStaticBuffer; source.loop = true;
-    // Roughly thirty decibels beneath conditioned speech before the shared
-    // radio filters. Intercom never connects to this noise path.
-    gain.gain.value = .018;
+    // A restrained noise floor leaves consonants clear on phone speakers.
+    // Only keyed radio calls use it; intercom remains free of hiss.
+    gain.gain.value = .009;
     source.connect(gain).connect(this.radioInput);
     this.radioStatic = { source, gain };
     source.onended = () => {
