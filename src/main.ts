@@ -20,7 +20,7 @@ import { escapeHtml, exerciseTime, missionDebriefMarkup, missionDebriefTitle, se
 import { WORLD_BOUNDS, MISSION_ROUTE, MISSION_START, DEPARTURE_Z, POINTS_OF_INTEREST, SIDE_ROADS } from './world-config';
 import { contactVisibility, mapHeading, mapPoint, mapWorldPoint, objectivePointer, PLAYER_MARKER_PATH } from './mission-map';
 import { clientMapPoint, MapNavigation } from './map-navigation';
-import { DRIVE_CODES, drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, RangeInspection, RangeKeyboard } from './input';
+import { drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from './input';
 import { GameFocusOwnership, nextTrappedFocus } from './ui-focus';
 import { PageLifecycle } from './page-lifecycle';
 import { PlaybackFocus } from './playback-focus';
@@ -1250,10 +1250,11 @@ document.addEventListener('keydown', event => {
     return;
   }
   const code = gameKeyCode(event);
-  if (DRIVE_CODES.has(code) && event.repeat) { event.preventDefault(); return; }
   const nativeSpace = code === 'Space' && gameFocus.nativeSpace(event.target instanceof HTMLElement && !!event.target.closest('button[data-action], summary'));
   if (code === 'KeyM' && !event.repeat) { event.preventDefault(); void action('mute'); return; }
   if (code === 'KeyP' && !event.repeat) { event.preventDefault(); void action('pause'); return; }
+  const drive = routeDrivingKeyDown(event, keyboard, { inRange: mode === 'range', playable: rangePlayable(), target: keyboardTarget(event.target), nativeSpace });
+  if (drive.consumed) { if (drive.cancelCruise) cancelCruise(); return; }
   if (mode === 'range') {
     if (nativeSpace) {
       keyboard.up('Space');
@@ -1262,13 +1263,6 @@ document.addEventListener('keydown', event => {
     if (code === 'KeyR' && !event.repeat) { event.preventDefault(); void action('drop-ramp'); return; }
     const camera = rangeViewForKey(code);
     if (camera && !event.repeat) { event.preventDefault(); void action(`range-view-${camera}`); return; }
-    if (DRIVE_CODES.has(code)) {
-      event.preventDefault();
-      if (rangePlayable()) {
-        keyboard.down(code);
-        if (['Space', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyB'].includes(code)) cancelCruise();
-      }
-    }
     return;
   }
   if (code === 'Space' && !event.repeat && !(event.target instanceof HTMLElement && event.target.closest('button, summary'))) { event.preventDefault(); void action('pause'); }

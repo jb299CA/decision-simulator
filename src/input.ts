@@ -7,15 +7,29 @@ export function rangeViewForKey(code: string) {
   return RANGE_VIEWS[index];
 }
 
-/** Native/virtual keyboards can supply key while omitting a physical code. */
-export function gameKeyCode(event: { code?: string; key?: string }): string {
+export type GameKeyEvent = {
+  code?: string;
+  key?: string;
+  keyCode?: number;
+  repeat?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
+};
+
+const ARROW_KEYS: Record<string, string> = { ArrowUp: 'ArrowUp', ArrowLeft: 'ArrowLeft', ArrowDown: 'ArrowDown', ArrowRight: 'ArrowRight', Up: 'ArrowUp', Left: 'ArrowLeft', Down: 'ArrowDown', Right: 'ArrowRight' };
+const LEGACY_ARROW_CODES: Record<number, string> = { 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown' };
+
+/** Prefer physical codes, then semantic keys; older events may omit both. */
+export function gameKeyCode(event: GameKeyEvent): string {
   if (event.code && (DRIVE_CODES.has(event.code) || ['KeyM', 'KeyP', 'KeyR', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Escape'].includes(event.code))) return event.code;
   const key = event.key ?? '';
   if (/^[wasdqefbmpr]$/i.test(key)) return `Key${key.toUpperCase()}`;
   if (/^[1-4]$/.test(key)) return `Digit${key}`;
   if (key === 'Escape') return key;
   if (key === ' ' || key === 'Spacebar') return 'Space';
-  if (['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'].includes(key)) return key;
+  if (Object.prototype.hasOwnProperty.call(ARROW_KEYS, key)) return ARROW_KEYS[key]!;
+  if ((!event.code || event.code === 'Unidentified') && (!key || key === 'Unidentified')) return LEGACY_ARROW_CODES[event.keyCode ?? 0] ?? event.code ?? '';
   return event.code ?? '';
 }
 
@@ -26,6 +40,31 @@ export function permitsGameKeys(target: KeyboardTarget, modifiers: { ctrlKey?: b
   if (inspectionOpen || modifiers.ctrlKey || modifiers.altKey || modifiers.metaKey || target.editable) return false;
   const tag = target.tagName?.toLowerCase();
   return tag !== 'textarea' && tag !== 'select' && (tag !== 'input' || target.type === 'range');
+}
+
+/** The document handler delegates only driving events here after modal shortcuts.
+ * Repeats preserve a current hold, but cannot reacquire input cleared by a pause,
+ * staging, focus loss or inspection. A fresh key press is required in that case. */
+export function routeDrivingKeyDown(event: GameKeyEvent & { preventDefault(): void }, keyboard: RangeKeyboard, context: {
+  inRange: boolean;
+  playable: boolean;
+  target: KeyboardTarget;
+  blocked?: boolean;
+  nativeSpace?: boolean;
+}): { consumed: boolean; cancelCruise: boolean } {
+  const unhandled = { consumed: false, cancelCruise: false };
+  if (!context.inRange) return unhandled;
+  if (!permitsGameKeys(context.target, event, context.blocked)) {
+    keyboard.clear();
+    return unhandled;
+  }
+  const code = gameKeyCode(event);
+  if (!DRIVE_CODES.has(code)) return unhandled;
+  if (code === 'Space' && context.nativeSpace) { keyboard.up(code); return unhandled; }
+  event.preventDefault();
+  if (event.repeat || !context.playable) return { consumed: true, cancelCruise: false };
+  keyboard.down(code);
+  return { consumed: true, cancelCruise: ['Space', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyB'].includes(code) };
 }
 
 /** Deliberate inspection pauses time and restores the preceding manual state. */
