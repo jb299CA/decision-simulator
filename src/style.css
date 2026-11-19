@@ -1846,3 +1846,191 @@ body[data-mode="briefing"] .masthead .menu-control { display: none; }
 body[data-mode="briefing"] .music-control { width: auto; min-width: 78px; padding: 0 9px; gap: 6px; }
 body[data-mode="briefing"] .music-control .control-name { position: static; width: auto; height: auto; margin: 0; clip: auto; overflow: visible; white-space: nowrap; font-size: 10px; }
 @media(max-width: 760px) { body[data-mode="briefing"] .brand > span { display: none; } body[data-mode="briefing"] .brand img { width: 80px; } }
+
+/* Guided exercise: decisions belong to the crew, outside the optional MFoCS.
+   This final, guided-only layout replaces the older always-open console sizing.
+   The toolbar is outside the hidden bezel, so reopening never needs a scene hit. */
+body[data-mode="mission"]:has(.guided-action-dock) .app-shell {
+  height: 100dvh; min-height: 0;
+  padding: env(safe-area-inset-top) max(20px, 3vw, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(20px, 3vw, env(safe-area-inset-left));
+}
+body[data-mode="mission"]:has(.guided-action-dock) .masthead { height: 76px; flex-shrink: 0; }
+body[data-mode="mission"]:has(.guided-action-dock) .chapter-rail { height: 40px; flex-shrink: 0; }
+body[data-mode="mission"]:has(.guided-action-dock) #stage {
+  display: grid; grid-template-columns: minmax(260px, .72fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr); align-items: start;
+  flex: 1; height: auto; min-height: 0; gap: clamp(14px, 3vw, 44px); padding: 6px 0 12px;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .bottom-bar {
+  position: relative; inset: auto; flex: 0 0 auto; min-height: 56px; max-height: min(18dvh, 100px);
+  overflow: auto; overscroll-behavior: contain; padding: 8px 0; gap: 14px;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .commander-hud { display: none; }
+body[data-mode="mission"]:has(.guided-action-dock) .scene-shade,
+body[data-mode="mission"].display-expanded:has(.guided-action-dock) .scene-shade {
+  background: linear-gradient(0deg, #08111e70, transparent 36%, #08111e20) !important;
+}
+body[data-mode="mission"] .guided-action-dock {
+  grid-column: 1; grid-row: 1; align-self: end; z-index: 3;
+  width: min(100%, 400px); min-width: 0; max-height: 100%; padding: 16px 18px 6px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  background: #101a24f2; border: 1px solid #bccdda55; border-top: 2px solid #ff8056;
+  border-radius: 6px; box-shadow: 0 8px 28px #0005; color: #eef5f8;
+}
+body[data-mode="mission"] .guided-step-status {
+  color: #ffaf8b; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; line-height: 1.4;
+}
+body[data-mode="mission"] #guided-objective {
+  margin: 7px 0; color: #fff; font: 600 21px/1.25 "Segoe UI", Arial, sans-serif; letter-spacing: -.3px;
+}
+body[data-mode="mission"] #guided-action-detail {
+  margin: 0; color: #c5d4df; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere;
+}
+body[data-mode="mission"] .guided-primary-action { position: sticky; top: 0; z-index: 1; margin-top: 12px; background: #101a24; }
+body[data-mode="mission"] #guided-next-button {
+  display: flex; justify-content: space-between; width: 100%; min-height: 46px;
+  padding: 11px 13px; gap: 10px; white-space: normal; text-align: left;
+  border: 1px solid #ffab89; border-radius: 4px; background: #ff8056; color: #101a22;
+  font-size: 14px; font-weight: 700; line-height: 1.35;
+}
+body[data-mode="mission"] #guided-next-button:disabled {
+  opacity: 1; background: #283844; border-color: #667e8d; color: #c1d2dd;
+}
+body[data-mode="mission"] #guided-action-status {
+  color: #ffceaa; margin: 8px 0 0; font-size: 12px; line-height: 1.45;
+}
+body[data-mode="mission"] #guided-action-status:empty { display: none; }
+body[data-mode="mission"] .guided-roadmap { margin-top: 8px; border-top: 1px solid #ffffff25; }
+body[data-mode="mission"] .guided-roadmap > summary {
+  min-height: 36px; padding: 10px 0; color: #c7d6df; font-size: 12px; line-height: 1.4; cursor: pointer;
+}
+body[data-mode="mission"] .guided-roadmap > summary::marker { color: #ff997e; }
+body[data-mode="mission"] .guided-roadmap ol {
+  max-height: min(27dvh, 220px); overflow-y: auto; overscroll-behavior: contain;
+  margin: 0 0 8px; padding: 0 0 0 23px; font-size: 12px; line-height: 1.45; color: #8fa6b5;
+}
+body[data-mode="mission"] .guided-roadmap li { padding: 5px 4px; }
+body[data-mode="mission"] .guided-roadmap li[data-state="current"] { color: #fff; font-weight: 600; }
+body[data-mode="mission"] .guided-roadmap li[data-state="current"]::marker { color: #ff997e; }
+body[data-mode="mission"] .guided-roadmap li[data-state="complete"] { color: #8edbc0; }
+body[data-mode="mission"] .guided-roadmap li small { display: inline; margin-left: 8px; color: #afc1cd; font-size: 10px; font-weight: 400; }
+body[data-mode="mission"]:has(.guided-action-dock) .instrument-position,
+body[data-mode="mission"].display-expanded:has(.guided-action-dock) .instrument-position {
+  grid-column: 2; grid-row: 1; align-self: stretch; justify-self: end;
+  display: flex; flex-direction: column; flex: none;
+  width: min(100%, 660px); min-width: 0; min-height: 0; max-width: none; max-height: 100%; margin: 0;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar {
+  flex: 0 0 auto; min-height: 44px; padding: 0 0 6px; gap: 8px;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar > span { font-size: 8px; letter-spacing: .5px; }
+body[data-mode="mission"]:has(.guided-action-dock) .display-view-controls { width: auto; gap: 6px; margin-left: auto; }
+body[data-mode="mission"]:has(.guided-action-dock) .display-focus {
+  min-height: 44px; padding: 9px 11px; font-size: 12px; white-space: nowrap; color: #f1f6f8;
+  background: #101e2bf2; border-color: #a8c0cd66;
+}
+body[data-mode="mission"]:has(.guided-action-dock) [data-action="display-toggle"] { border-color: #ff997e; color: #ffc4ab; }
+/* The hidden attribute must win over the old flex and expanded-screen rules.
+   display:none also removes descendants from keyboard focus and hit testing. */
+body[data-mode="mission"] #guided-mfocs-panel[hidden],
+body[data-mode="mission"].display-expanded #guided-mfocs-panel[hidden],
+body[data-mode="mission"]:not(.guided-display-open) #guided-mfocs-panel { display: none !important; }
+body[data-mode="mission"]:has(.guided-action-dock) .display-view-controls [hidden] { display: none !important; }
+body[data-mode="mission"]:has(.guided-action-dock) #guided-mfocs-panel:not([hidden]) {
+  display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 6px 8px;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .monitor-screen,
+body[data-mode="mission"].display-expanded:has(.guided-action-dock) .monitor-screen {
+  display: flex; flex-direction: column; flex: 1; height: auto; min-height: 0; padding: 12px 14px;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .monitor-content {
+  flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: #ff997e80 #102036; -webkit-overflow-scrolling: touch;
+}
+body[data-mode="mission"]:has(.guided-action-dock) :is(.bezel-top, .bezel-bottom, .screen-status) { display: none; }
+body[data-mode="mission"]:has(.guided-action-dock) .screen-brand {
+  position: static; display: flex; padding-bottom: 8px; flex: 0 0 auto;
+}
+body[data-mode="mission"]:has(.guided-action-dock) .screen-brand img { width: 70px; height: 19px; }
+body[data-mode="mission"]:has(.guided-action-dock) .screen-brand > span { display: inline; }
+body[data-mode="mission"]:has(.guided-action-dock) .guided-phase-title { font-size: 17px; margin: 8px 0 5px; padding-right: 0; }
+body[data-mode="mission"]:has(.guided-action-dock) .guided-brief > .screen-heading { margin: 8px 0 12px; }
+body[data-mode="mission"]:has(.guided-action-dock) .guided-brief > .screen-heading h1 { display: none; }
+body[data-mode="mission"]:has(.guided-action-dock) #guided-vehicle-model { --inspector-min-height: 120px; --inspector-height: clamp(120px, 25dvh, 280px); }
+body[data-mode="mission"] .guided-service-context {
+  grid-column: 2; grid-row: 1; align-self: start; justify-self: end; width: min(100%, 430px); min-height: 0;
+  max-height: 100%; overflow: auto; overscroll-behavior: contain; padding: 15px 18px;
+  border: 1px solid #b4c9d34d; border-radius: 6px; background: #101a24ed;
+}
+body[data-mode="mission"] .guided-service-context .safety-checks { margin: 0; font-size: 12px; line-height: 1.5; }
+body[data-mode="mission"] .guided-service-context .service-diagram { margin: 0; padding: 12px; gap: 10px; }
+body[data-mode="mission"] .guided-service-context .service-node { padding: 9px 12px; }
+body[data-mode="mission"]:has(.guided-action-dock) .shutdown-display { display: none; }
+
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  body[data-mode="mission"]:has(.guided-action-dock) .app-shell {
+    padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(10px, env(safe-area-inset-left));
+  }
+  body[data-mode="mission"]:has(.guided-action-dock) .masthead { height: 58px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .chapter-rail { height: 27px; }
+  body[data-mode="mission"]:has(.guided-action-dock) #stage {
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
+    flex: 1; height: auto; min-height: 0; gap: 8px; padding: 0 0 7px;
+  }
+  body[data-mode="mission"] .guided-action-dock {
+    grid-column: 1; grid-row: 2; width: min(100%, 480px); justify-self: center;
+    padding: 11px 13px 2px; max-height: min(48dvh, 360px);
+  }
+  body[data-mode="mission"] .guided-step-status { font-size: 10px; letter-spacing: .9px; }
+  body[data-mode="mission"] #guided-objective { font-size: 18px; margin: 5px 0; }
+  body[data-mode="mission"] #guided-action-detail { font-size: 13px; line-height: 1.4; }
+  body[data-mode="mission"] .guided-primary-action { margin-top: 9px; }
+  body[data-mode="mission"] #guided-next-button { min-height: 44px; padding: 10px 12px; font-size: 14px; }
+  body[data-mode="mission"] .guided-roadmap { margin-top: 6px; }
+  body[data-mode="mission"] .guided-roadmap > summary { min-height: 34px; padding: 9px 0; }
+  body[data-mode="mission"] .guided-roadmap ol { max-height: 18dvh; }
+  body[data-mode="mission"]:has(.guided-action-dock) .instrument-position,
+  body[data-mode="mission"].display-expanded:has(.guided-action-dock) .instrument-position {
+    grid-column: 1; grid-row: 1; width: 100%; max-height: 100%; margin: 0; align-self: stretch;
+  }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar { min-height: 44px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar > span { display: none; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-focus { min-height: 44px; padding: 8px 10px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-view-controls { justify-content: flex-end; flex-wrap: wrap; }
+  body[data-mode="mission"]:has(.guided-action-dock) #guided-mfocs-panel:not([hidden]) { padding: 4px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .monitor-screen,
+  body[data-mode="mission"].display-expanded:has(.guided-action-dock) .monitor-screen { padding: 8px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand { gap: 6px; padding-bottom: 5px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand .feed-badge { font-size: 6px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .guided-phase-title { font-size: 14px; margin: 4px 0; }
+  body[data-mode="mission"] .guided-service-context { grid-column: 1; grid-row: 1; width: min(100%, 430px); justify-self: center; }
+  body[data-mode="mission"]:has(.guided-action-dock) .bottom-bar {
+    min-height: 48px; max-height: 14dvh; padding: 6px 0; gap: 8px;
+  }
+  body[data-mode="mission"]:has(.guided-action-dock) .bottom-bar .caption { font-size: 10px; line-height: 1.4; }
+  body[data-mode="mission"]:has(.guided-action-dock) .caption-label { display: none; }
+  body[data-mode="mission"]:has(.guided-action-dock) .exercise-label { flex-shrink: 0; }
+}
+
+@media (max-height: 540px) and (min-width: 540px) {
+  body[data-mode="mission"]:has(.guided-action-dock) .masthead { height: 48px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .chapter-rail { display: none; }
+  body[data-mode="mission"]:has(.guided-action-dock) #stage {
+    grid-template-columns: minmax(210px, .72fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding-top: 3px;
+  }
+  body[data-mode="mission"] .guided-action-dock { grid-column: 1; grid-row: 1; max-height: 100%; padding: 9px 12px 1px; }
+  body[data-mode="mission"] #guided-objective { font-size: 16px; }
+  body[data-mode="mission"] .guided-roadmap ol { max-height: 25dvh; }
+  body[data-mode="mission"]:has(.guided-action-dock) .instrument-position,
+  body[data-mode="mission"].display-expanded:has(.guided-action-dock) .instrument-position,
+  body[data-mode="mission"] .guided-service-context { grid-column: 2; grid-row: 1; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar { min-height: 44px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-toolbar > span { display: none; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-view-controls { flex-wrap: nowrap; }
+  body[data-mode="mission"]:has(.guided-action-dock) .display-focus { font-size: 12px; padding: 7px 8px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand { position: static; display: flex; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand img { width: 58px; height: 16px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand > span { font-size: 7px; }
+  body[data-mode="mission"]:has(.guided-action-dock) .screen-brand .feed-badge { display: none; }
+  body[data-mode="mission"]:has(.guided-action-dock) .bottom-bar { min-height: 36px; max-height: 48px; padding: 5px 0; }
+}

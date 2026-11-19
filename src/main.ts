@@ -4,6 +4,7 @@ import { OutcomeReveal } from './outcome-reveal';
 import { MissionBriefing, practicePrompt } from './mission-briefing';
 import { MissionStaging, MISSION_STAGING_CAPTION } from './mission-staging';
 import { Simulation } from './simulation';
+import { GuidedExercise, GUIDED_STEPS } from './guided-exercise';
 import type { Phase } from './simulation';
 import { VehicleScene } from './scene';
 import { SimulationAudio, captionForPhase, recoveryCaption } from './audio';
@@ -27,6 +28,8 @@ import { loadGamePreferences, saveGamePreferences } from './game-preferences';
 import { faultInstrumentData, systemsHealthMarkup } from './fault-display';
 
 const sim = new Simulation();
+const guidedExercise = new GuidedExercise();
+let guidedRoadmapOpen = false;
 const audio = new SimulationAudio();
 let lastMusicPreparing = false;
 let lastSoundState: SimulationAudio['soundState'] | undefined;
@@ -406,6 +409,39 @@ function guidedInspection(): string {
   return `<section class="guided-inspection" aria-label="Vehicle sensor display"><div class="operator-panel-heading"><span>STRYKER / TOUCH A SENSOR</span><span id="guided-inspection-clock"></span></div><div class="vehicle-condition-overview"><div id="guided-vehicle-model" class="vehicle-inspector-host"></div><div id="guided-system-score" class="systems-health-host"></div></div>${guidedDetails('All systems / select sensor', '<div id="guided-sensor-list" class="fault-selectors"></div>', 'guided-systems')}<section id="guided-fault-detail" class="fault-detail" aria-label="Selected vehicle sensor"></section></section>`;
 }
 
+function guidedActionDock(): string {
+  const step = guidedExercise.describe(sim);
+  return `<section class="guided-action-dock" aria-label="Guided exercise actions" aria-labelledby="guided-objective"><span class="guided-step-status eyebrow">GUIDED EXERCISE / STEP ${step.step + 1} OF ${GUIDED_STEPS.length}</span><h2 id="guided-objective">${escapeHtml(step.objective)}</h2><p id="guided-action-detail">${escapeHtml(step.detail)}</p><div class="guided-primary-action"><button id="guided-next-button" class="primary-button" data-action="guided-next" aria-describedby="guided-action-status"${step.disabled ? ' disabled' : ''}>${escapeHtml(step.label)} ${arrow}</button></div><p id="guided-action-status" role="status">${escapeHtml(step.reason)}</p><details class="guided-roadmap"${guidedRoadmapOpen ? ' open' : ''}><summary>Exercise steps / ${step.step + 1} of ${GUIDED_STEPS.length}</summary><ol>${step.progress.map(entry => `<li data-state="${entry.state}"${entry.state === 'current' ? ' aria-current="step"' : ''}><span>${escapeHtml(entry.label)}</span><small>${entry.state === 'complete' ? 'Done' : entry.state === 'current' ? 'Current' : 'Next'}</small></li>`).join('')}</ol></details></section>`;
+}
+
+function syncGuidedAction(): void {
+  const next = document.querySelector<HTMLButtonElement>('#guided-next-button');
+  if (!next) return;
+  const step = guidedExercise.describe(sim);
+  next.disabled = step.disabled;
+  const label = `${step.label} →`;
+  if (next.textContent !== label) next.textContent = label;
+  const status = document.querySelector('#guided-action-status');
+  if (status && status.textContent !== step.reason) status.textContent = step.reason;
+}
+
+function syncGuidedDisplay(): void {
+  const panel = document.querySelector<HTMLElement>('#guided-mfocs-panel');
+  const open = mode === 'mission' && guidedExercise.displayOpen && !!panel;
+  document.body.classList.toggle('guided-display-open', open);
+  const toggle = document.querySelector<HTMLButtonElement>('[data-action="display-toggle"]');
+  if (panel) panel.hidden = !open;
+  if (toggle) { toggle.setAttribute('aria-expanded', String(open)); toggle.textContent = open ? 'Hide MFoCS' : 'Open MFoCS'; }
+  const expand = document.querySelector<HTMLButtonElement>('[data-action="display-focus"]');
+  if (expand) expand.hidden = !open;
+  if (!open) { displayExpanded = false; document.body.classList.remove('display-expanded'); }
+  if (open) {
+    const host = document.querySelector<HTMLElement>('#guided-vehicle-model');
+    if (host) fitGuidedInspector(host);
+    updateGuidedInspection();
+  }
+}
+
 function fitGuidedInspector(host: HTMLElement): void {
   const content = host.closest<HTMLElement>('.monitor-content');
   if (!content) return;
@@ -415,17 +451,16 @@ function fitGuidedInspector(host: HTMLElement): void {
     host.style.removeProperty('--inspector-min-height');
     return;
   }
-  // Use the actual bounded scroll viewport, including caption wrapping and
-  // browser text scaling, so the complete canvas is visible on initial entry.
-  const preceding = host.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop;
-  const height = Math.max(48, Math.min(280, Math.floor(content.clientHeight - preceding - 2)));
+  // The model sits after the evidence. Size to the bounded scroll viewport,
+  // rather than subtracting preceding content and shrinking it to a tiny strip.
+  const height = Math.max(48, Math.min(280, Math.floor(content.clientHeight * .72)));
   host.style.setProperty('--inspector-height', `${height}px`);
   host.style.setProperty('--inspector-min-height', `${height}px`);
 }
 
 function updateGuidedInspection(): void {
   const host = document.querySelector<HTMLElement>('#guided-vehicle-model');
-  if (!host) return;
+  if (!host || !guidedExercise.displayOpen) return;
   const faults = guidedFaults();
   if (!guidedInspector) {
     fitGuidedInspector(host);
@@ -460,11 +495,11 @@ function monitor(content: string, active: number, kicker = 'VEHICLE SYSTEMS / CR
   const screen = document.createElement('template');
   screen.innerHTML = content;
   const controls = screen.content.querySelector('.screen-action, .decision-row');
-  const persistentAction = controls?.outerHTML ?? '';
   controls?.remove();
   const phaseTitle = screen.content.querySelector('.screen-heading h1')?.textContent ?? 'Vehicle inspection';
-  const brief = guidedDetails('Exercise brief / readings', `${screen.innerHTML}${pipeline(active)}<p class="health-disclaimer">Training data &middot; illustrative faults. No live vehicle connection or maintenance procedure.</p>`, 'guided-brief');
-  return `<div class="commander-hud"><span class="eyebrow">${insideView ? 'INSIDE / COMMANDER SEAT' : 'HATCH / COMMANDER VIEW'}</span><span><i class="live-dot"></i> ${sim.engine ? 'VEHICLE SYSTEMS ONLINE' : 'VEHICLE SECURED'}</span><small>Front Range training area</small></div><section class="instrument-position" aria-label="Vehicle information display"><div class="display-toolbar"><span>MFoCS–FAMILY DISPLAY</span><div class="display-view-controls"><button class="display-focus view-toggle" data-action="view" aria-pressed="${insideView}">${insideView ? 'Hatch view' : 'Inside view'}</button><button class="display-focus" data-action="display-focus" aria-expanded="${displayExpanded}">${displayExpanded ? '↙ Return to commander view' : '⤢ Expand display'}</button></div></div><div class="monitor-bezel"><span class="bezel-screw tl"></span><span class="bezel-screw tr"></span><span class="bezel-screw bl"></span><span class="bezel-screw br"></span><div class="bezel-top"><span>TACTICAL INFORMATION TERMINAL</span><span class="hardware-lights"><i></i><i></i><i></i></span></div><div class="monitor-screen"><div class="screen-brand"><img src="/branding/shift5-logo.svg" alt="Shift5"><span>${escapeHtml(mode === 'range' ? range.callsign : audio.missionCallsign)}</span><span class="feed-badge"><i class="live-dot"></i> TRAINING DATA</span></div><div class="screen-status"><span>${kicker}</span><span>STRYKER / ${escapeHtml(audio.missionCallsign)}</span></div><div class="monitor-content" tabindex="0" aria-label="Display information; scroll to inspect"><h1 class="guided-phase-title">${escapeHtml(phaseTitle)}</h1>${guidedInspection()}${brief}</div><div class="monitor-action">${persistentAction}</div></div><div class="bezel-bottom"><span>EXERCISE INTERFACE</span><div class="bezel-keys"><i></i><i></i><i></i><i></i><i></i></div><span class="power-key">⏻</span></div></div></section>`;
+  screen.content.querySelector('.screen-heading h1')?.remove();
+  const brief = `<details class="guided-details guided-brief"><summary>Current step / readings and data path</summary><div class="guided-details-body">${screen.innerHTML}${pipeline(active)}<p class="health-disclaimer">Training data &middot; illustrative faults. No live vehicle connection or maintenance procedure.</p></div></details>`;
+  return `<div class="commander-hud"><span class="eyebrow">${insideView ? 'INSIDE / COMMANDER SEAT' : 'HATCH / COMMANDER VIEW'}</span><span><i class="live-dot"></i> ${sim.engine ? 'VEHICLE SYSTEMS ONLINE' : 'VEHICLE SECURED'}</span><small>Front Range training area</small></div><section class="instrument-position" aria-label="Vehicle information display"><div class="display-toolbar"><span>MFoCS–FAMILY DISPLAY</span><div class="display-view-controls"><button class="display-focus view-toggle" data-action="view" aria-pressed="${insideView}">${insideView ? 'Hatch view' : 'Inside view'}</button><button class="display-focus" data-action="display-toggle" aria-expanded="${guidedExercise.displayOpen}" aria-controls="guided-mfocs-panel">${guidedExercise.displayOpen ? 'Hide MFoCS' : 'Open MFoCS'}</button></div></div><div class="monitor-bezel" id="guided-mfocs-panel"${guidedExercise.displayOpen ? '' : ' hidden'}><span class="bezel-screw tl"></span><span class="bezel-screw tr"></span><span class="bezel-screw bl"></span><span class="bezel-screw br"></span><div class="bezel-top"><span>TACTICAL INFORMATION TERMINAL</span><span class="hardware-lights"><i></i><i></i><i></i></span></div><div class="monitor-screen"><div class="screen-brand"><img src="/branding/shift5-logo.svg" alt="Shift5"><span>${escapeHtml(mode === 'range' ? range.callsign : audio.missionCallsign)}</span><span class="feed-badge"><i class="live-dot"></i> TRAINING DATA</span></div><div class="screen-status"><span>${kicker}</span><span>STRYKER / ${escapeHtml(audio.missionCallsign)}</span></div><div class="monitor-content" tabindex="0" aria-label="Display information; scroll to inspect"><h1 class="guided-phase-title">${escapeHtml(phaseTitle)}</h1>${brief}${guidedInspection()}</div></div><div class="bezel-bottom"><span>EXERCISE INTERFACE</span><div class="bezel-keys"><i></i><i></i><i></i><i></i><i></i></div><span class="power-key">⏻</span></div></div></section>`;
 }
 
 function screenIntro(kicker: string, title: string, text: string): string {
@@ -570,7 +605,7 @@ function render(): void {
     document.documentElement.style.setProperty('--progress', '0%');
     renderRange(); syncControls(); updateCaption(); return;
   }
-  if (['title', 'exterior', 'secured', 'service', 'debrief'].includes(p)) displayExpanded = false;
+  if (['title', 'exterior', 'secured', 'service', 'debrief'].includes(p) || !guidedExercise.displayOpen) displayExpanded = false;
   document.body.dataset.phase = p;
   document.body.classList.toggle('display-expanded', displayExpanded);
   document.body.classList.toggle('reduced-motion', reducedMotion);
@@ -584,24 +619,26 @@ function render(): void {
   if (p === 'title') {
     stage.innerHTML = `<section class="hero home-hero" aria-labelledby="home-title"><h1 id="home-title">STRYKER<span>MISSION SIMULATOR</span></h1><p class="home-tagline">Start the mission. Watch your data.</p><div class="home-actions">${button('Start mission', 'start-range')}${button('Guided exercise', 'begin', true)}</div><div class="home-secondary"><details class="home-help"><summary>How to play</summary><div><p><strong>Mission:</strong> Use the optional practice boards, cross the departure line, clear fictional contacts and stop in the dismount zone. Select Drop ramp to unload the nine-person squad. Outside zone = mission failure. Check vehicle-health alerts in MFoCS.</p><p><strong>Controls:</strong> WASD / arrows to drive, Space to accelerate, hold B to brake, F to fire, R to drop the ramp. On a phone, use the thumb stick, ACCEL and FIRE.</p><p class="sound-help"><strong>Sound on but silent?</strong> Check media volume and the selected speaker or headphones. <button data-action="sound-retry">Enable / retry sound</button> Then start or resume the exercise.</p><p><strong>Guided exercise:</strong> Follow a charging-system warning and make the protective crew decision. About 3&ndash;5 minutes, at your pace.</p></div></details><a class="home-shift5-link" href="https://shift5.io/" target="_blank" rel="noopener noreferrer" aria-label="Visit Shift5 website (opens in a new tab)"><span class="home-shift5-heading"><img src="/branding/shift5-logo.svg" alt="Shift5"><span class="home-shift5-visit">Visit shift5.io <span aria-hidden="true">&#8599;</span></span></span><span class="home-shift5-tagline">Real Data. Rapid Analysis. Right Decision.</span></a></div></section>`;
   } else if (p === 'exterior') {
-    stage.innerHTML = `${location}<section class="exterior-card">${guidedDetails('Approach / exercise brief', '<span class="eyebrow">01 / APPROACH</span><h1>A routine movement.<br>An unseen change.</h1><p>The crew is preparing to move across the training area. The display inside shows output, electrical load and engine state.</p><p class="quiet-text">Your role: follow that evidence, then make the protective call.</p>', 'exterior-brief')}${button('Enter the cabin', 'board')}</section><div class="scene-annotation"><i></i><span>EXISTING VEHICLE DATA<br><b>The story starts here.</b></span></div>`;
+    stage.innerHTML = location;
   } else if (p === 'cabin') {
-    stage.innerHTML = `<div class="cabin-label"><span class="eyebrow">02 / OBSERVE</span><h2>From the crew’s seat.</h2><p>Same vehicle.<br>A clearer picture.</p></div>${monitor(`${screenIntro('VEHICLE DATA AT THE CREW STATION', 'Vehicle systems online.', 'Check the vehicle before continuing. Touch a sensor on the Stryker, or select a system below.')}${telemetry()}<div class="screen-action">${button('Check charging output')}<span class="screen-note">User-paced inspection</span></div>`, 0)}`;
+    stage.innerHTML = `${monitor(`${screenIntro('VEHICLE DATA AT THE CREW STATION', 'Vehicle systems online.', 'Check the vehicle before continuing. Touch a sensor on the Stryker, or select a system below.')}${telemetry()}<div class="screen-action">${button('Check charging output')}<span class="screen-note">User-paced inspection</span></div>`, 0)}`;
   } else if (p === 'feed') {
-    stage.innerHTML = `${monitor(`${screenIntro('01 / EXISTING ACCESS', 'Charging output is rising.', 'The engine is running. Electrical load has not changed much. Compare the current reading with the start of this run.')}${telemetry()}<div class="callout subtle"><span>OBSERVATION</span><p>High output needs inspection. The reading alone does not confirm a failed alternator.</p></div><div class="screen-action">${button('See where the readings come from')}</div>`, 0)}`;
+    stage.innerHTML = `${monitor(`${screenIntro('01 / EXISTING ACCESS', 'Compare charging output.', 'The engine is running. Check electrical load and compare the current reading with the start of this run.')}${telemetry()}<div class="callout subtle"><span>OBSERVATION</span><p>High output needs inspection. The reading alone does not confirm a failed alternator.</p></div><div class="screen-action">${button('See where the readings come from')}</div>`, 0)}`;
   } else if (p === 'manifold') {
     stage.innerHTML = `${monitor(`${screenIntro('02 / MANIFOLD', 'Readings from the vehicle.', 'Manifold uses the existing vehicle / MFoCS access in this illustration. The crew stays at the same display.')}<div class="stream-map"><div class="stream-source"><span>EXISTING ACCESS</span><b>Vehicle / MFoCS</b><small>Output &middot; load &middot; engine</small></div><span class="stream-arrow">→</span><div class="stream-source highlighted"><span>MANIFOLD</span><b>Data access</b><small>Vehicle readings</small></div></div><div class="field-list"><span><i>01</i> Charging output</span><span><i>02</i> Electrical load</span><span><i>03</i> Engine state</span><span><i>04</i> Reading time</span></div><div class="callout subtle"><span>READINGS KEPT TOGETHER</span><p>The output reading travels with its time, engine state and electrical load.</p></div><div class="screen-action">${button('See how Turbine prepares the readings')}</div>`, 1)}`;
   } else if (p === 'turbine') {
     stage.innerHTML = `${monitor(`${screenIntro('03 / TURBINE', 'Compare like readings.', 'Turbine pulls the available readings, translates their labels and units, and puts them in time order for comparison.')}<div class="process-steps"><div><span>01</span><h3>Pull</h3><p>Get vehicle readings through Manifold.</p></div><div><span>02</span><h3>Translate</h3><p>Identify the reading, unit and engine state.</p></div><div><span>03</span><h3>Structure</h3><p>Put output, load and engine state together by time.</p></div></div><div class="structured-row" aria-label="Example structured record"><span>EXAMPLE RECORD</span><span>charging</span><span>load</span><span>engine</span><span class="good-text">fresh ✓</span></div><p class="screen-note">An illustrative explanation of the requested workflow; not actual Shift5 software or a verified integration.</p><div class="screen-action">${button('Review the charging warning')}</div>`, 2)}`;
   } else if (p === 'insight') {
-    stage.innerHTML = `${monitor(`${screenIntro('04 / CHARGING WARNING', 'Charging output high.', 'Engine running. Load unchanged. Stop and inspect the charging system.')}${telemetry()}<div class="callout alert-callout"><span id="insight-state">CHECKING READINGS</span><p id="insight-description">Comparing current output with the start of this run.</p></div><div class="decision-row"><div><span class="eyebrow">YOUR CALL</span><p>Halt the movement and secure the vehicle before service.</p></div><button class="primary-button" data-action="halt" id="halt-button" disabled>Halt the vehicle ${arrow}</button></div>`, 3)}`;
+    stage.innerHTML = `${monitor(`${screenIntro('04 / CHARGING WARNING', 'Evaluate the charging warning.', 'Compare fresh output readings under similar load. A sustained warning supports the halt decision below.')}${telemetry()}<div class="callout alert-callout"><span id="insight-state">CHECKING READINGS</span><p id="insight-description">Comparing current output with the start of this run.</p></div><div class="decision-row"><div><span class="eyebrow">YOUR CALL</span><p>Halt the movement and secure the vehicle before service.</p></div><button class="primary-button" data-action="halt" id="halt-button" disabled>Halt the vehicle ${arrow}</button></div>`, 3)}`;
   } else if (p === 'halted') {
     stage.innerHTML = `${monitor(`${screenIntro('05 / PROTECT THE CREW', 'Movement halted.', 'The crew has stopped the vehicle. The engine is still running. Secure and shut down before any service interaction.')}<div class="protect-status"><span class="check-disc">✓</span><div><h3>Stationary</h3><p>Movement has ended.</p></div><span class="state-pill amber">ENGINE RUNNING</span></div><div class="protect-status pending"><span class="step-disc">2</span><div><h3>Secure & shut down</h3><p>The next protective step.</p></div></div><div class="screen-action">${button('Secure & shut down', 'secure')}</div><p class="screen-note">Abstract exercise action. Follow applicable procedures in real operations.</p>`, 3)}`;
   } else if (p === 'secured' || p === 'service') {
-    stage.innerHTML = `<section class="shutdown-display" aria-label="Vehicle display powered off"><div class="dark-screen"><span>⏻</span><p>VEHICLE DISPLAY OFF</p></div></section><section class="exercise-overlay"><span class="eyebrow">EXERCISE OVERLAY / VEHICLE POWER OFF</span><h1>${p === 'secured' ? 'Secured. Shut down.' : 'Isolate the suspected source.'}</h1><p>${p === 'secured' ? 'The engine is off and the vehicle is secured. Continue with a deliberately abstract service step.' : 'A qualified maintainer isolates the suspected charging source under the applicable service procedure. Select the exercise action to record that outcome.'}</p><div class="safety-checks"><span><i>✓</i> Vehicle stationary</span><span><i>✓</i> Engine off</span><span><i>✓</i> Vehicle secured</span></div>${p === 'secured' ? button('Open the service step') : `<div class="service-diagram"><div class="service-node">CHARGING<br>SOURCE</div><span class="isolation-mark" aria-hidden="true">//</span><div class="service-node">VEHICLE<br>SYSTEM</div><span>ABSTRACT ISOLATION · NO WIRING PROCEDURE</span></div>${button('Record safe isolation', 'isolate')}`}<p class="overlay-note">This panel belongs to the exercise, not the powered-off MFoCS display. No cable handling is depicted.</p></section>`;
+    stage.innerHTML = `<section class="guided-service-context" aria-label="Vehicle secured"><span class="eyebrow">VEHICLE POWER OFF / EXERCISE STEP</span><p>Stationary &middot; Engine off &middot; Vehicle secured</p>${p === 'service' ? '<div class="service-diagram"><div class="service-node">CHARGING<br>SOURCE</div><span class="isolation-mark" aria-hidden="true">//</span><div class="service-node">VEHICLE<br>SYSTEM</div><span>ABSTRACT ISOLATION &middot; NO WIRING PROCEDURE</span></div>' : ''}</section>`;
   } else {
     stage.innerHTML = `<section class="debrief"><div class="debrief-heading"><img class="guided-debrief-brand" src="/branding/shift5-logo.svg" alt="Shift5"><span class="eyebrow">06 / AFTER THE DECISION</span><span class="outcome-pill">PROTECTIVE SEQUENCE COMPLETE</span><h1>Vehicle secured.<br>Repair required.</h1><p>The crew stopped, shut down and recorded safe isolation of the suspected charging source. The vehicle stays out of service for inspection and repair.</p><div class="repair-required"><span>!</span><div><b>Repair required.</b><p>The vehicle remains shut down. Isolation does not restore normal operation, prove the fault or clear the vehicle for use.</p></div></div></div><div class="debrief-record"><span class="eyebrow">YOUR DECISION RECORD</span><ol><li><span>01</span><div><h3>Checked vehicle readings</h3><p>Existing vehicle / MFoCS access supplied charging, load and engine-state observations.</p></div></li><li><span>02</span><div><h3>Compared readings over time</h3><p>Manifold supplied access. Turbine pulled, translated and structured readings so output could be checked alongside load and engine state.</p></div></li><li><span>03</span><div><h3>Protect the crew</h3><p>Halt → secure and shut down → abstract service / isolation.</p></div></li></ol><div class="takeaway"><span>THE LEADER’S TAKEAWAY</span><p>The warning led to a stop before further driving. Isolation did not repair the vehicle or confirm the alternator.</p></div><div class="debrief-actions">${button('Run the exercise again', 'restart')}${button('Review evidence', 'evidence', true)}</div><p class="fine-print">Synthetic telemetry and fictional crew dialogue. Illustrative workflow, not independently verified integration, actual Shift5 software, vehicle-control access or maintenance guidance.</p></div></section>`;
   }
+  if (mode === 'mission' && !['title', 'debrief'].includes(p)) stage.insertAdjacentHTML('beforeend', guidedActionDock());
+  syncGuidedDisplay();
   if (mode === 'home' && !graphicsAvailable) {
     const rangeButton = stage.querySelector<HTMLButtonElement>('[data-action="start-range"]');
     if (rangeButton) { rangeButton.disabled = true; rangeButton.textContent = 'Training range needs 3D graphics'; }
@@ -656,8 +693,7 @@ function updateLive(): void {
     set('insight-description', sim.alert ? 'Output stays above the starting reading. Engine running; load unchanged. Stop the vehicle, then secure and shut down before service.' : 'Comparing current output with the start of this run.');
     lastAlert = sim.alert;
   }
-  const halt = document.getElementById('halt-button') as HTMLButtonElement | null;
-  if (halt) halt.disabled = !sim.alert || sim.paused;
+  syncGuidedAction();
 }
 
 function updateCaption(): void {
@@ -915,10 +951,11 @@ function syncControls(): void {
   stage.querySelectorAll<HTMLButtonElement>('button').forEach(el => {
     const name = el.dataset.action ?? '';
     const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
-    const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
+    const viewControl = ['display-focus', 'display-toggle', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
     el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting || missionStaging.active)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
   syncGunnerDisplay();
+  syncGuidedAction();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
   if (slider) slider.disabled = paused || terminalRange || dismounting || missionStaging.active;
   audio.setPaused(audioPaused(), inspectionAudioContinues());
@@ -1020,7 +1057,7 @@ async function action(name: string): Promise<void> {
     rampCommandFeedback = ''; rampCommandFeedbackUntil = 0;
     mode = 'home'; sim.restart(); range.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
-    displayExpanded = false; insideView = true; scene.setViewMode('inside');
+    guidedExercise.reset(); guidedRoadmapOpen = false; displayExpanded = false; insideView = true; scene.setViewMode('inside');
     // Seed the home mixer before a tab switch can suspend its first RAF.
     audio.updateHome(0, audioPaused());
     previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return;
@@ -1100,12 +1137,21 @@ async function action(name: string): Promise<void> {
     return;
   }
   if (name === 'display-focus') {
+    if (mode === 'mission' && !guidedExercise.displayOpen) return;
     displayExpanded = !displayExpanded;
     document.body.classList.toggle('display-expanded', displayExpanded);
     const toggle = document.querySelector<HTMLButtonElement>('[data-action="display-focus"]');
     if (toggle) { toggle.setAttribute('aria-expanded', String(displayExpanded)); toggle.textContent = displayExpanded ? '↙ Return to commander view' : '⤢ Expand display'; }
     if (displayExpanded) document.querySelector('.instrument-position')?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
     scene.resize(); return;
+  }
+  if (name === 'display-toggle' && mode === 'mission') {
+    const panel = document.querySelector('#guided-mfocs-panel');
+    const focusInside = !!panel?.contains(document.activeElement);
+    guidedExercise.toggleDisplay();
+    syncGuidedDisplay(); syncGuidedAction(); scene.resize();
+    if (!guidedExercise.displayOpen && focusInside) document.querySelector<HTMLButtonElement>('[data-action="display-toggle"]')?.focus({ preventScroll: true });
+    return;
   }
   if (name === 'pause') { if (mapInspection.open || evidenceOpen) return; if (rangeDrawerInspection.open) { setRangeDrawer(false); if (!isPaused()) activateSound(); return; } if (!document.hidden && mode !== 'home' && !healthInspection.open) { setPaused(!isPaused()); if (!isPaused()) activateSound(); } return; }
   if (name === 'mute') {
@@ -1120,7 +1166,7 @@ async function action(name: string): Promise<void> {
     syncControls(); return;
   }
   if (name === 'motion') { reducedMotion = !reducedMotion; if (mode === 'briefing' && reducedMotion) { missionBriefing.skip(); updateBriefing(); } preferences.reducedMotion = reducedMotion; saveGamePreferences(preferences); document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); return; }
-  if (name === 'restart') { guidedWarningAt = null; guidedSevereAt = null; clearRangeInputs(); resetGunnerDisplay(); if (dialog.open) dialog.close(); displayExpanded = false; insideView = true; scene.setViewMode('inside'); sim.restart(); audio.restart(mode === 'mission'); range.callsign = audio.missionCallsign; audio.setMuted(muted); if (mode === 'mission') { sim.begin(); sim.board(); } activateSound(); previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return; }
+  if (name === 'restart') { guidedWarningAt = null; guidedSevereAt = null; clearRangeInputs(); resetGunnerDisplay(); if (dialog.open) dialog.close(); guidedExercise.reset(); guidedRoadmapOpen = false; displayExpanded = false; insideView = true; scene.setViewMode('inside'); sim.restart(); audio.restart(mode === 'mission'); range.callsign = audio.missionCallsign; audio.setMuted(muted); if (mode === 'mission') { sim.begin(); } activateSound(); previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return; }
   if (name === 'evidence') {
     clearRangeInputs();
     document.querySelector('#detail-chart')!.innerHTML = chart(true);
@@ -1131,11 +1177,16 @@ async function action(name: string): Promise<void> {
   const before = sim.phase;
   if (name === 'begin') {
     guidedWarningAt = null; guidedSevereAt = null; selectedFault = 'charging';
-    mode = 'mission'; sim.restart(); audio.restart(true); range.callsign = audio.missionCallsign; audio.setMuted(muted); insideView = true; scene.setViewMode('inside');
+    mode = 'mission'; guidedExercise.reset(); guidedRoadmapOpen = false; displayExpanded = false; sim.restart(); audio.restart(true); range.callsign = audio.missionCallsign; audio.setMuted(muted); insideView = true; scene.setViewMode('inside');
     resetGunnerDisplay();
     sim.begin();
     activateSound();
-  } else if (name === 'board') { insideView = true; scene.setViewMode('inside'); sim.board(); }
+  } else if (name === 'board') { insideView = false; scene.setViewMode('commander'); sim.board(); }
+  else if (name === 'guided-next' && mode === 'mission') {
+    guidedExercise.activate(sim);
+    if (before === 'exterior' && sim.phase === 'cabin') { insideView = false; scene.setViewMode('commander'); }
+    syncGuidedDisplay(); syncGuidedAction();
+  }
   else if (name === 'advance') sim.advance();
   else if (name === 'halt') sim.halt();
   else if (name === 'secure') sim.secure();
@@ -1151,6 +1202,9 @@ document.addEventListener('click', event => {
   // Native click covers taps, keyboard buttons and ordinary home links/details.
   if (event.isTrusted && !audioPaused() && ((mode === 'home' || mode === 'briefing') ? audio.musicNeedsActivation : audio.soundState === 'blocked') && !['music', 'mute', 'sound-retry', 'begin', 'start-range', 'restart', 'pause'].includes(target?.dataset.action ?? '')) activateSound();
 });
+document.addEventListener('toggle', event => {
+  if (event.target instanceof HTMLDetailsElement && event.target.classList.contains('guided-roadmap')) guidedRoadmapOpen = event.target.open;
+}, true);
 function rampCommandContext(): RampCommandContext {
   return { inRange: mode === 'range', staging: missionStaging.active, hidden: document.hidden,
     inspection: healthInspection.open ? 'vehicle inspection' : mapInspection.open ? 'mission map' : rangeDrawerInspection.open ? 'mission instructions' : debriefDialog.open || dialog.open ? 'dialog' : null };
