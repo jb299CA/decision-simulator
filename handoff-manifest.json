@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 65,
+  "sourceRelease": 66,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 154,
-  "totalBytes": 10437446,
+  "totalBytes": 10438980,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -399,8 +399,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 134204,
-      "sha256": "e1a4417d9fae23dc1b9afd6cad0f7c2b76dfe0b2664919910089fdc90c678914"
+      "bytes": 134570,
+      "sha256": "7a9194b5b2018cb40419e9e3bfdd2d87db6f644b3ec6e77da75ead4fe75ed304"
     },
     {
       "path": "src/map-navigation.ts",
@@ -499,8 +499,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 221128,
-      "sha256": "4603933c4f274315a112a720f53a5726c32fdccd95253a16d2e28d33fc6a2b1c"
+      "bytes": 222296,
+      "sha256": "563798e510a7426abafc8bb295e20ab4dd4e71da470205f2ee1bb039d21df395"
     },
     {
       "path": "src/target-debris.ts",
