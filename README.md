@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 59 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 60 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -114,3 +114,5 @@ Release 57 reconciles four newer Dots Site revisions into this private repositor
 Release 58 adds a four-second visible staging soundscape after Accept Mission: idle engines, vehicle whine and distant training gunfire precede the single opening call. World time and drive/fire wait; camera views remain available. Radio calls receive filtered 100ms squelch and a 130ms speech lead-in. Enabled audio now continues through focus/visibility changes using a bounded audio-only pump; world frames remain held when hidden. Manual pause and mute still win, and browsers/OS may independently interrupt playback. All 373 tests passed; final TypeScript/build passed. Actual device listening remains unverified.
 
 Release 59 removes the visible combat/ballistics disclaimer line from the driving screen. TypeScript and build pass; gameplay is unchanged from the 373-test baseline.
+
+Release 60 adds hold-B braking in all driving views, including b/B fallback for keyboards without physical codes. Brake takes priority over throttle/reverse/thumbstick, cancels Drive lock and prevents it being enabled while braking. Releasing B disengages it; focus loss and pause clear it. Controls hints are updated. All 376 tests, TypeScript and build pass.

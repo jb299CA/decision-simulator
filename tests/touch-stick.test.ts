@@ -99,3 +99,21 @@ test('accelerator and a horizontal stick compose, with independent pointer relea
   controls = withTouchStick(drivingInput(keyboard, held), stick);
   assert.equal(controls.throttle, 0); assert.equal(controls.steer, 0); assert.equal(controls.fire, false);
 });
+
+
+test('B overrides forward and reverse thumb throttle while touch steering and fire remain independent', () => {
+  const keyboard = new RangeKeyboard(); const stick = new TouchStick();
+  keyboard.down('KeyB'); keyboard.down('Space');
+  for (const y of [10, 90]) {
+    stick.begin(1, 50, 50, 40, 30, y);
+    const controls = withTouchStick(drivingInput(keyboard, new Set(['accelerate', 'fire']), .3, true), stick);
+    assert.equal(controls.throttle, 0); assert.equal(controls.brake, true);
+    assert.ok(controls.steer > 0); assert.equal(controls.fire, true); assert.equal(controls.aim, .3);
+    stick.clear();
+  }
+  keyboard.up('Space'); keyboard.up('KeyB');
+  stick.begin(2, 50, 50, 40, 50, 10);
+  assert.equal(withTouchStick(drivingInput(keyboard, new Set()), stick).throttle, 1, 'release restores an actively held stick');
+  keyboard.down('KeyB'); keyboard.clear(); stick.clear();
+  assert.deepEqual(withTouchStick(drivingInput(keyboard, new Set()), stick), { throttle: 0, steer: 0, aim: 0, fire: false, brake: false });
+});

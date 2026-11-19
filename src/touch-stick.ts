@@ -44,8 +44,8 @@ export class TouchStick {
   get input(): StickInput { return { throttle: -this.position.y || 0, steer: -this.position.x || 0 }; }
 }
 
-/** Reverse takes priority across inputs; steering composes independently of throttle. */
-export function withTouchStick<T extends StickInput>(input: T, stick: TouchStick): T {
+/** Brake wins over throttle; reverse and steering still compose independently. */
+export function withTouchStick<T extends StickInput & { brake?: boolean }>(input: T, stick: TouchStick): T {
   const touch = stick.input;
-  return { ...input, throttle: input.throttle < 0 ? input.throttle : touch.throttle < 0 ? touch.throttle : input.throttle || touch.throttle, steer: input.steer || touch.steer };
+  return { ...input, throttle: input.brake ? 0 : input.throttle < 0 ? input.throttle : touch.throttle < 0 ? touch.throttle : input.throttle || touch.throttle, steer: input.steer || touch.steer };
 }

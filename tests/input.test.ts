@@ -58,8 +58,8 @@ test('a quick fire tap survives release until one tick and a hold remains contin
 });
 
 test('pause, blur, cancellation and restart can discard all held and pending input', () => {
-  const input = new RangeKeyboard(); input.down('KeyW'); input.down('KeyF'); input.up('KeyF');
-  input.clear(); assert.equal(input.keys.size, 0); assert.equal(input.consumeFire(true), true); assert.equal(input.consumeFire(), false);
+  const input = new RangeKeyboard(); input.down('KeyW'); input.down('KeyB'); input.down('KeyF'); input.up('KeyF');
+  input.clear(); assert.equal(drivingInput(input, new Set()).brake, false); assert.equal(input.keys.size, 0); assert.equal(input.consumeFire(true), true); assert.equal(input.consumeFire(), false);
 });
 
 test('quick tap reaches a simulation tick once, while pointer drive and aim combine with keys', () => {
@@ -98,7 +98,7 @@ test('all four direct camera keys route consistently for physical and virtual ke
 test('MFoCS inspection owns focused buttons and cannot leak pending fire or drive on close', () => {
   const keyboard = new RangeKeyboard();
   const inspection = new RangeInspection();
-  keyboard.down('KeyW'); keyboard.down('KeyF'); keyboard.up('KeyF');
+  keyboard.down('KeyW'); keyboard.down('KeyB'); keyboard.down('KeyF'); keyboard.up('KeyF');
   inspection.begin(false, keyboard);
   assert.equal(inspection.open, true);
   assert.equal(permitsGameKeys({ tagName: 'BUTTON' }, {}, inspection.open), false);
@@ -152,4 +152,45 @@ test('reverse wins over held acceleration and cruise without blocking steering o
   assert.equal(drivingInput(keyboard, new Set(['accelerate', 'reverse'])).throttle, -1);
   keyboard.clear();
   assert.equal(drivingInput(keyboard, new Set()).throttle, 0);
+});
+
+
+test('B brakes physical and fallback keyboards while preserving steering, aim and fire', () => {
+  for (const event of [{ code: 'KeyB', key: 'b' }, { key: 'b' }, { code: 'Unidentified', key: 'B' }]) {
+    assert.equal(gameKeyCode(event), 'KeyB');
+    const keyboard = new RangeKeyboard();
+    keyboard.down(gameKeyCode(event));
+    for (const throttle of ['Space', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown']) keyboard.down(throttle);
+    keyboard.down('KeyA'); keyboard.down('KeyF');
+    const controls = drivingInput(keyboard, new Set(['accelerate', 'forward', 'reverse']), -.5, true);
+    assert.deepEqual(controls, { throttle: 0, steer: 1, aim: -.5, fire: true, brake: true });
+    keyboard.up(gameKeyCode(event));
+    const released = drivingInput(keyboard, new Set());
+    assert.equal(released.brake, false);
+    assert.equal(released.throttle, -1, 'release restores actively held reverse');
+    keyboard.down('KeyB'); keyboard.clear();
+    assert.deepEqual(drivingInput(keyboard, new Set()), { throttle: 0, steer: 0, aim: 0, fire: false, brake: false });
+  }
+});
+
+test('B stops actual forward and reverse motion without changing travel direction', () => {
+  for (const direction of ['KeyW', 'KeyS']) {
+    const keyboard = new RangeKeyboard(); const range = new DrivingRange();
+    keyboard.down(direction);
+    for (let frame = 0; frame < 20; frame++) range.tick(.1, drivingInput(keyboard, new Set()));
+    const sign = direction === 'KeyW' ? 1 : -1;
+    assert.ok(range.speed * sign > 0, 'vehicle is moving before braking');
+    keyboard.down('KeyB');
+    let previousSpeed = Math.abs(range.speed);
+    for (let frame = 0; frame < 100; frame++) {
+      range.tick(.1, drivingInput(keyboard, new Set(['accelerate']), 0, true));
+      assert.ok(range.speed * sign >= 0, 'braking never reverses travel');
+      assert.ok(Math.abs(range.speed) <= previousSpeed, 'braking steadily reduces speed');
+      previousSpeed = Math.abs(range.speed);
+    }
+    assert.equal(range.speed, 0, 'brake holds stationary against the held throttle');
+    keyboard.up(direction); keyboard.up('KeyB');
+    range.tick(.1, drivingInput(keyboard, new Set()));
+    assert.equal(range.speed, 0, 'release stays stopped with no throttle');
+  }
 });

@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 59,
+  "sourceRelease": 60,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 148,
-  "totalBytes": 10351162,
+  "totalBytes": 10354784,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -369,8 +369,8 @@
     },
     {
       "path": "src/input.ts",
-      "bytes": 3600,
-      "sha256": "51dff1314bfa357207d22c4e77680900b9b3bd3656725955dfc3cdad58c4561a"
+      "bytes": 3648,
+      "sha256": "69897b169cb53f0b669d81a2256543424c9164447dd3383f1defe19a4016a79d"
     },
     {
       "path": "src/inspection-model.ts",
@@ -384,8 +384,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 130368,
-      "sha256": "c4da86e9562ca0372d7057998ae32f70b8fe6e9b534b842cf8e2f8a3c8d92edd"
+      "bytes": 130492,
+      "sha256": "be728ab68435909b709e4acb3d4e7327e83f7cbfff2992fdd987d58dc2b9905a"
     },
     {
       "path": "src/map-navigation.ts",
@@ -489,8 +489,8 @@
     },
     {
       "path": "src/touch-stick.ts",
-      "bytes": 2332,
-      "sha256": "de36ae9106bf70153c4ddd018156733c9384d86e63e3d94764aa1695f3c00f84"
+      "bytes": 2365,
+      "sha256": "2dd15ebd7809d3b749c740afd01a1c34b11afb6b3d6a450bec7a748bd32c9be1"
     },
     {
       "path": "src/ui-focus.ts",
@@ -634,8 +634,8 @@
     },
     {
       "path": "tests/input.test.ts",
-      "bytes": 8936,
-      "sha256": "37bc9c939a401c99740e7287f282f491b155f92706f99b55311a22a4f43e5c1a"
+      "bytes": 11305,
+      "sha256": "8ec540acd0b76f3065e776e0ed89a13306e7844b64277f1ed827551a32320ee0"
     },
     {
       "path": "tests/inspection-model.test.ts",
@@ -739,8 +739,8 @@
     },
     {
       "path": "tests/touch-stick.test.ts",
-      "bytes": 5782,
-      "sha256": "ba830036b76f9226c2deec1c54112307dbaec27728d00a781382073bd9ca8f8b"
+      "bytes": 6830,
+      "sha256": "f81370842e4161de4c51df968ab030b826a6d31cb10fb217d8b3222353afc9b7"
     },
     {
       "path": "tests/ui-focus.test.ts",
