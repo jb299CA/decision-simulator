@@ -1,10 +1,10 @@
 import type { Phase, Simulation } from './simulation';
 import { radioScript } from './radio-script.ts';
 import type { PowertrainState } from './powertrain.ts';
-import { ProceduralMusic, RenderedScore, loadScoreAsset, musicScene } from './music.ts';
+import { ProceduralMusic, RenderedScore, loadScoreAsset, musicScene, type MusicFrame } from './music.ts';
 import { callsignForPair, chooseRadioCast, GUIDED_CALLSIGN, RadioNet, type RadioCast, type RadioNetCue } from './radio-net.ts';
 
-export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean; faultInspection?: boolean; transportPaused?: boolean; departureCrossed?: boolean; practiceCompleted?: boolean; recoveryReveal?: boolean };
+export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean; faultInspection?: boolean; transportPaused?: boolean; departureCrossed?: boolean; practiceCompleted?: boolean; recoveryReveal?: boolean; staging?: boolean; stagingTime?: number };
 export type SoundState = 'unstarted' | 'unsupported' | 'muted' | 'paused' | 'running' | 'blocked';
 
 type Cue = typeof radioScript.phase[keyof typeof radioScript.phase] | typeof radioScript.ambient[number] | typeof radioScript.recovery | RadioNetCue;
@@ -121,6 +121,9 @@ export class SimulationAudio {
   private briefingSource?: AudioBufferSourceNode;
   private briefingNotBefore = 0;
   private rangeOpeningObsolete = false;
+  private stagedOpening = false;
+  private stagingReportPlayed = false;
+  private musicFrame?: MusicFrame;
 
   constructor(random: () => number = Math.random, voiceRandom?: () => number) {
     this.random = random;
@@ -452,10 +455,15 @@ export class SimulationAudio {
       const hiss = hissTime > 0 ? (n - filteredNoise) * .085 * Math.min(1, hissTime * 12) * Math.max(0, 1 - hissTime / 1.65) ** 1.5 : 0;
       breakdown[i] = sputter + clunk + hiss;
     }
-    // Short PTT edges bracket the quieter, band-limited static beneath radio.
-    this.squelchBuffer = context.createBuffer(1, Math.floor(context.sampleRate * .035), context.sampleRate);
+    // Soft filtered PTT noise brackets radio speech; intercom stays clean.
+    this.squelchBuffer = context.createBuffer(1, Math.floor(context.sampleRate * .10), context.sampleRate);
     const squelch = this.squelchBuffer.getChannelData(0);
-    for (let i = 0; i < squelch.length; i++) squelch[i] = random() * Math.sin(Math.PI * i / Math.max(1, squelch.length - 1)) * .035;
+    let squelchLow = 0, squelchMid = 0;
+    for (let i = 0; i < squelch.length; i++) {
+      const white = random();
+      squelchLow += (white - squelchLow) * .07; squelchMid += (white - squelchMid) * .55;
+      squelch[i] = (squelchMid - squelchLow) * Math.sin(Math.PI * i / Math.max(1, squelch.length - 1)) * .065;
+    }
     const loop = (buffer: AudioBuffer, destination: AudioNode): void => {
       const source = context.createBufferSource(); source.buffer = buffer; source.loop = true;
       source.connect(destination); source.start(); this.sources.push(source);
@@ -515,7 +523,23 @@ export class SimulationAudio {
     const playing = this.audible && this.musicOn && this.context?.state === 'running';
     if (playing && Number.isFinite(delta)) this.homeMusicTime += Math.max(0, Math.min(delta, .15));
     if (this.master) this.master.gain.value = this.audible && this.context?.state === 'running' ? .48 : 0;
-    this.music?.update({ time: this.homeMusicTime, scene: 'home', audible: playing, ducked: false });
+    this.updateMusic({ time: this.homeMusicTime, scene: 'home', audible: playing, ducked: false });
+  }
+
+  private updateMusic(frame: MusicFrame): void {
+    this.musicFrame = { ...frame };
+    this.music?.update(frame);
+  }
+
+  /** Audio-only hidden-page pump: no world ticks, fault edges, dialogue queues or catchup. */
+  updateBackground(delta: number): void {
+    if (!this.transportAudible || this.context?.state !== 'running' || !Number.isFinite(delta) || delta <= 0) return;
+    if (this.homeMusic) this.homeMusicTime += delta;
+    else { this.inspectionAudioTime += delta; this.soundscapeTime += delta; }
+    if (this.musicFrame) this.updateMusic({ ...this.musicFrame,
+      time: this.homeMusic ? this.homeMusicTime : this.soundscapeTime,
+      audible: this.musicOn, ducked: !!this.voice, priorityAlert: !!(this.healthAlertSource || this.breakdownSource) });
+    this.mixPriority();
   }
 
   /** One quiet terminal click per newly revealed text segment; never queue catchup. */
@@ -552,7 +576,7 @@ export class SimulationAudio {
     this.setPaused(sim.paused || !!vehicle?.transportPaused, !!vehicle?.faultInspection);
     // The score and background atmosphere get a clock during inspections.
     // Voice/cues and simulation still use the frozen exercise clock.
-    if (this.inspectionAmbience && this.transportAudible && this.context?.state === 'running' && Number.isFinite(frameDelta)) {
+    if ((this.inspectionAmbience || vehicle?.staging) && this.transportAudible && this.context?.state === 'running' && Number.isFinite(frameDelta)) {
       this.inspectionAudioTime += Math.max(0, Math.min(frameDelta, .15));
     }
     this.soundscapeTime = sim.time + this.inspectionAudioTime;
@@ -586,10 +610,15 @@ export class SimulationAudio {
         // powertrain/training state distinguishes it from driving mode.
         const rangeEntry = sim.phase === 'cabin' && (vehicle?.powertrain !== undefined || vehicle?.training !== undefined);
         if (rangeEntry) this.drivingMode = true;
-        if (!rangeEntry || (!vehicle?.departureCrossed && !vehicle?.practiceCompleted && vehicle?.training !== false)) {
+        if (rangeEntry && vehicle?.staging) this.stagedOpening = true;
+        else if (!rangeEntry || (!vehicle?.departureCrossed && !vehicle?.practiceCompleted && vehicle?.training !== false)) {
           this.queue(rangeEntry ? this.radioNet.opening : sim.phase === 'exterior' ? this.radioNet.guidedOpening : radioScript.phase[sim.phase]);
         }
       }
+    }
+    if (this.stagedOpening && !vehicle?.staging && !this.paused) {
+      this.stagedOpening = false;
+      if (!vehicle?.terminal && !vehicle?.departureCrossed && !vehicle?.practiceCompleted && !this.rangeOpeningObsolete) this.queue(this.radioNet.opening);
     }
     // The single player relay contains pre-departure instructions. Consume it
     // after practice or at LD, even during download or before an audio tap.
@@ -631,7 +660,7 @@ export class SimulationAudio {
     level(this.cabinGain, sim.engine && inside ? (.12 + (powertrain?.roughness ?? sim.speed) * sim.speed * .14) : 0);
     level(this.windGain, sim.phase === 'exterior' ? .12 : (sim.moving ? .012 : 0));
     if (this.engineFilter) this.smooth(this.engineFilter.frequency, (inside ? 570 : 1500) + load * (inside ? 140 : 500), .09);
-    level(this.whineGain, sim.engine ? whine * .105 * (inside ? .72 : 1) : 0);
+    level(this.whineGain, sim.engine ? (vehicle?.staging ? .075 : whine * .105) * (inside ? .72 : 1) : 0);
     level(this.loadGain, sim.engine ? load * .14 * (inside ? .55 : 1) : 0);
     this.mixPriority();
     if (this.loadFilter) this.smooth(this.loadFilter.frequency, 380 + load * 620, .09);
@@ -644,10 +673,15 @@ export class SimulationAudio {
     });
     if (this.firingTone) this.smooth(this.firingTone.frequency, rpm / 60, .045);
     if (announceGuidedAlert) this.healthAlert();
-    this.music?.update({ time: this.soundscapeTime, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
+    this.updateMusic({ time: this.soundscapeTime, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
       audible: this.transportAudible && this.musicOn && this.context?.state === 'running' && sim.phase !== 'title', ducked: !!this.voice,
       priorityAlert: !!(this.healthAlertSource || this.breakdownSource) });
-    this.updateDistant(this.soundscapeTime, !!vehicle?.departureCrossed && !vehicle.terminal && !vehicle.breakdown);
+    if (vehicle?.staging && !this.stagingReportPlayed && (vehicle.stagingTime ?? 0) >= .65 && this.transportAudible && this.context?.state === 'running') {
+      this.stagingReportPlayed = true;
+      this.nextDistant = this.soundscapeTime;
+      this.distantIndex = 1;
+      this.updateDistant(this.soundscapeTime, true);
+    } else if (!vehicle?.staging) this.updateDistant(this.soundscapeTime, !!vehicle?.departureCrossed && !vehicle.terminal && !vehicle.breakdown);
   }
 
   private updateDistant(time: number, allowed: boolean): void {
@@ -842,7 +876,7 @@ export class SimulationAudio {
     // Let PTT finish before the first syllable. The scheduled source is owned
     // immediately, so pause/phase changes can cancel it before it ever sounds.
     try {
-      const startsAt = context.currentTime + (radio ? .05 : 0);
+      const startsAt = context.currentTime + (radio ? .13 : 0);
       source.start(startsAt);
       if (radio) this.startRadioStatic(startsAt);
     } catch {
@@ -884,7 +918,7 @@ export class SimulationAudio {
   private squelch(): void {
     if (!this.audible || !this.context || !this.master || !this.squelchBuffer || this.squelches.size >= 2) return;
     const source = this.context.createBufferSource(); source.buffer = this.squelchBuffer;
-    source.connect(this.master); this.squelches.add(source);
+    source.connect(this.radioInput ?? this.master); this.squelches.add(source);
     source.onended = () => { this.squelches.delete(source); source.disconnect(); };
     try { source.start(); } catch { this.squelches.delete(source); source.disconnect(); }
   }
@@ -986,7 +1020,7 @@ export class SimulationAudio {
     this.guidedMode = guided;
     this.radioNet = new RadioNet(this.random, this.radioNet.pair, this.radioCast);
     this.missionIdentity = callsignForPair(this.radioNet.pair);
-    this.drivingMode = false; this.recoveryAcknowledged = false; this.rangeOpeningObsolete = false;
+    this.drivingMode = false; this.recoveryAcknowledged = false; this.rangeOpeningObsolete = false; this.stagedOpening = false; this.stagingReportPlayed = false; this.musicFrame = undefined;
     this.briefingNotBefore = 0;
     this.lastPhase = 'title'; this.lastTime = 0; this.paused = false; this.inspectionAmbience = false;
     this.nextDistant = undefined; this.distantIndex = 0;
