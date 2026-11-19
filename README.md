@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 52 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 53 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -100,3 +100,5 @@ Release 50 removes the solid gameplay header background, border and blur across 
 Release 51 regenerates all 38 dialogue clips with firmer male and female casting, shorter command sentences and controlled cadence. Female commanders remain about 20% of complete calls. Ordinary numbers replace phonetic variants throughout, and audio URLs use a new cache version. All 326 tests, TypeScript and production build pass; source/audio hashes agree and PCM has no clipped samples. Subjective listening and actual phone output remain unverified.
 
 Release 52 gives the healthy MFoCS control a green digital instrument treatment: dark green panel, emerald keyline/status text, monospace lettering and a small static corner mark. Warning/severe colors and responsive dimensions are unchanged. TypeScript and build pass; gameplay retains the 326-test release 51 baseline.
+
+Release 53 removes the duplicate practice/speed/hull HUD strip and its unused styles and setters. Mission state, MFoCS, countdown, map and speedometer remain. TypeScript and build pass; gameplay is unchanged from the 326-test baseline.
