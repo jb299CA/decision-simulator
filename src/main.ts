@@ -8,6 +8,8 @@ import type { Phase } from './simulation';
 import { VehicleScene } from './scene';
 import { SimulationAudio, captionForPhase, recoveryCaption } from './audio';
 import { DrivingRange } from './range';
+import { executeRampCommand, rampCommandAvailability } from './ramp-command';
+import type { RampCommandContext } from './ramp-command';
 import type { RangeView } from './range';
 import { RANGE_VIEWS } from './mission-contract';
 import type { FaultId, VehicleFault, MissionDebrief } from './mission-contract';
@@ -70,6 +72,8 @@ let rangeEventFeedback = '';
 let rangeEventFeedbackUntil = 0;
 let rangeFeedback = '';
 let rangeFeedbackUntil = 0;
+let rampCommandFeedback = '';
+let rampCommandFeedbackUntil = 0;
 let rangeUiClock = 0;
 let graphicsAvailable = true;
 const preferences = loadGamePreferences();
@@ -663,7 +667,7 @@ function updateCaption(): void {
     if (healthCaption && healthCaption.textContent !== background) healthCaption.textContent = background;
   }
   const next = mode === 'range'
-    ? missionStaging.active ? MISSION_STAGING_CAPTION : outcomeReveal.recoveryElapsed !== null ? recoveryCaption() : range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : audio.distantCaption ?? (range.mission.phase === 'training' ? practicePrompt(range.shotsFired, range.targets.filter(target => target.kind === 'training' && target.destroyedAt !== null).length) : range.mission.notice)
+    ? range.time < rampCommandFeedbackUntil && !range.dismounting ? rampCommandFeedback : missionStaging.active ? MISSION_STAGING_CAPTION : outcomeReveal.recoveryElapsed !== null ? recoveryCaption() : range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${audio.crewCaption ?? (range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.')}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : audio.distantCaption ?? (range.mission.phase === 'training' ? practicePrompt(range.shotsFired, range.targets.filter(target => target.kind === 'training' && target.destroyedAt !== null).length) : range.mission.notice)
     : mode === 'briefing' ? 'Read your orders. The vehicle and mission clock wait for Accept Mission.' : mode === 'home' ? 'Choose the dismount-point mission or follow the guided vehicle-health decision exercise.' : audio.caption || captionForPhase(sim.phase);
   if (next !== lastCaption) { caption.textContent = next; const dialogCaption = document.querySelector('#dialog-caption'); if (dialogCaption) dialogCaption.textContent = next; lastCaption = next; }
 }
@@ -779,14 +783,16 @@ function updateRangeLive(): void {
   const boards = range.targets.filter(t => t.kind === 'training');
   const broken = boards.filter(t => t.destroyedAt !== null).length;
   const dismountStatus = range.dismount.phase === 'opening' ? 'Ramp lowering' : 'Squad exiting: nine troops unloading';
-  const rampAvailability = range.dropRampAvailability;
+  const rampAvailability = rampCommandAvailability(range, rampCommandContext());
   set('range-mission-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / Wrong dismount location. ' : 'DISMOUNT / '}${dismountStatus}.` : terminal ? (mission.status === 'complete' ? 'MISSION COMPLETE / squad delivered' : mission.failureReason === 'movement-timeout' ? 'MISSION FAILED / three-minute movement deadline missed' : mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / squad unloaded outside the dismount zone' : mission.status === 'recovery' ? 'MISSION STOPPED / recovery requested' : range.health.phase === 'broken' ? 'MISSION STOPPED / vehicle breakdown' : 'MISSION ENDED / vehicle integrity depleted') : mission.phase === 'training' ? `STAGING / ${practicePrompt(range.shotsFired, broken)}` : mission.phase === 'combat' ? `CLEAR CONTACTS / ${mission.remainingContacts} remaining. Hollow map icons show estimated positions.` : `DISMOUNT / ${Math.round(mission.distance)} units to objective. Stop inside, then select Drop ramp.`);
   set('range-objective-count', range.dismounting ? mission.notice : mission.phase === 'training' ? `${broken} / ${boards.length} practice boards broken (optional). Contacts activate beyond LD.` : mission.remainingContacts > 0 ? `${mission.remainingContacts} / ${mission.contacts.length} contacts remaining. Clear all before dropping the ramp in the zone.` : `All ${mission.contacts.length} contacts cleared. Stop in the marked zone before the deadline, then select Drop ramp.`);
-  set('ramp-command-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'Wrong zone: mission failed. ' : ''}${dismountStatus}.` : terminal ? 'Unload command closed.' : rampAvailability.reason);
+  set('ramp-command-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'Wrong zone: mission failed. ' : ''}${dismountStatus}.` : terminal ? 'Unload command closed.' : range.time < rampCommandFeedbackUntil ? rampCommandFeedback : rampAvailability.reason);
   const rampButton = document.querySelector<HTMLButtonElement>('#drop-ramp-button');
   if (rampButton) {
     rampButton.disabled = !rangePlayable();
     rampButton.setAttribute('aria-label', `Drop ramp (R). ${rampAvailability.reason}`);
+    rampButton.setAttribute('aria-disabled', String(!rampAvailability.available));
+    rampButton.title = rampAvailability.reason;
   }
   const progress = document.querySelector<HTMLElement>('#range-progress');
   if (progress) progress.style.width = `${terminal ? 100 : range.dismounting ? 95 : Math.min(90, mission.currentWaypoint / (mission.waypoints.length - 1) * 90)}%`;
@@ -1011,6 +1017,7 @@ async function action(name: string): Promise<void> {
     clearRangeInputs();
     if (dialog.open) dialog.close();
     guidedWarningAt = null; guidedSevereAt = null;
+    rampCommandFeedback = ''; rampCommandFeedbackUntil = 0;
     mode = 'home'; sim.restart(); range.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
     displayExpanded = false; insideView = true; scene.setViewMode('inside');
@@ -1024,6 +1031,7 @@ async function action(name: string): Promise<void> {
     closeDebrief(); shownDebrief = null; outcomeReveal.reset(); selectedFault = 'charging';
     if (!graphicsAvailable) return;
     if (healthInspection.open) closeHealth();
+    rampCommandFeedback = ''; rampCommandFeedbackUntil = 0;
     missionStaging.cancel(); clearRangeInputs(); mode = 'briefing'; range.restart(); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
     mapNavigation.fit();
@@ -1059,14 +1067,16 @@ async function action(name: string): Promise<void> {
     else if (name.startsWith('map-stop-')) { const id = name.slice(9); if (range.selectNavigationTarget(id)) { const point = range.navigationTarget!; const p = mapPoint(point.x, point.z); mapNavigation.center(p.x, p.y); } }
     updateMissionMap(); return;
   }
-  if (name === 'drop-ramp' && rangePlayable()) {
-    if (range.dropRamp()) {
+  if (name === 'drop-ramp') {
+    const result = executeRampCommand(range, rampCommandContext());
+    rampCommandFeedback = result.reason; rampCommandFeedbackUntil = range.time + 5;
+    if (result.accepted) {
       clearRangeInputs();
-      await action('range-view-chase');
+      setRangeView('chase');
       syncControls();
     }
-    rangeFeedback = range.mission.notice; rangeFeedbackUntil = range.time + 5;
-    updateRangeLive(); return;
+    if (mode === 'range') updateRangeLive();
+    return;
   }
   if (name === 'cruise' && rangePlayable()) {
     cruise = keyboard.keys.has('KeyB') ? false : !cruise;
@@ -1141,6 +1151,10 @@ document.addEventListener('click', event => {
   // Native click covers taps, keyboard buttons and ordinary home links/details.
   if (event.isTrusted && !audioPaused() && ((mode === 'home' || mode === 'briefing') ? audio.musicNeedsActivation : audio.soundState === 'blocked') && !['music', 'mute', 'sound-retry', 'begin', 'start-range', 'restart', 'pause'].includes(target?.dataset.action ?? '')) activateSound();
 });
+function rampCommandContext(): RampCommandContext {
+  return { inRange: mode === 'range', staging: missionStaging.active, hidden: document.hidden,
+    inspection: healthInspection.open ? 'vehicle inspection' : mapInspection.open ? 'mission map' : rangeDrawerInspection.open ? 'mission instructions' : debriefDialog.open || dialog.open ? 'dialog' : null };
+}
 function rangePlayable(): boolean { return mode === 'range' && !missionStaging.active && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
 
 function syncHealthPulse(): void {
@@ -1383,6 +1397,7 @@ function frame(now: number): void {
       contact: range.mission.departureCrossed && range.mission.contacts.some(contact => !contact.neutralized && Math.hypot(contact.x - range.position.x, contact.z - range.position.z) <= 130),
       health: range.health.phase, terminal: range.missionEnded, breakdown: range.health.phase === 'broken',
       faultInspection: inspectionAudioContinues(), transportPaused: debriefDialog.open, departureCrossed: range.mission.departureCrossed && !range.dismounting,
+      dismountPhase: range.dismount.phase, dismountElapsed: range.dismount.elapsed,
       recoveryReveal: recoveryElapsed !== null, staging: missionStaging.active, stagingTime: missionStaging.elapsed }, delta);
     if (range.health.alertSerial !== lastHealthAlertSerial) {
       if (range.health.alertSerial > lastHealthAlertSerial && range.health.phase !== 'broken') audio.healthAlert(range.health.phase === 'critical' ? 'critical' : 'warning');

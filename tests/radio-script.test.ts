@@ -5,7 +5,7 @@ import { radioScript } from '../src/radio-script.ts';
 
 const originalCues = [...Object.values(radioScript.phase), ...radioScript.ambient];
 const primaryPool = [...radioScript.radioOrders, ...radioScript.radioRelays];
-const cues = [...originalCues, ...primaryPool, ...radioScript.radioFemale];
+const cues = [...originalCues, ...primaryPool, ...radioScript.radioFemale, ...Object.values(radioScript.crew)];
 const root = new URL('../', import.meta.url);
 
 test('Brave radio calls stand alone while crew intercom stays plain', () => {
@@ -35,7 +35,7 @@ test('Brave radio calls stand alone while crew intercom stays plain', () => {
       assert.match(cue.text, /\. Out\.$/, `${cue.id} closes its own transmission`);
       assert.match(cue.speaker, /RADIO$/);
     } else {
-      assert.match(cue.speaker, /INTERCOM$/);
+      assert.match(cue.speaker, /(?:INTERCOM|ICS)$/);
       assert.doesNotMatch(cue.text, /\b(?:this is|roger|wilco|over|out)\b/i, 'intercom needs no net-call ceremony');
     }
   }
@@ -88,7 +88,7 @@ test('HQ orders and company relays cover every requested matching call sign', ()
 });
 
 test('primary commanders and all replies are male with matching female commander alternates', () => {
-  assert.equal(cues.length, 38);
+  assert.equal(cues.length, 40);
   assert.equal(radioScript.radioFemale.length, 12);
   for (const cue of [...originalCues, ...primaryPool]) {
     assert.match(cue.voice, /^am_/);
@@ -141,4 +141,17 @@ test('recovery acknowledgment is a bundled, versioned fictional line', () => {
   const audio=readFileSync(new URL('public/audio/recovery_ack.mp3',root));
   assert.ok(audio.length>=1000 && audio.length<40000);
   assert.equal(audio[0],0xff); assert.equal(audio[1]&0xe0,0xe0);
+});
+
+
+test('ramp crew uses short plain ICS lines and the established driver and commander cast', () => {
+  assert.equal(radioScript.crew.droppingRamp.text, 'Dropping ramp!');
+  assert.equal(radioScript.crew.droppingRamp.voice, radioScript.phase.halted.voice);
+  assert.equal(radioScript.crew.rampDown.text, 'Ramp down. Dismount!');
+  assert.equal(radioScript.crew.rampDown.voice, radioScript.phase.cabin.voice);
+  for (const cue of Object.values(radioScript.crew)) {
+    assert.equal(cue.channel, 'intercom');
+    assert.match(cue.speaker, /ICS$/);
+    assert.doesNotMatch(cue.text, /over|out|this is|wilco/i);
+  }
 });

@@ -1918,3 +1918,126 @@ test('home background audio progresses independently and never creates a mission
   audio.setMusicEnabled(false); audio.updateBackground(10);
   assert.ok(context.oscillators.slice(-4).every(node => node.stopped));
 });
+
+
+const rampAudioVehicle = (range: DrivingRange) => ({
+  training: false, powertrain: range.powertrain, terminal: range.missionEnded,
+  departureCrossed: range.mission.departureCrossed,
+  dismountPhase: range.dismount.phase, dismountElapsed: range.dismount.elapsed,
+});
+const rampVoices = (context: MockContext): MockNode[] => context.voices.filter(source => source.buffer?.id?.startsWith('ics_'));
+
+test('accepted ramp state announces driver ICS once, then commander without radio effects', async t => {
+  const files = browser(t);
+  const audio = new SimulationAudio(() => 0); t.after(() => audio.dispose());
+  await audio.start();
+  const range = new DrivingRange(), context = MockContext.latest;
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.ok(files.includes(radioScript.crew.droppingRamp.file), 'small crew recording warms before the command');
+  const edges = pttEdges(context).length, staticCount = radioStaticSources(context).length;
+  assert.equal(range.dropRamp(), true, 'off-zone model accepts deliberate drop');
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(audio.crewCaption, exact(radioScript.crew.droppingRamp));
+  const driver = rampVoices(context)[0]!;
+  assert.equal(driver.buffer?.id, 'ics_dropping_ramp');
+  assert.equal(driver.startTime, context.currentTime, 'ICS has no PTT lead-in');
+  assert.equal(pttEdges(context).length, edges);
+  assert.equal(radioStaticSources(context).length, staticCount);
+  assert.equal(range.dropRamp(), false);
+  for (let i=0; i<5; i++) audio.update(range.audioState, rampAudioVehicle(range));
+  assert.equal(rampVoices(context).length, 1);
+  assert.equal(driver.stopped, false, 'engine-off dismount updates preserve crew speech');
+  driver.finish();
+  range.dismount.elapsed = 2.1; range.dismount.phase = 'unloading'; range.time = 2.1;
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(audio.crewCaption, exact(radioScript.crew.rampDown));
+  assert.equal(rampVoices(context).length, 2);
+  range.dismount.phase = 'complete';
+  audio.update(range.audioState, { ...rampAudioVehicle(range), terminal: true });
+  assert.equal(audio.crewCaption, undefined);
+  assert.equal(rampVoices(context)[1]!.stopped, true);
+});
+
+test('rejected ramp commands never produce ICS', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0); t.after(() => audio.dispose()); await audio.start();
+  const range = new DrivingRange(); range.position = { ...range.mission.objective };
+  assert.equal(range.dropRamp(), false, 'inside objective before departure is rejected');
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(audio.crewCaption, undefined);
+  assert.equal(rampVoices(MockContext.latest).length, 0);
+});
+
+test('pause and mute consume interrupted ramp cues without replaying stale speech', async t => {
+  browser(t);
+  for (const interrupt of ['pause', 'mute'] as const) {
+    const audio = new SimulationAudio(() => 0); await audio.start();
+    const range = new DrivingRange(), context = MockContext.latest;
+    audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+    assert.equal(range.dropRamp(), true);
+    audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+    const driver = rampVoices(context)[0]!;
+    if (interrupt === 'pause') { range.paused = true; audio.update(range.audioState, rampAudioVehicle(range)); }
+    else audio.setMuted(true);
+    assert.equal(driver.stopped, true);
+    range.dismount.elapsed = 2.1; range.dismount.phase = 'unloading'; range.time = 2.1;
+    audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+    range.paused = false; audio.setMuted(false);
+    audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+    assert.equal(rampVoices(context).length, 1);
+    assert.equal(audio.crewCaption, undefined);
+    audio.dispose();
+  }
+});
+
+test('late ramp fetches cannot speak after unloading, restart or terminal state', async t => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  browser(t, new Map([[radioScript.crew.droppingRamp.file, gate]]));
+  for (const end of ['late', 'restart', 'terminal'] as const) {
+    const audio = new SimulationAudio(() => 0); await audio.start();
+    const range = new DrivingRange(), context = MockContext.latest;
+    audio.update(range.audioState, rampAudioVehicle(range));
+    assert.equal(range.dropRamp(), true);
+    audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+    if (end === 'restart') audio.restart();
+    else {
+      range.dismount.elapsed = end === 'late' ? 5 : 8;
+      range.dismount.phase = end === 'late' ? 'unloading' : 'complete';
+      range.time = range.dismount.elapsed;
+      audio.update(range.audioState, { ...rampAudioVehicle(range), terminal: end === 'terminal' });
+    }
+    release(); await settle();
+    assert.equal(rampVoices(context).length, 0, end);
+    assert.equal(audio.crewCaption, undefined);
+    audio.dispose();
+    // Each case needs a fresh unresolved request gate.
+    if (end !== 'terminal') {
+      const nextGate = new Promise<void>(resolve => { release = resolve; });
+      // browser's map is shared by reference; recreate the override below.
+      Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (file: string) => {
+        if (file === radioScript.crew.droppingRamp.file) await nextGate;
+        return { ok: true, arrayBuffer: async () => new TextEncoder().encode(file.split('/').at(-1)!.split('?')[0]!.replace(/\.(wav|mp3)$/, '')).buffer };
+      } });
+    }
+  }
+});
+
+
+test('ramp response skips a busy driver rather than truncating or replaying it', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0); t.after(() => audio.dispose()); await audio.start();
+  const range = new DrivingRange(), context = MockContext.latest;
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(range.dropRamp(), true);
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  const driver = rampVoices(context)[0]!;
+  range.dismount.elapsed = 2.1; range.dismount.phase = 'unloading'; range.time = 2.1;
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(driver.stopped, false, 'a valid playing phrase finishes even if loading started it near the deadline');
+  assert.equal(rampVoices(context).length, 1);
+  driver.finish();
+  range.dismount.elapsed = 2.5; range.time = 2.5;
+  audio.update(range.audioState, rampAudioVehicle(range)); await settle();
+  assert.equal(rampVoices(context).length, 1, 'skipped response never queues after the driver finishes');
+});
