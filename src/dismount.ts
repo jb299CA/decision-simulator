@@ -6,8 +6,8 @@ export const DISMOUNT = {
   troopCount: 9,
   rampOpenSeconds: 1.1,
   troopStaggerSeconds: .23,
-  troopRunSeconds: 2.4,
-  durationSeconds: 5.6,
+  troopRunSeconds: 4.0,
+  durationSeconds: 8.0,
 } as const;
 
 const unit = (value: number): number => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));

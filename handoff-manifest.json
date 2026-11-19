@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 60,
+  "sourceRelease": 61,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 148,
-  "totalBytes": 10354784,
+  "totalBytes": 10360377,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -309,13 +309,13 @@
     },
     {
       "path": "src/dismount-squad.ts",
-      "bytes": 10140,
-      "sha256": "02495ac836cbeb85d8916063f1db526e0c45282a545de5f348c4ed07708099ce"
+      "bytes": 12254,
+      "sha256": "ae7ab38b31ada739092b26dd4593ff415517a370f7eb1f795286719dd10771c8"
     },
     {
       "path": "src/dismount.ts",
       "bytes": 903,
-      "sha256": "d93ab4711304b375f5a3abd91292b4cf92084eb76ae1d8ecec74515c542a9903"
+      "sha256": "b9243ca8c89d82cf7bc3ce1ccb9bf0fd7bf6a3e5b7e343100d73578c505d1fc6"
     },
     {
       "path": "src/driving-dynamics.ts",
@@ -469,8 +469,8 @@
     },
     {
       "path": "src/scene.ts",
-      "bytes": 75262,
-      "sha256": "b3e76b4353dfc897fb228264d236791e5eb028b9d351b5c603c9d32d778c6b37"
+      "bytes": 75143,
+      "sha256": "cba450cc7b8bd3aa7abd03efff6ca96bce89ffef37d5d35e65ca511842f777d1"
     },
     {
       "path": "src/simulation.ts",
@@ -524,8 +524,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 120386,
-      "sha256": "6e367ec2a0cf933016cad5aa3445b2640c09d35ead96250a3bfb6a36f8e8b0b4"
+      "bytes": 120474,
+      "sha256": "40da66e8a066a8979a67b28cafe82979aad8120ecff4616ebb0d0e7339e5b90d"
     },
     {
       "path": "tests/cabin-display.test.ts",
@@ -569,13 +569,13 @@
     },
     {
       "path": "tests/dismount-squad.test.ts",
-      "bytes": 6405,
-      "sha256": "254eee14c6aea7ae9472edaa259af7badd6b9c7d3c36b8c3ee828e733ba0ed86"
+      "bytes": 9669,
+      "sha256": "fbf150db78b8285e0c477e7a7471b6d83ca1be17a2cbcca7f3b217d90dd242c9"
     },
     {
       "path": "tests/dismount.test.ts",
-      "bytes": 7511,
-      "sha256": "4de9703484d3d8d51e3e6f70121ed41181671dcb34d319be2184c12775f23284"
+      "bytes": 7757,
+      "sha256": "ec8f1becf2354e3df8620955e0ebc57c0e916987328af6219ad0089dff2684c6"
     },
     {
       "path": "tests/driving-dynamics.test.ts",
