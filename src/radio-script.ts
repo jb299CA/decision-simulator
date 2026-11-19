@@ -97,6 +97,24 @@ export const radioScript = {
       "file": "/audio/debrief.mp3?v=natural-radio-r59"
     }
   },
+  "crew": {
+    "droppingRamp": {
+      "id": "ics_dropping_ramp",
+      "speaker": "DRIVER ? ICS",
+      "channel": "intercom",
+      "text": "Dropping ramp!",
+      "voice": "am_eric",
+      "file": "/audio/ics_dropping_ramp.mp3?v=natural-radio-r59"
+    },
+    "rampDown": {
+      "id": "ics_ramp_down",
+      "speaker": "COMMANDER ? ICS",
+      "channel": "intercom",
+      "text": "Ramp down. Dismount!",
+      "voice": "am_fenrir",
+      "file": "/audio/ics_ramp_down.mp3?v=natural-radio-r59"
+    }
+  },
   "ambient": [
     {
       "id": "net_interval",

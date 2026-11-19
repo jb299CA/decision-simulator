@@ -4,7 +4,7 @@ import { radioScript } from '../src/radio-script.ts';
 
 type VoiceLine = { speaker: string; voice: string; segments?: readonly { speaker: string; voice: string }[] };
 const character = (speaker: string) => speaker.split(/\s+[·—]\s+/)[0]!;
-const primary = [...Object.values(radioScript.phase), ...radioScript.ambient, ...radioScript.radioOrders, ...radioScript.radioRelays, radioScript.recovery];
+const primary = [...Object.values(radioScript.phase), ...radioScript.ambient, ...radioScript.radioOrders, ...radioScript.radioRelays, radioScript.recovery, ...Object.values(radioScript.crew)];
 
 function castFor(cues: readonly VoiceLine[]): Map<string, string> {
   const cast = new Map<string, string>();

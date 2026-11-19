@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 61,
+  "sourceRelease": 62,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 148,
-  "totalBytes": 10360377,
+  "fileCount": 152,
+  "totalBytes": 10398628,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -66,6 +66,16 @@
       "path": "public/audio/halted.mp3",
       "bytes": 20928,
       "sha256": "7ee0d0bb026fb316d12f9f964a07405b920a6c0e3820a454091ad0e1ae5d3f5b"
+    },
+    {
+      "path": "public/audio/ics_dropping_ramp.mp3",
+      "bytes": 9216,
+      "sha256": "80340b1e19816a93e77e74b65011623fbe5f6599571f1427f35674048be407c1"
+    },
+    {
+      "path": "public/audio/ics_ramp_down.mp3",
+      "bytes": 11136,
+      "sha256": "b505b286d137063948e5b28672d174b1905c4588775bc18fb1b81314a0e703d8"
     },
     {
       "path": "public/audio/insight.mp3",
@@ -274,8 +284,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 57624,
-      "sha256": "f9ce0f0dc07d5f24261dfea632f7a4e6e47898d8bc00597769b3ae67e569573e"
+      "bytes": 60495,
+      "sha256": "a4045ee1f6ab1ec3af83ea48b087a285b878e345edf0bf44711d04aed5cbe981"
     },
     {
       "path": "src/cabin-display.ts",
@@ -384,8 +394,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 130492,
-      "sha256": "be728ab68435909b709e4acb3d4e7327e83f7cbfff2992fdd987d58dc2b9905a"
+      "bytes": 131663,
+      "sha256": "c90cd5ad0b1ca6ac43f55540913570320b4368bc45e5dc0172b40bcf6e30a567"
     },
     {
       "path": "src/map-navigation.ts",
@@ -454,8 +464,13 @@
     },
     {
       "path": "src/radio-script.ts",
-      "bytes": 36189,
-      "sha256": "f489a2121ebf84e47b92d16a0435db3648c90a67de02301493c0a7362d8907e9"
+      "bytes": 36716,
+      "sha256": "102710703811c6455f565d436a2c14466af7037972bb81c145ae87e6bce3a88f"
+    },
+    {
+      "path": "src/ramp-command.ts",
+      "bytes": 1515,
+      "sha256": "e281053fb13eb01549b6c14991844bf91cd40c73ce5f086f33a0a435b7ab521b"
     },
     {
       "path": "src/range.ts",
@@ -524,8 +539,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 120474,
-      "sha256": "40da66e8a066a8979a67b28cafe82979aad8120ecff4616ebb0d0e7339e5b90d"
+      "bytes": 127376,
+      "sha256": "49f2fd1284be7d01cb1e8002b77daee2b6c4f00bbeacc4a927194fa7cac04d82"
     },
     {
       "path": "tests/cabin-display.test.ts",
@@ -714,8 +729,13 @@
     },
     {
       "path": "tests/radio-script.test.ts",
-      "bytes": 8486,
-      "sha256": "a752d4e716d36e9f8aecbc1b7f56328029be7ec3dd97b703e2955258b0326b3e"
+      "bytes": 9158,
+      "sha256": "c841d5cfe4c7da64352cfc43d923af03c6991f5e8ff1c61b74ca053c7749ccec"
+    },
+    {
+      "path": "tests/ramp-command.test.ts",
+      "bytes": 4172,
+      "sha256": "eb64cd2e1e321e5f56c5b974bab20994ae831586e48643e68c6e33eb14a70c49"
     },
     {
       "path": "tests/range.test.ts",
@@ -759,8 +779,8 @@
     },
     {
       "path": "tests/voice-continuity.test.ts",
-      "bytes": 1943,
-      "sha256": "2bdbad29bf41e78d157300c469dab2dd28c28c00e2b76cd7527976af6a576f33"
+      "bytes": 2012,
+      "sha256": "4989356ab0f46853612cd620fb5b16b4ab7f7a07fbbf24c61b227bc08c40229f"
     },
     {
       "path": "tsconfig.json",

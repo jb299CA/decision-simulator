@@ -4,10 +4,10 @@ import type { PowertrainState } from './powertrain.ts';
 import { ProceduralMusic, RenderedScore, loadScoreAsset, musicScene, type MusicFrame } from './music.ts';
 import { callsignForPair, chooseRadioCast, GUIDED_CALLSIGN, RadioNet, type RadioCast, type RadioNetCue } from './radio-net.ts';
 
-export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean; faultInspection?: boolean; transportPaused?: boolean; departureCrossed?: boolean; practiceCompleted?: boolean; recoveryReveal?: boolean; staging?: boolean; stagingTime?: number };
+export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean; faultInspection?: boolean; transportPaused?: boolean; departureCrossed?: boolean; practiceCompleted?: boolean; recoveryReveal?: boolean; staging?: boolean; stagingTime?: number; dismountPhase?: 'stowed' | 'opening' | 'unloading' | 'complete'; dismountElapsed?: number };
 export type SoundState = 'unstarted' | 'unsupported' | 'muted' | 'paused' | 'running' | 'blocked';
 
-type Cue = typeof radioScript.phase[keyof typeof radioScript.phase] | typeof radioScript.ambient[number] | typeof radioScript.recovery | RadioNetCue;
+type Cue = typeof radioScript.phase[keyof typeof radioScript.phase] | typeof radioScript.ambient[number] | typeof radioScript.recovery | typeof radioScript.crew[keyof typeof radioScript.crew] | RadioNetCue;
 type LoadJob = { cue: Cue; priority: 'current' | 'prefetch'; resolve: (buffer?: AudioBuffer) => void };
 const line = (cue: Cue): string => `${cue.speaker}: ${cue.text}`;
 export const recoveryCaption = (): string => line(radioScript.recovery);
@@ -124,6 +124,9 @@ export class SimulationAudio {
   private stagedOpening = false;
   private stagingReportPlayed = false;
   private musicFrame?: MusicFrame;
+  private crewCue?: Cue;
+  private rampDropObserved = false;
+  private rampDownObserved = false;
 
   constructor(random: () => number = Math.random, voiceRandom?: () => number) {
     this.random = random;
@@ -150,6 +153,9 @@ export class SimulationAudio {
       : '[Engine stopped · vehicle immobilized · recovery and repair required]';
     return this.speakingCaption ?? ambience(this.lastPhase, this.lastEngine, this.wasMoving, this.vehicleContext);
   }
+
+  /** Exact event caption for the HUD, including engine-off ramp deployment. */
+  get crewCaption(): string | undefined { return this.crewCue ? this.speakingCaption : undefined; }
 
   get radioActive(): boolean { return this.speakingCaption !== undefined; }
   get distantCaption(): string | undefined { return this.soundscapeTime < this.distantUntil ? this.distantIndex % 2 ? "[Distant explosions]" : "[Distant gunfire]" : undefined; }
@@ -323,6 +329,8 @@ export class SimulationAudio {
       : this.wasMoving && this.nextAmbient - this.lastTime <= 6 ? this.guidedTraffic
       : nextPhase === 'exterior' ? this.radioNet.guidedOpening : nextPhase ? radioScript.phase[nextPhase] : undefined;
     if (cue) void this.load(cue, 'prefetch');
+    // Two short local crew clips warm in the background, without delaying input.
+    if (this.drivingMode) for (const crew of Object.values(radioScript.crew)) void this.load(crew, 'prefetch');
   }
 
   private createSound(context: AudioContext): void {
@@ -641,6 +649,7 @@ export class SimulationAudio {
       this.speakingCaption = undefined;
       this.deferredVoice = undefined;
     }
+    this.updateRampCrew(vehicle);
     this.resumeCurrentVoice(false);
     if (!this.drivingMode && this.audible && !vehicle?.terminal && sim.moving && !changed && sim.time >= this.nextAmbient && sim.time >= this.ambientNotBefore && !this.voice && !this.pending && !this.speakingCaption) {
       this.queue(this.guidedTraffic);
@@ -813,7 +822,38 @@ export class SimulationAudio {
     this.shotLevels.clear();
   }
 
+  private isCrewCue(cue: Cue): boolean { return cue.id.startsWith('ics_'); }
+
+  private crewCueValid(cue: Cue): boolean {
+    if (!this.isCrewCue(cue)) return true;
+    const vehicle = this.vehicleContext, elapsed = vehicle?.dismountElapsed ?? Infinity;
+    if (!vehicle || vehicle.terminal || vehicle.breakdown || !['opening', 'unloading'].includes(vehicle.dismountPhase ?? '')) return false;
+    return cue.id === radioScript.crew.droppingRamp.id ? elapsed < 2 : elapsed >= 2 && elapsed < 4.5;
+  }
+
+  private updateRampCrew(vehicle?: VehicleAudioContext): void {
+    const active = !!vehicle && !vehicle.terminal && !vehicle.breakdown && ['opening', 'unloading'].includes(vehicle.dismountPhase ?? '');
+    if (this.crewCue && (!active || (!this.voice && !this.crewCueValid(this.crewCue)))) this.cancelVoice();
+    if (!active) return;
+    if (!this.rampDropObserved) {
+      // Consume an accepted model transition even when muted/paused. A later
+      // audio tap must not announce an already deployed ramp.
+      this.rampDropObserved = true;
+      if (!this.paused && !this.muted && !this.healthAlertSource && !this.breakdownSource && this.crewCueValid(radioScript.crew.droppingRamp)) {
+        this.cancelVoice(); this.clearQueuedLoads(); this.queue(radioScript.crew.droppingRamp);
+      }
+    }
+    if (!this.rampDownObserved && (vehicle?.dismountElapsed ?? 0) >= 2) {
+      // The response cannot interrupt the driver, radio, or higher-priority cue.
+      // Skip busy/late responses rather than accumulating dialogue after unloading.
+      this.rampDownObserved = true;
+      if (!this.paused && !this.muted && !this.voice && !this.pending && !this.speakingCaption && !this.healthAlertSource && !this.breakdownSource && this.crewCueValid(radioScript.crew.rampDown)) this.queue(radioScript.crew.rampDown);
+    }
+  }
+
   private queue(cue: Cue): void {
+    if (!this.crewCueValid(cue)) return;
+    this.crewCue = this.isCrewCue(cue) ? cue : undefined;
     // Captions also cover unsupported devices and missing/undecodable assets.
     this.speakingCaption = line(cue);
     this.captionUntil = this.lastTime + Math.max(5, cue.text.length / 13);
@@ -827,7 +867,7 @@ export class SimulationAudio {
       const pending = { cue, generation: this.generation };
       this.pending = pending;
       void this.load(cue, 'current').then(buffer => {
-        if (this.pending !== pending || pending.generation !== this.generation || !this.audible) return;
+        if (this.pending !== pending || pending.generation !== this.generation || !this.audible || !this.crewCueValid(cue)) return;
         this.pending = undefined;
         if (buffer) this.play(cue);
         else if (this.lastTime < this.captionUntil) this.deferredVoice = { cue, generation: this.generation, needsRetry: true };
@@ -848,6 +888,7 @@ export class SimulationAudio {
   }
 
   private play(cue: Cue): void {
+    if (!this.crewCueValid(cue)) return;
     const context = this.context, buffer = this.buffers.get(cue.id);
     const radio = cue.channel === 'radio';
     const input = radio ? this.radioInput : this.intercomInput;
@@ -857,6 +898,7 @@ export class SimulationAudio {
       return;
     }
     this.cancelVoice();
+    this.crewCue = this.isCrewCue(cue) ? cue : undefined;
     this.speakingCaption = line(cue);
     this.captionUntil = Infinity;
     const source = context.createBufferSource(); source.buffer = buffer; source.connect(input);
@@ -867,7 +909,7 @@ export class SimulationAudio {
     const generation = this.generation;
     source.onended = () => {
       if (this.voice !== source || generation !== this.generation) return;
-      this.voice = undefined; this.speakingCaption = undefined;
+      this.voice = undefined; this.speakingCaption = undefined; this.crewCue = undefined;
       this.cancelRadioStatic();
       source.disconnect(); this.mixPriority();
       this.ambientNotBefore = this.lastTime + 1.4;
@@ -934,6 +976,7 @@ export class SimulationAudio {
 
   private cancelVoice(): void {
     this.generation++;
+    this.crewCue = undefined;
     this.pending = undefined;
     this.deferredVoice = undefined;
     const source = this.voice;
@@ -1031,6 +1074,7 @@ export class SimulationAudio {
     this.vehicleContext = undefined;
     this.wasBroken = false;
     this.wasGuidedAlert = false;
+    this.rampDropObserved = false; this.rampDownObserved = false;
     this.shotIndex = 0;
     this.vehicleLevels.clear();
     for (const node of [this.engineGain, this.rollingGain, this.cabinGain, this.windGain, this.whineGain, this.loadGain]) if (node) this.zero(node.gain);
