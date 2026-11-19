@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 58,
+  "sourceRelease": 59,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 148,
-  "totalBytes": 10351260,
+  "totalBytes": 10351162,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -384,8 +384,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 130466,
-      "sha256": "1cbfb819903e1c34d9f229e9e668feed46139e633e8ca71a87eb065c0c266a04"
+      "bytes": 130368,
+      "sha256": "c4da86e9562ca0372d7057998ae32f70b8fe6e9b534b842cf8e2f8a3c8d92edd"
     },
     {
       "path": "src/map-navigation.ts",
