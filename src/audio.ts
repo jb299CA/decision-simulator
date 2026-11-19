@@ -101,6 +101,8 @@ export class SimulationAudio {
   private vehicleContext?: VehicleAudioContext;
   private music?: ProceduralMusic;
   private musicOn = true;
+  private homeMusic = false;
+  private homeMusicTime = 0;
 
   constructor(random: () => number = Math.random, voiceRandom: () => number = random) {
     this.random = random;
@@ -113,6 +115,8 @@ export class SimulationAudio {
   get missionCallsign(): string { return this.missionIdentity; }
 
   get musicEnabled(): boolean { return this.musicOn; }
+  /** An enabled home control must unlock playback before it can toggle off. */
+  get musicNeedsActivation(): boolean { return this.musicOn && !this.muted && this.soundState !== 'running'; }
   setMusicEnabled(enabled: boolean): void {
     this.musicOn = !!enabled;
     if (!this.musicOn) this.music?.stop();
@@ -156,8 +160,8 @@ export class SimulationAudio {
       const context = this.context;
       if (!context) return;
       // Invoke resume in the tap's synchronous call stack, even if the previous
-      // home/inspection frame is paused. The master stays silent until update
-      // observes an active exercise. Never wait for a recording before unlocking.
+      // home/inspection frame is paused. The master stays silent until a frame
+      // observes allowed playback. Never wait for a recording before unlocking.
       const activation = context.resume();
       // A deliberate retry also refreshes a stale WebKit playback category.
       // One task boundary, never a background loop or a silent media element.
@@ -435,8 +439,32 @@ export class SimulationAudio {
     this.intercomInput = intercomHigh;
   }
 
+  /** Home has its own bounded frame clock, never a simulation tick or cue queue. */
+  updateHome(delta: number, paused = false): void {
+    if (this.disposed) return;
+    if (!this.homeMusic) {
+      this.music?.stop();
+      this.cancelVoice(); this.cancelRangeShots(); this.clearQueuedLoads();
+      this.lastPhase = 'title'; this.lastTime = 0;
+      this.lastEngine = false; this.wasMoving = false; this.vehicleContext = undefined;
+      this.wasBroken = false; this.wasGuidedAlert = false; this.nextAmbient = Infinity;
+      this.drivingMode = false; this.ambientIndex = 0; this.ambientNotBefore = 0; this.captionUntil = 0;
+      this.vehicleLevels.clear();
+      for (const node of [this.engineGain, this.rollingGain, this.cabinGain, this.windGain, this.whineGain, this.loadGain]) if (node) this.zero(node.gain);
+      this.homeMusic = true; this.homeMusicTime = 0;
+    }
+    this.setPaused(paused);
+    const playing = this.audible && this.musicOn && this.context?.state === 'running';
+    if (playing && Number.isFinite(delta)) this.homeMusicTime += Math.max(0, Math.min(delta, .15));
+    if (this.master) this.master.gain.value = playing ? .48 : 0;
+    this.music?.update({ time: this.homeMusicTime, scene: 'practice', audible: playing, ducked: false });
+  }
+
   update(sim: Simulation, vehicle?: VehicleAudioContext): void {
     if (this.disposed) return;
+    if (this.homeMusic) {
+      this.music?.stop(); this.homeMusic = false; this.homeMusicTime = 0;
+    }
     if (sim.time < this.lastTime) this.restart();
     this.lastTime = sim.time;
     if (sim.paused !== this.paused) this.setPaused(sim.paused);
@@ -558,7 +586,7 @@ export class SimulationAudio {
   /** Immediate game feedback only; paused or muted shots are discarded. */
   fireRangeShot(): void {
     const context = this.context;
-    if (!this.audible || !context || context.state !== 'running' || !this.master || !this.rangeShotBuffer || this.rangeShots.size >= 4) return;
+    if (this.homeMusic || !this.audible || !context || context.state !== 'running' || !this.master || !this.rangeShotBuffer || this.rangeShots.size >= 4) return;
     const source = context.createBufferSource(); source.buffer = this.rangeShotBuffer;
     const variant = this.shotIndex++ % 3, level = [.72, .75, .69][variant]!;
     source.playbackRate.value = [.97, 1.025, 1][variant]!;
@@ -573,7 +601,7 @@ export class SimulationAudio {
   /** One immediate instrument cue; mute/pause never leaves a queued alert. */
   healthAlert(severity: 'warning' | 'critical' = 'warning'): void {
     const context = this.context;
-    if (!this.audible || !context || context.state !== 'running' || !this.master || !this.healthAlertBuffers || this.healthAlertSource) return;
+    if (this.homeMusic || !this.audible || !context || context.state !== 'running' || !this.master || !this.healthAlertBuffers || this.healthAlertSource) return;
     // Do not stack or queue annunciators. Even the longer pattern is under .5s;
     // a new state must never create an alarm backlog after pause or inspection.
     const source = context.createBufferSource(); source.buffer = this.healthAlertBuffers[severity];
@@ -784,6 +812,7 @@ export class SimulationAudio {
     this.missionIdentity = callsignForPair(this.radioNet.pair);
     this.drivingMode = false;
     this.lastPhase = 'title'; this.lastTime = 0; this.paused = false;
+    this.homeMusic = false; this.homeMusicTime = 0;
     this.ambientIndex = 0; this.nextAmbient = Infinity;
     this.wasMoving = false; this.lastEngine = false; this.ambientNotBefore = 0;
     this.vehicleContext = undefined;

@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 54,
+  "sourceRelease": 55,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 137,
-  "totalBytes": 4922999,
+  "totalBytes": 4933685,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -254,8 +254,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 43255,
-      "sha256": "260605b1ab17c0f8a0ad81aa5e4f04757ef842c95f896767d0b714fc299a951f"
+      "bytes": 44995,
+      "sha256": "736211df9b6e2d6e2c9ce299df245d3ad94161dd9c58d2c377db4de9de4b44bf"
     },
     {
       "path": "src/cabin-display.ts",
@@ -364,8 +364,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 121735,
-      "sha256": "33fc8953f784909ec31a2ef35b7fe7d147e880b245f92978c909ab8b4a5693da"
+      "bytes": 123152,
+      "sha256": "e5f9482b732e119cceac6d1426c40982de57d04aec4372b845b2d6f81189bba9"
     },
     {
       "path": "src/map-navigation.ts",
@@ -489,8 +489,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 91395,
-      "sha256": "5522efc1cf18c3a6bbedcba79e3fab26eeb83333b6587ca10c3cb0bf59987f49"
+      "bytes": 98924,
+      "sha256": "85aa5998abefb7e5976852101f8a388d96151f489bbf86ffe948fb10cd47f92e"
     },
     {
       "path": "tests/cabin-display.test.ts",
