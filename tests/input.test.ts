@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from '../src/input.ts';
+import { drivingInput, gameKeyCode, installRangeArrowCapture, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from '../src/input.ts';
 import { DrivingRange } from '../src/range.ts';
 import { RANGE_VIEWS } from '../src/mission-contract.ts';
 import type { GameKeyEvent, KeyboardTarget } from '../src/input.ts';
@@ -312,4 +312,112 @@ test('document boundary requires a fresh drive press after staging, pause and in
     dispatch('keydown', { key });
     assert.equal(cruise(), false, 'manual throttle, reverse and brake cancel Drive lock');
   }
+});
+
+
+// This harness models ancestor capture -> child -> ancestor bubble. Node has no
+// browser DOM tree; native DOM propagation remains a browser verification item.
+function arrowPhaseHarness() {
+  const listeners: { type: string; listener: EventListenerOrEventListenerObject; capture: boolean }[] = [];
+  const surface = {
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) {
+      if (listener) listeners.push({ type, listener, capture: typeof options === 'boolean' ? options : !!options?.capture });
+    },
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | EventListenerOptions) {
+      const capture = typeof options === 'boolean' ? options : !!options?.capture;
+      const index = listeners.findIndex(item => item.type === type && item.listener === listener && item.capture === capture);
+      if (index >= 0) listeners.splice(index, 1);
+    },
+  };
+  class CountedKeyboard extends RangeKeyboard {
+    downCalls = 0;
+    override down(code: string) { this.downCalls++; super.down(code); }
+  }
+  const keyboard = new CountedKeyboard();
+  const context = { inRange: true, playable: true, target: { tagName: 'MAIN' } as KeyboardTarget, blocked: false };
+  let cruiseCancellations = 0;
+  const capture = installRangeArrowCapture(surface, keyboard, () => context, () => cruiseCancellations++);
+  const dispatch = (type: 'keydown' | 'keyup', fields: GameKeyEvent, childStops = false, installCapture = true) => {
+    const event = new Event(type, { cancelable: true, bubbles: true }); Object.assign(event, fields);
+    if (installCapture) for (const entry of listeners.filter(item => item.type === type && item.capture)) {
+      if (typeof entry.listener === 'function') entry.listener(event); else entry.listener.handleEvent(event);
+    }
+    const reachedChild = true;
+    if (childStops) event.stopPropagation();
+    let reachedBubble = false;
+    if (!event.cancelBubble) {
+      reachedBubble = true;
+      if (type === 'keyup') keyboard.up(gameKeyCode(fields));
+      else if (!capture.consumed(event)) {
+        const result = routeDrivingKeyDown(event as Event & GameKeyEvent, keyboard, context);
+        if (result.cancelCruise) cruiseCancellations++;
+      }
+    }
+    return { event, reachedChild, reachedBubble };
+  };
+  return { keyboard, context, capture, listeners, dispatch, cruiseCancellations: () => cruiseCancellations };
+}
+
+test('arrow capture registers exact capture listeners and survives a child bubble interceptor', () => {
+  const baseline = arrowPhaseHarness();
+  const blocked = baseline.dispatch('keydown', { key: 'ArrowLeft' }, true, false);
+  assert.equal(blocked.reachedBubble, false);
+  assert.equal(drivingInput(baseline.keyboard, new Set()).steer, 0, 'bubble-only route loses the event in the modeled regression');
+  const fixed = arrowPhaseHarness();
+  assert.deepEqual(fixed.listeners.map(({ type, capture }) => ({ type, capture })), [{ type: 'keydown', capture: true }, { type: 'keyup', capture: true }]);
+  const received = fixed.dispatch('keydown', { key: 'ArrowLeft', code: 'ArrowLeft' }, true);
+  assert.equal(received.reachedChild, true, 'capture does not stop the child from receiving the event');
+  assert.equal(received.reachedBubble, false);
+  assert.equal(received.event.defaultPrevented, true);
+  assert.equal(drivingInput(fixed.keyboard, new Set()).steer, 1);
+  fixed.context.target = { tagName: 'INPUT', type: 'text' };
+  fixed.dispatch('keyup', { key: 'ArrowLeft', metaKey: true }, true);
+  assert.equal(fixed.keyboard.keys.size, 0, 'capture releases an owned arrow even when the new child stops keyup');
+  fixed.capture.dispose(); assert.equal(fixed.listeners.length, 0);
+});
+
+test('normal capture and bubble delivery dispatch a drive arrow exactly once', () => {
+  const { dispatch, keyboard, cruiseCancellations } = arrowPhaseHarness();
+  const event = dispatch('keydown', { key: 'ArrowUp' });
+  assert.equal(event.reachedChild, true); assert.equal(event.reachedBubble, true);
+  assert.equal(event.event.cancelBubble, false, 'capture never stops propagation');
+  assert.equal(keyboard.downCalls, 1); assert.equal(cruiseCancellations(), 1);
+  dispatch('keydown', { key: 'ArrowUp', repeat: true });
+  assert.equal(keyboard.downCalls, 1); assert.equal(cruiseCancellations(), 1);
+  dispatch('keyup', { key: 'ArrowUp' }); assert.equal(keyboard.keys.size, 0);
+  keyboard.clear(); dispatch('keydown', { key: 'ArrowUp', repeat: true });
+  assert.equal(keyboard.keys.size, 0, 'a cleared hold cannot reacquire on repeat');
+});
+
+test('arrow capture leaves dialogs, staging, shortcuts and native arrow owners alone', () => {
+  for (const state of [{ inRange: false }, { playable: false }, { blocked: true }, { target: { tagName: 'INPUT', type: 'text' } }, { target: { editable: true } }, { target: { ownsArrowKeys: true } }]) {
+    const { context, dispatch, keyboard } = arrowPhaseHarness();
+    Object.assign(context, state);
+    const { event } = dispatch('keydown', { key: 'ArrowLeft' }, true);
+    assert.equal(event.defaultPrevented, false);
+    assert.equal(keyboard.keys.size, 0);
+  }
+  for (const modifiers of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }]) {
+    const { dispatch, keyboard } = arrowPhaseHarness();
+    assert.equal(dispatch('keydown', { key: 'ArrowLeft', ...modifiers }, true).event.defaultPrevented, false);
+    assert.equal(keyboard.keys.size, 0);
+  }
+  const { dispatch, keyboard } = arrowPhaseHarness();
+  assert.equal(dispatch('keydown', { key: 'w' }, true).event.defaultPrevented, false, 'capture is arrow-only');
+  assert.equal(keyboard.keys.size, 0);
+});
+
+
+test('collapsed minimap launch control permits driving arrows; expanded map owns its navigation', () => {
+  const collapsed = arrowPhaseHarness();
+  collapsed.context.target = { tagName: 'DIV', ownsArrowKeys: false }; // collapsed .map-content role=button
+  assert.equal(collapsed.dispatch('keydown', { key: 'ArrowLeft' }).event.defaultPrevented, true);
+  assert.equal(drivingInput(collapsed.keyboard, new Set()).steer, 1);
+  const expanded = arrowPhaseHarness();
+  expanded.context.target = { tagName: 'svg', ownsArrowKeys: true }; // expanded map's keyboard pan surface
+  assert.equal(expanded.dispatch('keydown', { key: 'ArrowLeft' }, true).event.defaultPrevented, false);
+  assert.equal(expanded.keyboard.keys.size, 0, 'native map arrows remain owned even under stale playable context');
+  expanded.context.playable = false; expanded.context.blocked = true;
+  assert.equal(expanded.dispatch('keydown', { key: 'ArrowLeft' }).event.defaultPrevented, false);
+  assert.equal(expanded.keyboard.keys.size, 0);
 });
