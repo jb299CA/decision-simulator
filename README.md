@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 55 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 56 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -106,3 +106,5 @@ Release 53 removes the duplicate practice/speed/hull HUD strip and its unused st
 Release 54 removes the added Stryker rear bumper bar and callsign plate from every shared vehicle view. The marking module and its four obsolete tests are retired. Ramp operation and radio/display callsigns remain. All 322 remaining tests, TypeScript and production build pass. This supersedes the release 45 bumper feature.
 
 Release 55 plays the existing subtle theme on the home screen using a separate bounded clock. Play music enables browser audio on the first tap; music and master mute preferences are preserved. Home blur/hidden state suspends playback, and an allowed return tap resumes it without catchup. Mission transitions cancel the previous score and pending speech; home does not advance the simulation or play vehicle sounds. All 327 tests, TypeScript and production build pass. Actual browser/device listening remains unverified.
+
+Release 56 replaces the edge pause banner with a centered native pause menu, dim backdrop and large Resume button. P and Escape resume it. Blur clears held controls without imposing pause. Hidden pages suspend frames/audio and restore prior manual state on return without catchup; explicit pause and open inspections retain their state. This supersedes earlier automatic-away pause behavior. All 328 tests, TypeScript and production build pass. Browser interaction remains unverified.

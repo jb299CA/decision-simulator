@@ -28,7 +28,6 @@ let lastSoundState: SimulationAudio['soundState'] | undefined;
 const range = new DrivingRange();
 type Mode = 'home' | 'mission' | 'range';
 let mode: Mode = 'home';
-let homeAudioSuspended = false;
 let rangeView: RangeView = 'chase';
 const cabinDisplay = new CabinDisplayState();
 const keyboard = new RangeKeyboard();
@@ -85,10 +84,9 @@ let lastSampleCount = -1;
 let lastSampleTime = -1;
 let previousFrame = performance.now();
 const playbackFocus = new PlaybackFocus({
-  state: () => ({ active: mode !== 'home', paused: isPaused(), hidden: document.hidden, blocked: playbackBlocked() }),
-  pause: () => setPaused(true, 'away'),
-  resume: () => setPaused(false),
-  activateSound: () => activateSound(),
+  clearInputs: () => { cancelMapGesture(); clearRangeInputs(); },
+  resetFrame: () => { previousFrame = performance.now(); },
+  syncAudio: () => { audio.setPaused(audioPaused()); syncSoundControls(); },
 });
 
 const arrow = '<span aria-hidden="true">↗</span>';
@@ -114,14 +112,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </header>
     <nav class="chapter-rail" aria-label="Exercise progress">${chapters.map((name, i) => `<span class="chapter" data-chapter="${i}"><i>${String(i + 1).padStart(2, '0')}</i><span>${name}</span></span>`).join('')}</nav>
     <main id="stage" tabindex="-1"></main>
-    <div class="pause-banner" id="pause-banner" hidden><span>Ⅱ</span><div><b>Exercise paused</b><small>Scene, telemetry and sound are held.</small></div><button data-action="pause">Resume ${arrow}</button></div>
+    <dialog class="pause-menu" id="pause-banner" aria-labelledby="pause-title" aria-describedby="pause-description"><img src="/branding/shift5-logo.svg" alt="Shift5"><span class="eyebrow">MISSION SIMULATOR</span><h2 id="pause-title">Paused</h2><p id="pause-description">Scene, telemetry and sound are held.</p><button class="pause-resume" data-action="pause" autofocus><span aria-hidden="true">&#9654;</span> Resume</button><small>Press <kbd>P</kbd> to resume</small></dialog>
     <footer class="bottom-bar"><div class="caption"><span class="caption-label">CREW / SYSTEM</span><span id="caption" role="status" aria-live="polite"></span></div><div class="exercise-label"><span class="tiny-cross">+</span> TRAINING RUN <span id="elapsed">00:00</span></div></footer>
   </div>
   <dialog id="evidence-dialog" aria-labelledby="evidence-title"><div class="dialog-header"><div><span class="eyebrow">Vehicle readings</span><h2 id="evidence-title">Charging-system readings</h2></div><button data-action="close-evidence" class="close-button" aria-label="Close evidence">×</button></div><p>These readings are generated for this exercise. Compare output with electrical load, engine state and the time of each reading. Output alone does not confirm a failed alternator.</p><div class="evidence-chart" id="detail-chart"></div><div class="evidence-facts"><div><span>Readings from</span><b>Existing vehicle / MFoCS access</b></div><div><span>Prepared by</span><b>Manifold &rarr; Turbine</b></div><div><span>Assessment</span><b>Suspected charging-system fault</b></div></div><div class="sample-table-wrap"><table><caption>Latest training readings &middot; illustrative values</caption><thead><tr><th>Exercise time</th><th>Voltage¹</th><th>Load</th><th>Engine</th><th>Reading status</th></tr></thead><tbody id="sample-table"></tbody></table></div><p class="fine-print">¹ Illustrative volts. This is an explanatory product demonstration, with no live vehicle connection or verified integration. No maintenance or wiring procedure is provided.</p><div class="dialog-transport"><p id="dialog-caption" role="status" aria-live="polite"></p><div class="dialog-controls" aria-label="Simulation controls"><button data-action="mute" aria-pressed="false">Sound</button><button data-action="pause" aria-pressed="false">Pause / resume</button><button data-action="motion" aria-pressed="false">Reduced motion</button><button data-action="restart">Restart</button></div></div><button class="primary-button" data-action="close-evidence">Return to exercise ${arrow}</button></dialog>
 `;
 
 const stage = document.querySelector<HTMLElement>('#stage')!;
-const pauseBanner = document.querySelector<HTMLElement>('#pause-banner')!;
+const pauseBanner = document.querySelector<HTMLDialogElement>('#pause-banner')!;
 let scene: Pick<VehicleScene, 'update' | 'updateRange' | 'resize' | 'dispose' | 'setViewMode' | 'setGunnerDisplay'> & { createInspectionModel(): import('three').Group | null };
 try {
   scene = new VehicleScene(document.querySelector<HTMLElement>('#scene')!);
@@ -221,7 +219,7 @@ function openMap(): void {
 
 function closeMap(): void {
   if (!mapInspection.open) return;
-  const paused = mapInspection.end(keyboard, document.hidden);
+  const paused = mapInspection.end(keyboard);
   cancelMapGesture();
   mapDialog.close();
   clearRangeInputs();
@@ -344,7 +342,7 @@ function openHealth(): void {
 
 function closeHealth(): void {
   if (!healthInspection.open) return;
-  const paused = healthInspection.end(keyboard, document.hidden);
+  const paused = healthInspection.end(keyboard);
   healthInspector?.dispose(); healthInspector = null;
   healthDialog.close();
   document.body.classList.remove('health-inspecting');
@@ -505,7 +503,6 @@ function renderRange(): void {
     <div class="range-controls-tray"><button class="range-controls-toggle" data-action="range-controls" aria-expanded="false" aria-controls="range-controls">Controls</button><section id="range-controls" class="range-controls" aria-label="Driving and weapon controls" hidden inert><div class="range-key-guide"><span><b>WASD / ARROWS</b> drive &middot; <b>SPACE</b> accelerate</span><span><b>Q / E</b> aim &middot; <b>F</b> fire &middot; <b>R</b> drop ramp &middot; <b>P</b> pause &middot; <b>M</b> mute</span><span>Fictional contacts may reduce vehicle integrity</span></div><div class="range-control-row"><div id="drive-stick" class="touch-stick" role="group" aria-label="Thumb drive stick: drag up to drive, down to reverse, left or right to steer"><span class="stick-direction stick-forward" aria-hidden="true">FORWARD</span><span class="stick-direction stick-reverse" aria-hidden="true">REVERSE</span><span class="stick-knob" aria-hidden="true"></span><span class="stick-hint" aria-hidden="true">DRAG TO DRIVE</span></div><div class="drive-pad" aria-label="Drive controls"><button data-hold="left" aria-label="Steer left">&#9664;</button><div class="drive-longitudinal"><button data-hold="forward" aria-label="Hold to drive forward">&#9650;<small>FORWARD</small></button><button data-hold="reverse" aria-label="Hold to reverse">&#9660;<small>REVERSE</small></button></div><button data-hold="right" aria-label="Steer right">&#9654;</button><div class="drive-toggles"><button data-action="cruise" id="cruise-toggle" aria-pressed="false">Drive lock<small>TAP TO CRUISE</small></button><button data-hold="accelerate" class="accelerate-button" aria-label="Hold to accelerate">Accelerate<small>HOLD / SPACE</small></button></div></div><div class="weapon-controls"><label for="range-aim-input"><span id="range-lock" class="aim-lock-status" role="status" aria-live="polite">AUTO AIM / READY</span><input id="range-aim-input" type="range" min="-1" max="1" value="0" step=".01" aria-label="Weapon rotation, springs back when released"></label><div class="weapon-actions"><button class="center-aim-button" data-action="center-aim">Center aim</button><button class="mobile-accelerate-button" data-hold="accelerate" aria-label="Hold to accelerate">ACCEL</button><button class="fire-button" data-hold="fire">FIRE<small>HOLD &middot; .50 CAL</small></button></div></div></div></section></div>
     <section id="range-result" class="range-result" role="status" hidden><span class="eyebrow">MISSION RESULT</span><h2 id="range-result-title"></h2><p id="range-result-detail"></p><div>${button('Review debrief', 'review-debrief')}${button('Restart mission', 'restart', true)}${button('Main menu', 'menu', true)}</div></section>
     <p class="range-fiction">Fictional, non-graphic game combat &middot; no operational ballistics</p>`;
-  stage.querySelector('.range-edge-controls')!.append(pauseBanner);
   syncRangeControls();
   syncGunnerDisplay();
   syncSpeedometerView();
@@ -515,9 +512,6 @@ function renderRange(): void {
 function render(): void {
   closeMap();
   setRangeDrawer(false);
-  // Preserve the same pause control when replacing the range HUD or returning
-  // to the guided exercise, which keeps its original pause presentation.
-  document.querySelector('.app-shell')!.append(pauseBanner);
   guidedLayoutObserver?.disconnect(); guidedLayoutObserver = null;
   guidedInspector?.dispose(); guidedInspector = null;
   const p = sim.phase;
@@ -768,7 +762,7 @@ function updateRangeLive(): void {
 }
 
 function isPaused(): boolean { return mode === 'range' ? range.paused : sim.paused; }
-function audioPaused(): boolean { return mode === 'home' ? homeAudioSuspended || document.hidden : isPaused(); }
+function audioPaused(): boolean { return document.hidden || (mode !== 'home' && isPaused()); }
 
 function clearRangeInputs(): void {
   keyboard.clear();
@@ -827,7 +821,6 @@ function syncSoundControls(): void {
 
 /** Keep context activation in the original click/key gesture, before any await. */
 function activateSound(retryOutput = false): void {
-  if (mode === 'home' && !document.hidden) homeAudioSuspended = false;
   audio.setPaused(audioPaused());
   void audio.start(retryOutput).then(syncSoundControls, syncSoundControls);
   syncSoundControls();
@@ -843,22 +836,18 @@ function syncControls(): void {
   document.querySelector('#music-label')!.textContent = audio.musicEnabled ? 'Music on' : 'Music off';
   document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-pressed', String(paused)); el.disabled = mode === 'home' || healthInspection.open || mapInspection.open; });
   document.querySelector('#pause-label')!.textContent = paused ? 'Resume' : 'Pause';
-  document.body.dataset.awayPaused = String(playbackFocus.pausedWhileAway);
-  const pauseDescription = playbackFocus.pausedWhileAway ? 'Paused while away. Resume exercise' : paused ? 'Resume exercise (P)' : 'Pause exercise (P)';
+  const pauseDescription = paused ? 'Resume exercise (P)' : 'Pause exercise (P)';
   document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-label', pauseDescription); el.title = pauseDescription; });
-  pauseBanner.querySelector('b')!.textContent = playbackFocus.pausedWhileAway ? 'Paused while away' : 'Exercise paused';
-  pauseBanner.querySelector('small')!.textContent = playbackFocus.pausedWhileAway ? 'Resume, tap the scene or press a driving key to return.' : 'Scene, telemetry and sound are held.';
   document.querySelector('#pause-icon')!.textContent = paused ? '▷' : 'Ⅱ';
   document.querySelectorAll<HTMLButtonElement>('[data-action="motion"]').forEach(el => el.setAttribute('aria-pressed', String(reducedMotion)));
-  document.querySelector<HTMLElement>('#pause-banner')!.hidden = mode === 'home' || !paused || healthInspection.open || mapInspection.open || (mode === 'range' && range.missionEnded);
+  syncPauseMenu();
   const terminalRange = mode === 'range' && range.missionEnded;
   const dismounting = mode === 'range' && range.dismounting;
   stage.querySelectorAll<HTMLButtonElement>('button').forEach(el => {
     const name = el.dataset.action ?? '';
     const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
-    const returnControl = playbackFocus.pausedWhileAway && el.hasAttribute('data-hold');
-    el.disabled = (!transport && !viewControl && !returnControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
+    el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
@@ -867,12 +856,14 @@ function syncControls(): void {
   syncSoundControls();
 }
 
-function playbackBlocked(): boolean {
-  return healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open || (mode === 'range' ? range.missionEnded || range.dismounting : sim.phase === 'debrief');
+/** Native modal focus keeps movement controls inactive until deliberate Resume. */
+function syncPauseMenu(): void {
+  const show = mode !== 'home' && isPaused() && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !evidenceOpen && !dialog.open && !(mode === 'range' && range.missionEnded);
+  if (show && !pauseBanner.open) pauseBanner.showModal();
+  else if (!show && pauseBanner.open) pauseBanner.close();
 }
 
-function setPaused(value: boolean, cause: 'explicit' | 'away' = 'explicit'): void {
-  if (cause === 'explicit') playbackFocus.takePauseOwnership();
+function setPaused(value: boolean): void {
   clearRangeInputs();
   if (mode === 'range') range.paused = value; else sim.paused = value;
   previousFrame = performance.now();
@@ -880,7 +871,6 @@ function setPaused(value: boolean, cause: 'explicit' | 'away' = 'explicit'): voi
 }
 
 async function action(name: string): Promise<void> {
-  if (name === 'restart' || name === 'begin') playbackFocus.takePauseOwnership();
   if (name === 'range-controls' && mode === 'range') {
     if (healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open) return;
     rangeControlsExpanded = !rangeControlsExpanded;
@@ -946,7 +936,6 @@ async function action(name: string): Promise<void> {
     updateRangeLive(); syncControls(); return;
   }
   if (name === 'menu') {
-    playbackFocus.takePauseOwnership();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset();
@@ -960,7 +949,6 @@ async function action(name: string): Promise<void> {
     previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return;
   }
   if (name === 'start-range' || (name === 'restart' && mode === 'range')) {
-    playbackFocus.takePauseOwnership();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset(); selectedFault = 'charging';
@@ -1054,7 +1042,7 @@ async function action(name: string): Promise<void> {
   if (name === 'evidence') {
     clearRangeInputs();
     document.querySelector('#detail-chart')!.innerHTML = chart(true);
-    renderEvidenceRows(); updateCharts(); evidenceOpen = true; dialog.showModal(); return;
+    renderEvidenceRows(); updateCharts(); evidenceOpen = true; syncPauseMenu(); dialog.showModal(); return;
   }
   if (name === 'close-evidence') { dialog.close(); return; }
   if ((sim.paused && mode !== 'home') || document.hidden) return;
@@ -1105,6 +1093,14 @@ document.addEventListener('keydown', event => {
       return;
     }
   }
+  if (pauseBanner.open) {
+    const code = gameKeyCode(event);
+    if ((code === 'KeyP' || code === 'Escape') && !event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault(); void action('pause');
+    }
+    // Native Enter/Space activation and Tab focus stay within the Resume dialog.
+    return;
+  }
   if (gameKeyCode(event) === 'Escape' && mapInspection.open) { event.preventDefault(); closeMap(); return; }
   if ((gameKeyCode(event) === 'Enter' || gameKeyCode(event) === 'Space') && event.target instanceof HTMLElement && event.target.matches('.map-content')) { event.preventDefault(); openMap(); return; }
   if (gameKeyCode(event) === 'Escape' && rangeDrawerInspection.open) { event.preventDefault(); setRangeDrawer(false); return; }
@@ -1116,9 +1112,6 @@ document.addEventListener('keydown', event => {
   const code = gameKeyCode(event);
   if (DRIVE_CODES.has(code) && event.repeat) { event.preventDefault(); return; }
   const nativeSpace = code === 'Space' && gameFocus.nativeSpace(event.target instanceof HTMLElement && !!event.target.closest('button[data-action], summary'));
-  // Fresh movement resumes an away pause and then enters normal driving below.
-  // The old held input was cleared on blur; F/aim and repeats cannot wake play.
-  if (mode === 'range' && !nativeSpace) playbackFocus.resumeFromMovement(code, event.repeat);
   if (code === 'KeyM' && !event.repeat) { event.preventDefault(); void action('mute'); return; }
   if (code === 'KeyP' && !event.repeat) { event.preventDefault(); void action('pause'); return; }
   if (mode === 'range') {
@@ -1196,7 +1189,7 @@ function setRangeDrawer(open: boolean): void {
       drawerBackground.set(element, element.inert); element.inert = true;
     });
   }
-  else setPaused(rangeDrawerInspection.end(keyboard, document.hidden));
+  else setPaused(rangeDrawerInspection.end(keyboard));
   document.body.classList.toggle('range-drawer-open', open);
   document.querySelector('[data-action="range-drawer"]')?.setAttribute('aria-expanded', String(open));
   if (open) document.querySelector<HTMLElement>('.range-drawer-heading button')?.focus({ preventScroll: true });
@@ -1209,26 +1202,7 @@ function setRangeDrawer(open: boolean): void {
   }
 }
 
-function resumeFromPlayPointer(event: MouseEvent): boolean {
-  if (event.button !== 0) return false;
-  const element = event.target instanceof Element ? event.target : null;
-  const driveControl = element?.closest('[data-hold], #drive-stick');
-  if (!driveControl && element?.closest('button, input, a, summary, dialog, [data-action], [role="dialog"]')) return false;
-  return playbackFocus.resumeFromGesture();
-}
-
-document.addEventListener('pointerdown', event => {
-  gameFocus.usePointer();
-  if (!resumeFromPlayPointer(event)) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-}, { capture: true });
-// A click is also a deliberate return gesture when a browser used the initial
-// pointer event to restore tab/iframe focus before dispatching this click.
-document.addEventListener('click', event => {
-  if (!resumeFromPlayPointer(event)) return;
-  event.preventDefault(); event.stopImmediatePropagation();
-}, { capture: true });
+document.addEventListener('pointerdown', () => { gameFocus.usePointer(); }, { capture: true });
 document.addEventListener('pointerdown', event => {
   if (!rangePlayable() || event.button !== 0) return;
   const element = event.target instanceof Element ? event.target : null;
@@ -1280,8 +1254,10 @@ document.addEventListener('lostpointercapture', releasePointer);
 
 document.addEventListener('input', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') aimInput = -Number(event.target.value); });
 document.addEventListener('change', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') { aimInput = 0; event.target.value = '0'; } });
-window.addEventListener('blur', suspendPage);
-dialog.addEventListener('close', () => { evidenceOpen = false; });
+// Clicking away releases controls without changing the user's Pause choice.
+window.addEventListener('blur', () => playbackFocus.blur());
+dialog.addEventListener('close', () => { evidenceOpen = false; syncPauseMenu(); });
+pauseBanner.addEventListener('cancel', event => { event.preventDefault(); void action('pause'); });
 mapDialog.addEventListener('cancel', event => { event.preventDefault(); closeMap(); });
 mapDialog.addEventListener('click', event => {
   if (event.target !== mapDialog) return;
@@ -1291,7 +1267,7 @@ mapDialog.addEventListener('click', event => {
 healthDialog.addEventListener('cancel', event => { event.preventDefault(); closeHealth(); });
 debriefDialog.addEventListener('cancel', event => { event.preventDefault(); closeDebrief(); });
 document.addEventListener('fullscreenchange', () => { document.querySelector('[data-action="fullscreen"]')?.setAttribute('aria-pressed', String(!!document.fullscreenElement)); scene.resize(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) suspendPage(); previousFrame = performance.now(); });
+document.addEventListener('visibilitychange', () => { playbackFocus.visibilityChanged(); syncHealthPulse(); });
 motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
 // Measure captions rather than assuming a fixed height: long cues and phone text scaling
 // must reserve their real space below the persistent action.
@@ -1299,18 +1275,10 @@ const captionBar = document.querySelector<HTMLElement>('.bottom-bar')!;
 const captionObserver = new ResizeObserver(() => { document.documentElement.style.setProperty('--caption-height', `${Math.ceil(captionBar.getBoundingClientRect().height)}px`); });
 captionObserver.observe(captionBar);
 window.addEventListener('resize', () => { cancelMapGesture(); clearRangeInputs(); if (!window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)').matches) setRangeDrawer(false); scene.resize(); });
-function suspendPage(): void {
-  cancelMapGesture();
-  healthInspection.interrupt(); mapInspection.interrupt(); rangeDrawerInspection.interrupt();
-  clearRangeInputs();
-  playbackFocus.suspend();
-  if (mode === 'home') { homeAudioSuspended = true; audio.setPaused(true); syncSoundControls(); }
-  previousFrame = performance.now();
-}
 const pageLifecycle = new PageLifecycle({
-  suspend: suspendPage,
+  suspend() { playbackFocus.visibilityChanged(); audio.setPaused(true); },
   dispose() { captionObserver.disconnect(); guidedLayoutObserver?.disconnect(); healthInspector?.dispose(); guidedInspector?.dispose(); audio.dispose(); scene.dispose(); },
-  restorePaused() { suspendPage(); scene.resize(); },
+  restore() { playbackFocus.visibilityChanged(); scene.resize(); },
 });
 window.addEventListener('pagehide', event => pageLifecycle.hide(event.persisted));
 window.addEventListener('pageshow', event => pageLifecycle.show(event.persisted));
@@ -1318,7 +1286,9 @@ window.addEventListener('pageshow', event => pageLifecycle.show(event.persisted)
 function frame(now: number): void {
   const delta = Math.max(0, Math.min((now - previousFrame) / 1000, .15));
   previousFrame = now;
-  const active = !isPaused() && !document.hidden;
+  // Browsers may suspend hidden frames. Never replay that wall time or audio.
+  if (document.hidden) { requestAnimationFrame(frame); return; }
+  const active = !isPaused();
   if (mode === 'range') {
     if (active) range.tick(delta, rangeInput());
     outcomeReveal.update(range.debrief, delta, active && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open);

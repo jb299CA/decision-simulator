@@ -28,20 +28,18 @@ export function permitsGameKeys(target: KeyboardTarget, modifiers: { ctrlKey?: b
   return tag !== 'textarea' && tag !== 'select' && (tag !== 'input' || target.type === 'range');
 }
 
-/** Inspection owns focus and pauses time; blur/visibility loss can only hold the pause. */
+/** Deliberate inspection pauses time and restores the preceding manual state. */
 export class RangeInspection {
   open = false;
   private previouslyPaused = false;
-  private interrupted = false;
   begin(paused: boolean, keyboard: RangeKeyboard): void {
     if (this.open) return;
-    this.open = true; this.previouslyPaused = paused; this.interrupted = false;
+    this.open = true; this.previouslyPaused = paused;
     keyboard.clear();
   }
-  interrupt(): void { if (this.open) this.interrupted = true; }
-  end(keyboard: RangeKeyboard, hidden = false): boolean {
+  end(keyboard: RangeKeyboard): boolean {
     keyboard.clear();
-    const paused = this.previouslyPaused || this.interrupted || hidden;
+    const paused = this.previouslyPaused;
     this.open = false;
     return paused;
   }
