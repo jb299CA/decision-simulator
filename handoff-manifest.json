@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 63,
+  "sourceRelease": 64,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 152,
-  "totalBytes": 10402498,
+  "fileCount": 154,
+  "totalBytes": 10429230,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -363,6 +363,11 @@
       "sha256": "9e023bd5613bb904fe21c8999b3c20985a6d86b41bef225a3e1a0c33f30ba2bb"
     },
     {
+      "path": "src/guided-exercise.ts",
+      "bytes": 5195,
+      "sha256": "cf8344cb2324eb4fd959182b97e2869b041a0c787a60e5885faa5c07a9cffe8a"
+    },
+    {
       "path": "src/gun-truck.ts",
       "bytes": 4327,
       "sha256": "0b71d1f838d28987b7b3e62d4c92a4d9ec7f86539057967c9a8683d3a72ced5b"
@@ -394,8 +399,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 131663,
-      "sha256": "c90cd5ad0b1ca6ac43f55540913570320b4368bc45e5dc0172b40bcf6e30a567"
+      "bytes": 134283,
+      "sha256": "e252bdc9390d924bcc89f9e5a99e4777110f6eaf856b1a0e957ff9f35847448a"
     },
     {
       "path": "src/map-navigation.ts",
@@ -494,8 +499,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 207517,
-      "sha256": "49060b92338b5dca69fd8da2108fde4c8942633dff196eabce4bdde4192e587d"
+      "bytes": 221128,
+      "sha256": "4603933c4f274315a112a720f53a5726c32fdccd95253a16d2e28d33fc6a2b1c"
     },
     {
       "path": "src/target-debris.ts",
@@ -631,6 +636,11 @@
       "path": "tests/guided-camera.test.ts",
       "bytes": 2611,
       "sha256": "1a9a57c7e2c8297d518cbccef7369dddd3b14a9bc6a0870bd42d142e0a042f24"
+    },
+    {
+      "path": "tests/guided-exercise.test.ts",
+      "bytes": 5306,
+      "sha256": "4671a17526bf6cc66f6e8b26be2755589a1308586339097d884cd945b537fee7"
     },
     {
       "path": "tests/gun-truck.test.ts",
