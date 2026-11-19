@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 53,
+  "sourceRelease": 54,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 139,
-  "totalBytes": 4934095,
+  "fileCount": 137,
+  "totalBytes": 4922999,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -258,11 +258,6 @@
       "sha256": "260605b1ab17c0f8a0ad81aa5e4f04757ef842c95f896767d0b714fc299a951f"
     },
     {
-      "path": "src/bumper-marking.ts",
-      "bytes": 4239,
-      "sha256": "4e2fa923fd009c664e3b90a6b4e87203fbc828ff27a4d4948207b443af5a5129"
-    },
-    {
       "path": "src/cabin-display.ts",
       "bytes": 4458,
       "sha256": "fc0a39e2400991f51a7d18625d6192d97e03646aaf083156bff86452c3df6f1f"
@@ -439,8 +434,8 @@
     },
     {
       "path": "src/scene.ts",
-      "bytes": 75061,
-      "sha256": "5e64e101afbc30a03511494093ab7f31c21f1ac8924078019cdb512d0077ac6b"
+      "bytes": 74764,
+      "sha256": "5287b591594d0e114e857bb79c0c293f953ac3308799a6c87f00b694b574088e"
     },
     {
       "path": "src/simulation.ts",
@@ -496,11 +491,6 @@
       "path": "tests/audio.test.ts",
       "bytes": 91395,
       "sha256": "5522efc1cf18c3a6bbedcba79e3fab26eeb83333b6587ca10c3cb0bf59987f49"
-    },
-    {
-      "path": "tests/bumper-marking.test.ts",
-      "bytes": 6560,
-      "sha256": "9bdca2f09e3f53c7de2c4c2a195e46d048d669188342a995ddf29500ce869bec"
     },
     {
       "path": "tests/cabin-display.test.ts",
