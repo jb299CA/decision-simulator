@@ -20,7 +20,8 @@ import { escapeHtml, exerciseTime, missionDebriefMarkup, missionDebriefTitle, se
 import { WORLD_BOUNDS, MISSION_ROUTE, MISSION_START, DEPARTURE_Z, POINTS_OF_INTEREST, SIDE_ROADS } from './world-config';
 import { contactVisibility, mapHeading, mapPoint, mapWorldPoint, objectivePointer, PLAYER_MARKER_PATH } from './mission-map';
 import { clientMapPoint, MapNavigation } from './map-navigation';
-import { drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from './input';
+import { drivingInput, installRangeArrowCapture, gameKeyCode, permitsGameKeys, rangeViewForKey, routeDrivingKeyDown, RangeInspection, RangeKeyboard } from './input';
+import { CHECK_KEYS, KeyboardCheck, keyboardCheckMarkup } from './keyboard-check';
 import { GameFocusOwnership, nextTrappedFocus } from './ui-focus';
 import { PageLifecycle } from './page-lifecycle';
 import { PlaybackFocus } from './playback-focus';
@@ -42,6 +43,7 @@ let rangeView: RangeView = 'chase';
 const cabinDisplay = new CabinDisplayState();
 const keyboard = new RangeKeyboard();
 const gameFocus = new GameFocusOwnership();
+const keyboardCheck = new KeyboardCheck();
 const touchStick = new TouchStick();
 const rangeDrawerInspection = new RangeInspection();
 let drawerReturnFocus: HTMLElement | null = null;
@@ -544,7 +546,7 @@ function resetGunnerDisplay(): void {
 
 function renderRange(): void {
   rangeControlsExpanded = false;
-  stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="mission-recap" aria-labelledby="mission-recap-title"><div class="mission-recap-header"><span>FRONT RANGE / TRAINING ORDERS</span><img src="/branding/shift5-logo.svg" alt="Shift5"></div><h3 id="mission-recap-title">MISSION BRIEFING</h3><p class="mission-recap-copy">${escapeHtml(missionBriefingText(range.callsign))}</p></section><section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">${escapeHtml(range.callsign)} / ASSIGNED MISSION</span><h1>Deliver the squad.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
+  stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="mission-recap" aria-labelledby="mission-recap-title"><div class="mission-recap-header"><span>FRONT RANGE / TRAINING ORDERS</span><img src="/branding/shift5-logo.svg" alt="Shift5"></div><h3 id="mission-recap-title">MISSION BRIEFING</h3><p class="mission-recap-copy">${escapeHtml(missionBriefingText(range.callsign))}</p></section>${keyboardCheckMarkup()}<section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">${escapeHtml(range.callsign)} / ASSIGNED MISSION</span><h1>Deliver the squad.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
     <div class="range-drawer-settings"><section class="range-status-details" aria-label="Current alerts"><p id="range-health-detail"></p><p id="range-contact-detail"></p><p id="range-event-detail"></p></section><p>Hold ACCEL or Space to accelerate; release to coast. Hold B to brake; release to disengage. Drag the left stick to drive and steer. Hold S / down or pull the stick back to slow, then reverse. Auto aim slews toward nearby targets ahead. Wait for the lock before firing; shots follow the barrel while it turns. Hold FIRE to shoot; the aim slider or Q / E temporarily takes manual control.</p><p>Clear the contacts, stop inside the marked dismount zone, then select Drop ramp or press R to unload the nine-person squad. Outside zone = mission failure. The ramp command commits the unload.</p><div><button data-action="sound-retry">Enable / retry sound</button><button class="drawer-music-control" data-action="music" aria-pressed="${audio.musicEnabled}">Music: ${audio.musicEnabled ? 'on' : 'off'}</button><button data-action="aim-assist" aria-pressed="${range.aimAssistEnabled}">Auto aim: ${range.aimAssistEnabled ? 'on' : 'off'}</button><button data-action="motion" aria-pressed="${reducedMotion}">Reduced motion</button><button data-action="fullscreen">Fullscreen</button><button data-action="restart">Restart mission</button><button data-action="menu">Main menu</button></div><p class="sound-help">Sound on but silent? Enable / retry sound refreshes the audio output and returns to the exercise. On iPhone, check media volume and the selected speaker or headphones.</p><p>Fictional game handling and combat. Simulated speed limits: road 60 mph, grass 45, wash 25, rock 18, reverse 10. Terrain and vehicle faults can reduce the current limit. These are game settings, not operational guidance. No operational procedures or ballistics.</p></div></aside>
     <div class="range-instrument-stack">
     <section class="range-speedometer" aria-label="Simulated vehicle speed" hidden><div class="speedometer-reading"><strong id="speedometer-speed">0</strong><span>MPH <b id="speedometer-direction" hidden>REV</b></span><small>SIM</small></div><div class="speedometer-limit"><span>LIMIT <b id="speedometer-limit">60</b></span><small id="speedometer-reason">Road</small></div><div class="speedometer-track" aria-hidden="true"><span id="speedometer-progress"></span></div></section>
@@ -585,6 +587,7 @@ function updateBriefing(): void {
 }
 
 function render(): void {
+  keyboardCheck.reset();
   closeMap();
   setRangeDrawer(false);
   guidedLayoutObserver?.disconnect(); guidedLayoutObserver = null;
@@ -950,7 +953,7 @@ function syncControls(): void {
   const dismounting = mode === 'range' && range.dismounting;
   stage.querySelectorAll<HTMLButtonElement>('button').forEach(el => {
     const name = el.dataset.action ?? '';
-    const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
+    const transport = ['restart', 'menu', 'map', 'review-debrief', 'range-drawer', 'range-controls', 'aim-assist', 'motion', 'fullscreen', 'mute', 'sound-retry', 'music', 'pause', 'keyboard-check-start'].includes(name) || name.startsWith('range-view-') || name.startsWith('gunner-');
     const viewControl = ['display-focus', 'display-toggle', 'view', 'evidence', 'health'].includes(name) || name.startsWith('guided-sensor-') || !!el.closest('.vehicle-inspector');
     el.disabled = (!transport && !viewControl && mode !== 'home' && (paused || terminalRange || dismounting || missionStaging.active)) || (name === 'halt' && !sim.alert) || (name === 'start-range' && !graphicsAvailable);
   });
@@ -977,6 +980,11 @@ function setPaused(value: boolean): void {
 }
 
 async function action(name: string): Promise<void> {
+  if (name === 'keyboard-check-start' && mode === 'range' && rangeDrawerInspection.open) {
+    keyboardCheck.start(); clearRangeInputs(); syncKeyboardCheck();
+    document.querySelector<HTMLElement>('#keyboard-check-area')?.focus({ preventScroll: true });
+    return;
+  }
   if (name === 'range-controls' && mode === 'range') {
     if (healthInspection.open || mapInspection.open || rangeDrawerInspection.open || debriefDialog.open || dialog.open) return;
     rangeControlsExpanded = !rangeControlsExpanded;
@@ -1204,6 +1212,7 @@ document.addEventListener('click', event => {
 });
 document.addEventListener('toggle', event => {
   if (event.target instanceof HTMLDetailsElement && event.target.classList.contains('guided-roadmap')) guidedRoadmapOpen = event.target.open;
+  if (event.target instanceof HTMLDetailsElement && event.target.id === 'keyboard-check' && !event.target.open) { keyboardCheck.stop(); syncKeyboardCheck(); }
 }, true);
 function rampCommandContext(): RampCommandContext {
   return { inRange: mode === 'range', staging: missionStaging.active, hidden: document.hidden,
@@ -1216,12 +1225,46 @@ function syncHealthPulse(): void {
 }
 
 function keyboardTarget(target: EventTarget | null) {
-  const element = target instanceof HTMLElement ? target : null;
+  const element = target instanceof Element ? target : null;
   const input = element?.closest('input,textarea,select');
-  return { tagName: input?.tagName, type: input instanceof HTMLInputElement ? input.type : undefined, editable: !!element?.isContentEditable };
+  return { tagName: input?.tagName, type: input instanceof HTMLInputElement ? input.type : undefined, editable: element instanceof HTMLElement && element.isContentEditable, ownsArrowKeys: !!element?.closest('.vehicle-inspector, #mission-map-dialog, #expanded-mission-map') };
 }
 
+function syncKeyboardCheck(): void {
+  const area = document.querySelector<HTMLElement>('#keyboard-check-area');
+  if (!area) return;
+  area.dataset.active = String(keyboardCheck.active);
+  area.querySelector<HTMLElement>('.keyboard-check-focus-hint')!.textContent = keyboardCheck.active ? 'Check active: press arrows and W A S D here.' : 'Start the check to focus this area.';
+  CHECK_KEYS.forEach(([code, , name]) => {
+    const indicator = area.querySelector<HTMLElement>(`[data-check-key="${code}"]`)!;
+    indicator.dataset.received = String(keyboardCheck.received.has(code));
+    indicator.dataset.held = String(keyboardCheck.held.has(code));
+    indicator.setAttribute('aria-label', `${name}: ${keyboardCheck.received.has(code) ? 'received' : 'not received'}`);
+  });
+  const status = area.querySelector('#keyboard-check-status')!;
+  if (status.textContent !== keyboardCheck.status) status.textContent = keyboardCheck.status;
+  area.querySelector('#keyboard-check-event')!.textContent = keyboardCheck.details;
+}
+
+function observeKeyboardCheck(event: KeyboardEvent, phase: 'capture' | 'bubble'): void {
+  if (!rangeDrawerInspection.open || !(event.target instanceof HTMLElement) || !event.target.closest('#keyboard-check-area')) return;
+  if (!keyboardCheck.observe(event, phase)) return;
+  // Only unmodified recognized navigation keys suppress scrolling in this area.
+  if (!event.ctrlKey && !event.altKey && !event.metaKey && CHECK_KEYS.some(([code]) => code === gameKeyCode(event))) event.preventDefault();
+  // Capture-only arrival remains visible if a descendant stops the bubble.
+  queueMicrotask(syncKeyboardCheck);
+}
+
+document.addEventListener('keydown', event => observeKeyboardCheck(event, 'capture'), true);
+document.addEventListener('keyup', event => observeKeyboardCheck(event, 'capture'), true);
+const arrowCapture = installRangeArrowCapture(document, keyboard, event => ({ inRange: mode === 'range', playable: rangePlayable(), target: keyboardTarget(event.target) }), cancelCruise);
+document.addEventListener('focusout', event => {
+  if (event.target instanceof HTMLElement && event.target.closest('#keyboard-check-area') && !(event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest('#keyboard-check-area'))) { keyboardCheck.stop(); syncKeyboardCheck(); }
+});
+
 document.addEventListener('keydown', event => {
+  observeKeyboardCheck(event, 'bubble');
+  if (arrowCapture.consumed(event)) return;
   if (event.key === 'Tab') {
     gameFocus.navigateWithKeyboard();
     clearRangeInputs();
@@ -1268,7 +1311,7 @@ document.addEventListener('keydown', event => {
   if (code === 'Space' && !event.repeat && !(event.target instanceof HTMLElement && event.target.closest('button, summary'))) { event.preventDefault(); void action('pause'); }
 });
 // Always release even when focus/modifiers changed after keydown.
-document.addEventListener('keyup', event => { const code = gameKeyCode(event); keyboard.up(code); if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(code)) { aimInput = 0; event.target.value = '0'; } });
+document.addEventListener('keyup', event => { observeKeyboardCheck(event, 'bubble'); const code = gameKeyCode(event); keyboard.up(code); if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input' && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(code)) { aimInput = 0; event.target.value = '0'; } });
 document.addEventListener('focusin', event => { if (!permitsGameKeys(keyboardTarget(event.target), {}, healthInspection.open || mapInspection.open || rangeDrawerInspection.open)) clearRangeInputs(); });
 
 function cancelCruise(): void {
@@ -1312,6 +1355,7 @@ compactRangeControls.addEventListener('change', () => {
 });
 
 function setRangeDrawer(open: boolean): void {
+  if (!open) { keyboardCheck.stop(); syncKeyboardCheck(); }
   if (open === rangeDrawerInspection.open || (open && mapInspection.open)) return;
   if (open) {
     drawerReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1389,7 +1433,7 @@ document.addEventListener('lostpointercapture', releasePointer);
 document.addEventListener('input', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') aimInput = -Number(event.target.value); });
 document.addEventListener('change', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') { aimInput = 0; event.target.value = '0'; } });
 // Clicking away releases controls without changing the user's Pause choice.
-window.addEventListener('blur', () => playbackFocus.blur());
+window.addEventListener('blur', () => { keyboardCheck.stop(); syncKeyboardCheck(); playbackFocus.blur(); });
 dialog.addEventListener('close', () => { evidenceOpen = false; previousFrame = performance.now(); syncControls(); });
 pauseBanner.addEventListener('cancel', event => { event.preventDefault(); void action('pause'); });
 mapDialog.addEventListener('cancel', event => { event.preventDefault(); closeMap(); });
@@ -1411,7 +1455,7 @@ function syncBackgroundAudio(): void {
     const now = performance.now(); audio.updateBackground((now - backgroundAudioAt) / 1000); backgroundAudioAt = now;
   }, 100);
 }
-document.addEventListener('visibilitychange', () => { syncBackgroundAudio(); playbackFocus.visibilityChanged(); syncHealthPulse(); document.body.classList.toggle('briefing-held', mode === 'briefing' && (isPaused() || document.hidden)); });
+document.addEventListener('visibilitychange', () => { syncBackgroundAudio(); if (document.hidden) { keyboardCheck.stop(); syncKeyboardCheck(); } playbackFocus.visibilityChanged(); syncHealthPulse(); document.body.classList.toggle('briefing-held', mode === 'briefing' && (isPaused() || document.hidden)); });
 motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; if (mode === 'briefing' && reducedMotion) { missionBriefing.skip(); updateBriefing(); } document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
 // Measure captions rather than assuming a fixed height: long cues and phone text scaling
 // must reserve their real space below the persistent action.
@@ -1421,8 +1465,8 @@ captionObserver.observe(captionBar);
 window.addEventListener('resize', () => { cancelMapGesture(); clearRangeInputs(); if (!window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 540px)').matches) setRangeDrawer(false); scene.resize(); });
 const pageLifecycle = new PageLifecycle({
   suspend() { playbackFocus.visibilityChanged(); syncBackgroundAudio(); },
-  dispose() { if (backgroundAudioTimer !== undefined) clearInterval(backgroundAudioTimer); captionObserver.disconnect(); guidedLayoutObserver?.disconnect(); healthInspector?.dispose(); guidedInspector?.dispose(); audio.dispose(); scene.dispose(); },
-  restore() { syncBackgroundAudio(); playbackFocus.visibilityChanged(); scene.resize(); },
+  dispose() { arrowCapture.dispose(); keyboardCheck.reset(); if (backgroundAudioTimer !== undefined) clearInterval(backgroundAudioTimer); captionObserver.disconnect(); guidedLayoutObserver?.disconnect(); healthInspector?.dispose(); guidedInspector?.dispose(); audio.dispose(); scene.dispose(); },
+  restore() { syncBackgroundAudio(); if (document.hidden) { keyboardCheck.stop(); syncKeyboardCheck(); } playbackFocus.visibilityChanged(); scene.resize(); },
 });
 window.addEventListener('pagehide', event => pageLifecycle.hide(event.persisted));
 window.addEventListener('pageshow', event => pageLifecycle.show(event.persisted));

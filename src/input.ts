@@ -33,7 +33,7 @@ export function gameKeyCode(event: GameKeyEvent): string {
   return event.code ?? '';
 }
 
-export type KeyboardTarget = { tagName?: string; type?: string; editable?: boolean };
+export type KeyboardTarget = { tagName?: string; type?: string; editable?: boolean; ownsArrowKeys?: boolean };
 
 /** Buttons and the spring-loaded aim slider remain part of the game controls. */
 export function permitsGameKeys(target: KeyboardTarget, modifiers: { ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean }, inspectionOpen = false): boolean {
@@ -60,11 +60,39 @@ export function routeDrivingKeyDown(event: GameKeyEvent & { preventDefault(): vo
   }
   const code = gameKeyCode(event);
   if (!DRIVE_CODES.has(code)) return unhandled;
+  if (code.startsWith('Arrow') && context.target.ownsArrowKeys) { keyboard.up(code); return unhandled; }
   if (code === 'Space' && context.nativeSpace) { keyboard.up(code); return unhandled; }
   event.preventDefault();
   if (event.repeat || !context.playable) return { consumed: true, cancelCruise: false };
   keyboard.down(code);
   return { consumed: true, cancelCruise: ['Space', 'KeyW', 'ArrowUp', 'KeyS', 'ArrowDown', 'KeyB'].includes(code) };
+}
+
+/** Handle playable driving arrows before descendant bubble handlers, without
+ * stopping their propagation. The same event is skipped by the normal listener.
+ * Releases are observed in capture even if focus or child ownership changed. */
+export function installRangeArrowCapture(target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>, keyboard: RangeKeyboard,
+  getContext: (event: KeyboardEvent) => Parameters<typeof routeDrivingKeyDown>[2], cancelCruise: () => void) {
+  const consumed = new WeakSet<Event>();
+  const down = (raw: Event) => {
+    const event = raw as KeyboardEvent;
+    if (!gameKeyCode(event).startsWith('Arrow')) return;
+    const context = getContext(event);
+    if (!context.inRange || !context.playable) return;
+    const result = routeDrivingKeyDown(event, keyboard, context);
+    if (result.consumed) consumed.add(event);
+    if (result.cancelCruise) cancelCruise();
+  };
+  const up = (raw: Event) => {
+    const code = gameKeyCode(raw as KeyboardEvent);
+    if (code.startsWith('Arrow') && keyboard.keys.has(code)) keyboard.up(code);
+  };
+  target.addEventListener('keydown', down, true);
+  target.addEventListener('keyup', up, true);
+  return {
+    consumed: (event: Event) => consumed.has(event),
+    dispose() { target.removeEventListener('keydown', down, true); target.removeEventListener('keyup', up, true); },
+  };
 }
 
 /** Deliberate inspection pauses time and restores the preceding manual state. */

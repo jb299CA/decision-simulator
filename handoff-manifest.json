@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 66,
+  "sourceRelease": 67,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
-  "fileCount": 154,
-  "totalBytes": 10438980,
+  "fileCount": 156,
+  "totalBytes": 10463253,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -384,8 +384,8 @@
     },
     {
       "path": "src/input.ts",
-      "bytes": 5515,
-      "sha256": "d1cfc4f007b217ebe1501e7b0d4abf6cd9906a029777158d82738d9e33113b90"
+      "bytes": 7041,
+      "sha256": "209cb48b7123b5cb12e16f7523dc5f8466671d92c936c3bf02b6802e720fe6cf"
     },
     {
       "path": "src/inspection-model.ts",
@@ -398,9 +398,14 @@
       "sha256": "a13aa5704df2d75155c425d0f10b693710c4f48a1cb957eba897b5f044dedfb7"
     },
     {
+      "path": "src/keyboard-check.ts",
+      "bytes": 4890,
+      "sha256": "0eb7c3c37920ba39e84c5d05f21fe5ff03a7fedfd8dc9f9a73cf5f95a25ae8a5"
+    },
+    {
       "path": "src/main.ts",
-      "bytes": 134570,
-      "sha256": "7a9194b5b2018cb40419e9e3bfdd2d87db6f644b3ec6e77da75ead4fe75ed304"
+      "bytes": 138114,
+      "sha256": "fdb37d92bf3972f19b6bd850133ac6e42575f719755d3214cfa5ec6cb0ed6c62"
     },
     {
       "path": "src/map-navigation.ts",
@@ -499,8 +504,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 222296,
-      "sha256": "563798e510a7426abafc8bb295e20ab4dd4e71da470205f2ee1bb039d21df395"
+      "bytes": 224612,
+      "sha256": "4400345df88b235f611fc5666138c4c3fcc96cb6ba088f0c3f39422594044b1b"
     },
     {
       "path": "src/target-debris.ts",
@@ -659,8 +664,8 @@
     },
     {
       "path": "tests/input.test.ts",
-      "bytes": 17733,
-      "sha256": "ddf4a3852bb9f21b5604c3159c69f5772ec901f29ac5940ab5e9c4c3ed864005"
+      "bytes": 24564,
+      "sha256": "18e2c23832aa812fe74cd1c81fa70bacd214739105fd3c07c98992813ca1239c"
     },
     {
       "path": "tests/inspection-model.test.ts",
@@ -671,6 +676,11 @@
       "path": "tests/instrument-screen.test.ts",
       "bytes": 7671,
       "sha256": "77e5c8a7f9d2b7c9fccfe0b5c8b8dcc1b0e54e9f094165fe9dd56364456121f0"
+    },
+    {
+      "path": "tests/keyboard-check.test.ts",
+      "bytes": 5166,
+      "sha256": "3a6e65e75bb74f112aff86e3f4159ce23b5a70c9c12294486c66de8adaf47460"
     },
     {
       "path": "tests/map-inspection.test.ts",
