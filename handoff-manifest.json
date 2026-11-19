@@ -1,10 +1,10 @@
 {
   "formatVersion": 1,
-  "sourceRelease": 47,
+  "sourceRelease": 48,
   "algorithm": "SHA-256",
   "hashScope": "Exact bytes of copied source and runtime assets; Git text normalization is disabled for reproducible verification.",
   "fileCount": 139,
-  "totalBytes": 4811888,
+  "totalBytes": 4819638,
   "copiedRoots": [
     "src/",
     "tests/",
@@ -254,8 +254,8 @@
     },
     {
       "path": "src/audio.ts",
-      "bytes": 41559,
-      "sha256": "3f6172f7073e5b3067ec12afbfe606dacefa077de21d539740a60e2cec94995a"
+      "bytes": 43255,
+      "sha256": "260605b1ab17c0f8a0ad81aa5e4f04757ef842c95f896767d0b714fc299a951f"
     },
     {
       "path": "src/bumper-marking.ts",
@@ -369,8 +369,8 @@
     },
     {
       "path": "src/main.ts",
-      "bytes": 121939,
-      "sha256": "6211a2b4282a8031bdd54d0c4d90d53be49a67877f943851bf5291f4df1ade1b"
+      "bytes": 122275,
+      "sha256": "798bbbd324f90cbbd2d90704ad814819b9dfb89537df44e9b71923970498f4b5"
     },
     {
       "path": "src/map-navigation.ts",
@@ -449,8 +449,8 @@
     },
     {
       "path": "src/style.css",
-      "bytes": 203324,
-      "sha256": "e245b98b51112f617b77f47ebee67746a44e61c46c26e0964cca4500e9c62096"
+      "bytes": 204318,
+      "sha256": "49539253bb80d1e129d5735d2e5d5d352245bdec7cb2f438295db2d499dccb2b"
     },
     {
       "path": "src/target-debris.ts",
@@ -494,8 +494,8 @@
     },
     {
       "path": "tests/audio.test.ts",
-      "bytes": 86671,
-      "sha256": "94a7ca825892464b1ea1c099b68deface8418222ec8ada02b8836ea372083f43"
+      "bytes": 91395,
+      "sha256": "5522efc1cf18c3a6bbedcba79e3fab26eeb83333b6587ca10c3cb0bf59987f49"
     },
     {
       "path": "tests/bumper-marking.test.ts",

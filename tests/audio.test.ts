@@ -965,6 +965,77 @@ test('health cue is bounded, preserves radio captions and cancels without replay
   audio.healthAlert(); const disposed = context.sources.at(-1)!; audio.dispose(); assert.ok(disposed.stopped);
 });
 
+test('instrument alerts use distinct short midrange pulse patterns with quiet edges and exact silence gaps', async t => {
+  browser(t); MockContext.sampleRate = 48000;
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  const context = MockContext.latest;
+  for (const [severity, count, pulse, gap, duration] of [
+    ['warning', 2, .12, .08, .345], ['critical', 3, .105, .065, .47],
+  ] as const) {
+    audio.healthAlert(severity);
+    const cue = context.sources.at(-1)!, samples = cue.buffer!.getChannelData!();
+    const slice = (start: number, end: number): Float32Array => samples.slice(Math.ceil(start * context.sampleRate), Math.floor(end * context.sampleRate));
+    assert.ok(Math.abs(samples.length / context.sampleRate - duration) < 1 / context.sampleRate);
+    const peak = samples.reduce((maximum, sample) => Math.max(maximum, Math.abs(sample)), 0);
+    assert.ok(samples.every(Number.isFinite) && peak > .25 && peak <= .4);
+    assert.ok(peak * .48 < .2, 'unchanged master ceiling leaves substantial transient headroom');
+    for (let index = 0; index < count; index++) {
+      const start = index * (pulse + gap);
+      const body = slice(start + .01, start + pulse - .02);
+      assert.ok(rms(body) > .19, 'every scheduled pulse has a sustained audible body');
+      assert.ok(rms(slice(start, start + .0005)) < rms(body) * .03, '5ms onset rises from silence');
+      assert.ok(rms(slice(start + pulse - .0005, start + pulse)) < rms(body) * .01, '14ms release tapers before the gap');
+      assert.ok(slice(start + pulse + .0001, start + pulse + gap - .0001).every(sample => sample === 0), 'gaps and final padding contain literal silence');
+    }
+    assert.equal(samples[0], 0); assert.equal(samples.at(-1), 0);
+    assert.ok(spectralDensity(samples, context.sampleRate, 800, 3800) > spectralDensity(samples, context.sampleRate, 6000, 12000) * 100,
+      'phone-band tone dominates high-frequency hiss');
+    cue.finish(); assert.ok(cue.disconnected);
+  }
+});
+
+test('severity changes cannot overlap or queue an active annunciator', async t => {
+  browser(t);
+  const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+  const context = MockContext.latest, before = context.sources.length;
+  audio.healthAlert(); const warning = context.sources.at(-1)!;
+  audio.healthAlert('critical');
+  assert.equal(context.sources.length, before + 1, 'short current cue finishes without an overlapping replacement');
+  warning.finish(); assert.equal(context.sources.length, before + 1, 'suppressed severity change is not queued');
+  audio.healthAlert('critical'); const critical = context.sources.at(-1)!;
+  assert.ok(critical.buffer!.length! > warning.buffer!.length!);
+  audio.setPaused(true); assert.ok(critical.stopped && critical.disconnected);
+  audio.healthAlert('critical'); audio.setPaused(false); await settle();
+  assert.equal(context.sources.length, before + 2, 'critical alert also remains consumed across pause');
+});
+
+for (const state of ['running', 'paused', 'muted', 'range'] as const) {
+  test(`guided telemetry alert edge is handled once while ${state}`, async t => {
+    browser(t);
+    const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();
+    const sim = new Simulation(); sim.begin(); sim.board(); await update(audio, sim);
+    const context = MockContext.latest;
+    const alerts = (): MockNode[] => context.sources.filter(source => source.buffer?.length !== undefined && source.buffer.length >= 345 && source.buffer.length <= 346);
+    // Advance the real synthetic telemetry model to its first charging alert.
+    for (let frame = 0; frame < 200 && !sim.alert; frame++) sim.tick(.15);
+    assert.equal(sim.alert, true);
+    if (state === 'paused') sim.paused = true;
+    if (state === 'muted') audio.setMuted(true);
+    const vehicle = state === 'range' ? { training: false } : { inside: true };
+    audio.update(sim, vehicle);
+    assert.equal(alerts().length, state === 'running' ? 1 : 0);
+    alerts()[0]?.finish();
+    sim.paused = false; audio.setMuted(false); await settle();
+    audio.update(sim, vehicle); audio.update(sim, vehicle);
+    assert.equal(alerts().length, state === 'running' ? 1 : 0, 'persistent or interrupted warning cannot replay');
+    if (state === 'running') {
+      audio.restart(); sim.restart(); sim.begin(); sim.board(); audio.update(sim);
+      for (let frame = 0; frame < 200 && !sim.alert; frame++) sim.tick(.15);
+      audio.update(sim); assert.equal(alerts().length, 2, 'restart arms a new genuine warning edge');
+    }
+  });
+}
+
 test('range ambience captions follow actual motion while recorded dialogue remains exact', async t => {
   browser(t);
   const audio = new SimulationAudio(() => 0, () => 1); t.after(() => audio.dispose()); await audio.start();

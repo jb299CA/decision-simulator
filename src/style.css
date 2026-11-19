@@ -1729,9 +1729,23 @@ body[data-mode="range"].range-drawer-open .range-edge-controls > .pause-banner {
 
 /* Keep the explicit unload command beside the cameras, clear of the sight. */
 body[data-mode="range"] .ramp-command { display: flex; flex-direction: column; gap: 3px; pointer-events: auto; }
-.movement-clock { display: flex; justify-content: space-between; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #72818b80; border-radius: 4px; background: #14232cee; color: #f7fafc; }
-.movement-clock > span { font-size: 8px; letter-spacing: .3px; }
-.movement-clock > strong { font: 600 15px/1.2 "Consolas", monospace; font-variant-numeric: tabular-nums; }
+/* The countdown leads the camera rail in every view, away from the sight and
+   vehicle nose. It stays separate from the unload command and map. */
+.movement-clock { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; padding: 7px 8px; border: 1px solid #a9bac5; border-radius: 6px; background: #14232cf5; color: #f7fafc; box-shadow: 0 2px 8px #0005; }
+.movement-clock > span { font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+.movement-clock > strong { grid-column: 2; grid-row: 1 / 3; font: 700 28px/1.1 "Consolas", monospace; font-variant-numeric: tabular-nums; }
+.movement-clock > small { grid-column: 1; font-size: 8px; line-height: 1.3; color: #d7e4e9; }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 540px) {
+  .movement-clock { grid-template-columns: 1fr; justify-items: center; gap: 1px; padding: 5px 3px; }
+  .movement-clock > span { font-size: 9px; }
+  .movement-clock > strong { grid-column: 1; grid-row: 2; font-size: 26px; }
+  .movement-clock > small { font-size: 8px; }
+}
+@media (max-height: 540px) and (min-width: 540px) and (max-width: 760px),
+       (pointer: coarse) and (max-height: 540px) and (min-width: 540px) {
+  .movement-clock { grid-template-columns: 1fr auto; justify-items: stretch; padding: 5px 8px; }
+  .movement-clock > strong { grid-column: 2; grid-row: 1 / 3; }
+}
 .movement-clock[data-urgent="true"] { color: #fff; border-color: #ff8065; background: #6f2d22ee; }
 .movement-clock-record { font-size: 13px; line-height: 1.5; color: #d7e4e9; padding: 10px 12px; border-left: 2px solid #ff8065; background: #1c2c35; }
 body[data-mode="range"] .ramp-command > button {

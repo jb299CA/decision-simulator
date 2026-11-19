@@ -69,11 +69,12 @@ export class SimulationAudio {
   private previousSessionType?: string;
   private activationEpoch = 0;
   private sessionRetry?: { timer: ReturnType<typeof setTimeout>; finish: () => void };
-  private healthAlertBuffer?: AudioBuffer;
+  private healthAlertBuffers?: Record<'warning' | 'critical', AudioBuffer>;
   private healthAlertSource?: AudioBufferSourceNode;
   private breakdownBuffer?: AudioBuffer;
   private breakdownSource?: AudioBufferSourceNode;
   private wasBroken = false;
+  private wasGuidedAlert = false;
   private rangeShots = new Set<AudioBufferSourceNode>();
   private shotLevels = new Map<AudioBufferSourceNode, { node: GainNode; level: number }>();
   private shotIndex = 0;
@@ -366,13 +367,29 @@ export class SimulationAudio {
       report[i] = attack * tail * .78 * Math.tanh((body + crack) / .78);
     }
     this.reportPeak = report.reduce((peak, sample) => Math.max(peak, Math.abs(sample)), 0);
-    // Original two-note instrument cue. It never replaces a recorded radio caption.
-    this.healthAlertBuffer = context.createBuffer(1, Math.floor(context.sampleRate * .42), context.sampleRate);
-    const alert = this.healthAlertBuffer.getChannelData(0);
-    for (let i = 0; i < alert.length; i++) {
-      const t = i / context.sampleRate, local = t % .23;
-      if (local < .17) alert[i] = Math.sin(Math.PI * local / .17) * Math.sin(2 * Math.PI * (t < .23 ? 660 : 880) * t) * .32;
-    }
+    // Original equipment-style annunciator, not a recording or reproduction of
+    // MFoCS. Fixed midrange pulses cut through a phone speaker without a siren.
+    // Raised-cosine edges remove clicks; literal silent gaps keep the pattern
+    // distinct, and the normalized partials bound the source peak below .4.
+    const instrumentCue = (pulses: number, pitch: number, pulse: number, gap: number): AudioBuffer => {
+      const duration = pulses * pulse + (pulses - 1) * gap + .025;
+      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const t = i / context.sampleRate, index = Math.floor(t / (pulse + gap));
+        const local = t - index * (pulse + gap);
+        if (index >= pulses || local >= pulse) continue;
+        const attack = Math.min(1, local / .005), release = Math.min(1, (pulse - local) / .014);
+        const envelope = (.5 - .5 * Math.cos(Math.PI * attack)) * (.5 - .5 * Math.cos(Math.PI * release));
+        const phase = 2 * Math.PI * pitch * local;
+        data[i] = .4 * envelope * (.72 * Math.sin(phase) + .2 * Math.sin(2 * phase) + .08 * Math.sin(3 * phase));
+      }
+      return buffer;
+    };
+    this.healthAlertBuffers = {
+      warning: instrumentCue(2, 980, .12, .08),
+      critical: instrumentCue(3, 1240, .105, .065),
+    };
     // Original mechanical shutdown, not an explosion or a real equipment recording.
     // Failing combustion falls away before a short metal clunk and pressure hiss.
     this.breakdownBuffer = context.createBuffer(1, Math.floor(context.sampleRate * 2.7), context.sampleRate);
@@ -428,6 +445,11 @@ export class SimulationAudio {
     this.lastPhase = sim.phase;
     this.lastEngine = sim.engine;
     this.vehicleContext = vehicle;
+    const guidedAlert = sim.alert;
+    const announceGuidedAlert = guidedAlert && !this.wasGuidedAlert && vehicle?.powertrain === undefined && vehicle?.training === undefined;
+    // Consume the observed edge even when audio is unavailable or the range
+    // owns its own health events; never replay old warnings on transport resume.
+    this.wasGuidedAlert = guidedAlert;
     const breakdown = !!vehicle?.breakdown;
     if (breakdown && !this.wasBroken) {
       this.playBreakdown();
@@ -484,6 +506,7 @@ export class SimulationAudio {
       this.smooth(osc.frequency, fundamental * dieselRatios[i]!, .045);
     });
     if (this.firingTone) this.smooth(this.firingTone.frequency, rpm / 60, .045);
+    if (announceGuidedAlert) this.healthAlert();
     this.music?.update({ time: sim.time, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
       audible: this.audible && this.musicOn && sim.phase !== 'title', ducked: !!this.voice,
       priorityAlert: !!(this.healthAlertSource || this.breakdownSource) });
@@ -548,10 +571,12 @@ export class SimulationAudio {
   }
 
   /** One immediate instrument cue; mute/pause never leaves a queued alert. */
-  healthAlert(): void {
+  healthAlert(severity: 'warning' | 'critical' = 'warning'): void {
     const context = this.context;
-    if (!this.audible || !context || context.state !== 'running' || !this.master || !this.healthAlertBuffer || this.healthAlertSource) return;
-    const source = context.createBufferSource(); source.buffer = this.healthAlertBuffer;
+    if (!this.audible || !context || context.state !== 'running' || !this.master || !this.healthAlertBuffers || this.healthAlertSource) return;
+    // Do not stack or queue annunciators. Even the longer pattern is under .5s;
+    // a new state must never create an alarm backlog after pause or inspection.
+    const source = context.createBufferSource(); source.buffer = this.healthAlertBuffers[severity];
     source.connect(this.master); this.healthAlertSource = source;
     this.mixPriority();
     this.music?.duck(true);
@@ -763,6 +788,7 @@ export class SimulationAudio {
     this.wasMoving = false; this.lastEngine = false; this.ambientNotBefore = 0;
     this.vehicleContext = undefined;
     this.wasBroken = false;
+    this.wasGuidedAlert = false;
     this.shotIndex = 0;
     this.vehicleLevels.clear();
     for (const node of [this.engineGain, this.rollingGain, this.cabinGain, this.windGain, this.whineGain, this.loadGain]) if (node) this.zero(node.gain);
@@ -780,7 +806,7 @@ export class SimulationAudio {
     this.context = undefined; this.master = undefined;
     this.rangeShotBuffer = undefined;
     this.radioStaticBuffer = undefined;
-    this.healthAlertBuffer = undefined;
+    this.healthAlertBuffers = undefined;
     this.breakdownBuffer = undefined;
   }
 }

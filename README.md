@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 47 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 48 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -90,3 +90,5 @@ Release45 hides the desktop driving panel by default behind Controls. Keyboard d
 Release46 restores a subtle phone-audible score with sparse midrange melody and soft percussion. Music on/off is visible in the header and respects master mute. Auto-away pauses expose visible Resume and accept a fresh scene tap or movement key; manual/dialog/terminal pause ownership is preserved. Held input is cleared, and delayed AudioContext suspension cannot override newer Play. Regression tests cover these state and audio races; live browser/device verification remains unavailable.
 
 Release 47 adds a prominent Shift5 website link with the bundled logo and the tagline ?Real Data. Rapid Analysis. Right Decision.? TypeScript and production build passed; gameplay and audio are unchanged from the 314-test release 46 baseline. Live browser layout inspection remains outstanding.
+
+Release 48: prominent mission countdown in all four camera views, with the three-minute clock starting at LD and freezing during pause/inspection. Original equipment-style two-pulse caution and three-pulse critical MFoCS cues respect mute/pause and do not queue. Guided telemetry alerts also trigger the caution cue. All 320 tests, TypeScript and production build pass. Browser/device listening verification remains outstanding.
