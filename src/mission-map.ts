@@ -33,3 +33,13 @@ export function contactVisibility(contact: { detected: boolean; neutralized: boo
   if (!departureCrossed) return 'hidden';
   return contact.neutralized ? 'neutralized' : contact.detected ? 'detected' : 'estimated';
 }
+
+/** Direction of a fictional objective relative to the vehicle, not the active camera. */
+export function objectivePointer(position: {x:number; z:number}, heading: number,
+  objective: {x:number; z:number; radius:number}): { degrees:number; meters:number; inZone:boolean } | null {
+  if (![position.x,position.z,heading,objective.x,objective.z,objective.radius].every(Number.isFinite)) return null;
+  const dx=objective.x-position.x, dz=objective.z-position.z, distance=Math.hypot(dx,dz);
+  const relative=Math.atan2(dx,-dz)+heading;
+  return { degrees: distance === 0 ? 0 : Math.atan2(Math.sin(relative),Math.cos(relative))*180/Math.PI,
+    meters:Math.round(distance), inZone:distance <= Math.max(0,objective.radius) };
+}

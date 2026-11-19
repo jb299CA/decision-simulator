@@ -32,6 +32,7 @@ export function permitsGameKeys(target: KeyboardTarget, modifiers: { ctrlKey?: b
 export class RangeInspection {
   open = false;
   private previouslyPaused = false;
+  get audioContinues(): boolean { return this.open && !this.previouslyPaused; }
   begin(paused: boolean, keyboard: RangeKeyboard): void {
     if (this.open) return;
     this.open = true; this.previouslyPaused = paused;

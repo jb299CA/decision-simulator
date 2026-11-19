@@ -61,11 +61,30 @@ export function vehicleLocalToWorld(x:number,z:number,position:{x:number;z:numbe
 
 interface Soldier {root:THREE.Group; leftHip:THREE.Group;rightHip:THREE.Group;leftKnee:THREE.Group;rightKnee:THREE.Group;leftArm:THREE.Group;rightArm:THREE.Group;pose:TroopPose;world:{x:number;z:number}}
 
-/** Nine pooled original figures; no weapons, downloaded models, per-frame mesh or GPU allocations. */
+/** Camouflage-inspired colors on one small shared game texture. */
+function squadCloth() {
+  const colors = [[98,99,72],[124,110,81],[145,126,91],[71,77,57],[169,147,108]];
+  const pixels = new Uint8Array(16 * 16 * 4);
+  for (let y=0;y<16;y++) for (let x=0;x<16;x++) {
+    const index=(x*13+y*7+(x+y)%3+Math.floor(x/3)*3+Math.floor(y/2)*5)%11;
+    pixels.set([...colors[index<4?0:index<7?1:index<9?2:index<10?3:4],255],4*(x+16*y));
+  }
+  const tex = new THREE.DataTexture(pixels,16,16);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+/** Nine pooled original figures with nonfunctional, purely cosmetic game props. */
 export class DismountSquad {
   readonly group = new THREE.Group();
   private readonly geometries = [new THREE.BoxGeometry(1,1,1),new THREE.SphereGeometry(1,8,6)];
-  private readonly materials = [0x73765a,0x4a5140,0x262c25,0xa38c70,0x686e50].map(color => new THREE.MeshStandardMaterial({color,roughness:.97}));
+  private readonly cloth = squadCloth();
+  private readonly materials = [0xffffff,0x655b40,0x262c25,0xaa8262,0x726847,0x2b3030,0x66503b,0xd1a37d]
+    .map((color,index) => new THREE.MeshStandardMaterial({color,roughness:.97,map:index === 0 ? this.cloth : null}));
   private readonly soldiers:Soldier[] = [];
   private disposed = false;
   constructor() {
@@ -81,17 +100,30 @@ export class DismountSquad {
       mesh(root,[.41,.35,.3],[0,1.15,.01],1);
       mesh(root,[.28,.3,.13],[0,1.13,-.2],4); // compact pack
       for (const x of [-.1,.1]) mesh(root,[.12,.13,.06],[x,1.08,.19],4);
-      mesh(root,[.12,.13,.12],[0,1.4,0],3);
-      mesh(root,[.145,.18,.14],[0,1.58,0],3,true);
-      mesh(root,[.18,.12,.18],[0,1.7,-.015],4,true);
-      mesh(root,[.33,.035,.31],[0,1.65,.025],4);
+      const skin = [3,6,7][i%3];
+      mesh(root,[.12,.13,.12],[0,1.4,0],skin);
+      mesh(root,[.171,.2,.163],[0,1.56,.014],skin,true);
+      mesh(root,[.28,.22,.274],[0,1.635,-.015],0,true).name = 'cloth-covered-helmet';
+      mesh(root,[.24,.031,.206],[0,1.6,.053],4);
+      mesh(root,[.139,.043,.035],[0,1.554,.079],5).name = 'protective-eyewear';
+      mesh(root,[.098,.09,.075],[.11,1.155,-.193],2);
+      const prop = new THREE.Group();
+      prop.name = 'cosmetic-rifle'; prop.position.set(.01,1.15,.22);
+      prop.rotation.z = -.63;
+      root.add(prop);
+      mesh(prop,[.47,.066,.064],[0,0,0],5);
+      mesh(prop,[.27,.032,.038],[.247,.008,0],5);
+      mesh(prop,[.122,.083,.073],[-.245,.01,0],5);
+      mesh(prop,[.08,.11,.052],[-.04,-.053,0],5);
       const limb = (x:number,upperY:number,leg:boolean) => {
         const joint = new THREE.Group(); joint.position.set(x,upperY,0); root.add(joint);
         const length = leg ? .36 : .26, width = leg ? .145 : .12;
         mesh(joint,[width,length,width],[0,-length/2,0],0);
+        if (!leg) mesh(joint,[.072,.07,.015],[x > 0 ? .039 : -.039,-.075,.058],4).name='sleeve-panel';
         const bend = new THREE.Group(); bend.position.y = -length; joint.add(bend);
         mesh(bend,[width * .9,length,width * .9],[0,-length/2,0],0);
-        mesh(bend,leg ? [.16,.12,.27] : [.10,.12,.10],leg ? [0,-length-.06,.055] : [0,-length-.045,0],leg ? 2 : 3);
+        if (leg) mesh(bend,[.103,.105,.035],[0,-.049,.067],4);
+        mesh(bend,leg ? [.16,.12,.27] : [.10,.12,.10],leg ? [0,-length-.06,.055] : [0,-length-.045,0],leg ? 2 : skin);
         return {joint,bend};
       };
       const left = limb(-.115,.85,true), right = limb(.115,.85,true), leftArm = limb(-.265,1.33,false), rightArm = limb(.265,1.33,false);
@@ -116,7 +148,9 @@ export class DismountSquad {
       s.root.rotation.set(0,state.heading + Math.PI + pose.yaw,0);
       s.leftHip.rotation.x = stride * .65; s.rightHip.rotation.x = -stride * .65;
       s.leftKnee.rotation.x = Math.max(0,-stride) * .65; s.rightKnee.rotation.x = Math.max(0,stride) * .65;
-      s.leftArm.rotation.x = -.3 - stride * .55; s.rightArm.rotation.x = -.3 + stride * .55;
+      // Keep arms near the chest prop instead of swinging through it.
+      s.leftArm.rotation.set(-.58 - stride * .06,0,.22);
+      s.rightArm.rotation.set(-.46 + stride * .06,0,-.28);
     }
   }
 
@@ -124,7 +158,7 @@ export class DismountSquad {
   dispose() {
     if (this.disposed) return;
     this.disposed = true; this.group.removeFromParent();
-    this.geometries.forEach(geometry => geometry.dispose()); this.materials.forEach(material => material.dispose());
+    this.geometries.forEach(geometry => geometry.dispose()); this.materials.forEach(material => material.dispose()); this.cloth.dispose();
   }
 }
 

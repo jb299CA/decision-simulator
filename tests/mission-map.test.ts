@@ -1,3 +1,4 @@
+import { objectivePointer } from '../src/mission-map.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mapPoint, mapWorldPoint, mapHeading, MAP_VIEW, contactVisibility } from '../src/mission-map.ts';
@@ -48,4 +49,17 @@ test('waypoint projection roundtrips world positions and clamps schematic margin
   assert.deepEqual(mapWorldPoint(-999, -999), { x: WORLD_BOUNDS.minX, z: WORLD_BOUNDS.minZ });
   assert.deepEqual(mapWorldPoint(999, 999), { x: WORLD_BOUNDS.maxX, z: WORLD_BOUNDS.maxZ });
   assert.ok(Object.values(mapWorldPoint(NaN, Infinity)).every(Number.isFinite));
+});
+
+test('phone objective arrow follows the vehicle rather than the camera or an optional waypoint', () => {
+  const p={x:0,z:0}, north={x:0,z:-100,radius:12}, east={x:100,z:0,radius:12};
+  assert.deepEqual(objectivePointer(p,0,north),{ degrees:0,meters:100,inZone:false });
+  assert.deepEqual(objectivePointer(p,0,east),{ degrees:90,meters:100,inZone:false });
+  assert.equal(objectivePointer(p,Math.PI/2,north)?.degrees,90);
+  assert.equal(objectivePointer(p,-Math.PI/2,east)?.degrees,0);
+  assert.equal(Math.abs(objectivePointer(p,0,{...north,z:100})!.degrees),180);
+  assert.deepEqual(objectivePointer({x:0,z:-100},1,north),{degrees:0,meters:0,inZone:true});
+  assert.equal(objectivePointer({x:12,z:-100},0,north)?.inZone,true);
+  assert.equal(objectivePointer({x:12.01,z:-100},0,north)?.inZone,false);
+  assert.equal(objectivePointer(p,NaN,north),null);
 });

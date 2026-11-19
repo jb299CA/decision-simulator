@@ -7,6 +7,33 @@ const profiles = [
   { id: 'wheel-end', label: 'Wheel-end vibration increasing', component: 'Wheel end', moderate: 35, severe: 55, major: 65, fatal: Infinity, rise: 120 },
 ] as const;
 
+const sequences: readonly (readonly FaultId[])[] = [
+  ['charging','cooling','wheel-end'], ['charging','wheel-end','cooling'],
+  ['cooling','charging','wheel-end'], ['cooling','wheel-end','charging'],
+  ['wheel-end','charging','cooling'], ['wheel-end','cooling','charging'],
+];
+type FaultSchedule = { order: readonly FaultId[]; warning: Readonly<Record<FaultId, number>> };
+const standardSchedule: FaultSchedule = { order: sequences[0]!, warning: { charging:6, cooling:20, 'wheel-end':35 } };
+
+// One bounded schedule per run. Exposure clocks still stop when the vehicle does.
+function nextSchedule(random: () => number, previous?: FaultSchedule): FaultSchedule {
+  const sample = () => {
+    try {
+      const raw=random();
+      return Number.isFinite(raw) ? Math.max(0,Math.min(1-Number.EPSILON,raw)) : 0;
+    } catch { return 0; }
+  };
+  const options=previous ? sequences.filter(sequence=>sequence[0]!==previous.order[0]) : sequences;
+  const order=options[Math.floor(sample()*options.length)]!;
+  const warning: Record<FaultId,number> = { charging:Infinity, cooling:Infinity, 'wheel-end':Infinity };
+  const first = 30 + Math.floor(sample() * 20);
+  const second = first + 20 + Math.floor(sample() * 15);
+  warning[order[0]!] = first;
+  warning[order[1]!] = second;
+  if (sample() >= .25) warning[order[2]!] = second + 18 + Math.floor(sample() * 15);
+  return {order,warning};
+}
+
 function freshFaults(): VehicleFault[] {
   return profiles.map(profile => ({
     id: profile.id, label: profile.label, component: profile.component, severity: 'normal', diagnosed: false,
@@ -25,27 +52,45 @@ export class VehicleHealth {
     message: 'Synthetic vehicle readings start at 100% of their own baseline. No equipment operating limits are shown.',
   };
   private sampleSeconds = 0;
+  private schedule: FaultSchedule;
+
+  private readonly random?: () => number;
+
+  constructor(random?: () => number) {
+    this.random = random;
+    this.schedule = random ? nextSchedule(random) : standardSchedule;
+  }
 
   tick(dt: number, moving: boolean, time: number): void {
     const state = this.state;
     if (!Number.isFinite(dt) || dt <= 0 || !Number.isFinite(time) || !moving || state.phase === 'recovery' || state.phase === 'broken') return;
     state.movingSeconds += dt;
-    state.continuedSeconds = Math.max(0, state.movingSeconds - 6);
+    state.continuedSeconds = Math.max(0, state.movingSeconds - this.schedule.warning[this.schedule.order[0]!]);
     for (const fault of state.faults) {
       const profile = profiles.find(profile => profile.id === fault.id)!;
+      const warning = this.schedule.warning[fault.id];
+      if (!Number.isFinite(warning)) continue;
+      const shift = warning - profile.moderate;
+      const severe = profile.severe + shift, major = profile.major + shift;
+      // An early cooling warning gives more decision time, never an earlier shutdown.
+      const fatal = Math.max(profile.fatal,profile.fatal+shift);
       fault.exposure += dt * (state.paceLimited ? .12 : 1);
-      fault.damage = bounded(fault.exposure / (Number.isFinite(profile.fatal) ? profile.fatal : profile.major));
-      const next = fault.exposure >= profile.fatal - 1e-9 ? 'failed'
-        : fault.exposure >= profile.severe - 1e-9 ? 'severe'
-          : fault.exposure >= profile.moderate - 1e-9 ? 'moderate' : 'normal';
+      fault.damage = bounded(fault.exposure / (Number.isFinite(fatal) ? fatal : major));
+      const next = fault.exposure >= fatal - 1e-9 ? 'failed'
+        : fault.exposure >= severe - 1e-9 ? 'severe'
+          : fault.exposure >= warning - 1e-9 ? 'moderate' : 'normal';
       if (next !== fault.severity) {
         fault.severity = next; fault.diagnosed = false; state.alertSerial++;
         if (fault.firstWarningAt === null) fault.firstWarningAt = time;
         if ((next === 'severe' || next === 'failed') && fault.severeAt === null) fault.severeAt = time;
         state.message = `${fault.label}: ${next} synthetic alert. Inspect the trend and choose a crew response.`;
       }
-      fault.reading = 100 + Math.min(1.5, fault.exposure / 95) * profile.rise;
-      fault.maintenance = next === 'failed' || fault.exposure >= profile.major - 1e-9 ? 'major'
+      // A delayed arcade fault stays at baseline until its short lead-in.
+      const indicatedExposure = this.random
+        ? profile.moderate * bounded((fault.exposure - (warning - 5)) / 5) + Math.max(0, fault.exposure - warning)
+        : fault.exposure;
+      fault.reading = 100 + Math.min(1.5, indicatedExposure / 95) * profile.rise;
+      fault.maintenance = next === 'failed' || fault.exposure >= major - 1e-9 ? 'major'
         : next === 'severe' ? 'repair' : next === 'moderate' ? 'inspection' : 'none';
       const componentWear = fault.id === 'charging' ? 'Abnormal charging output can damage the charging system and battery.'
         : fault.id === 'cooling' ? 'Rising coolant temperature can lead to overheating and engine damage.'
@@ -106,6 +151,7 @@ export class VehicleHealth {
   }
 
   restart(): void {
+    if (this.random) this.schedule = nextSchedule(this.random,this.schedule);
     Object.assign(this.state, new VehicleHealth().state);
     this.sampleSeconds = 0;
   }

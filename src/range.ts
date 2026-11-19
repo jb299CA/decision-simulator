@@ -85,11 +85,13 @@ export class DrivingRange {
   targets: RangeTarget[] = this.makeTargets();
   private readonly soundState = new RangeAudioState();
   private readonly drivetrain = new ArcadePowertrain();
-  private readonly vehicleHealth = new VehicleHealth();
+  private readonly vehicleHealth: VehicleHealth;
   private readonly dynamics = new DrivingDynamics();
   private readonly explorer = new Exploration();
   private readonly movementTimer = new MissionMovementClock();
   private lastThrottle = 0;
+
+  constructor(faultRandom?: () => number) { this.vehicleHealth = new VehicleHealth(faultRandom); }
 
   get exploration(): ExplorationState { return this.explorer.state; }
   get movementClock(): MovementClockSnapshot { return this.movementTimer.snapshot; }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GunnerDisplayMode } from './mission-contract.ts';
+import type { GunnerDisplayMode, RangeView } from './mission-contract.ts';
 
 /** The range terminal is slightly larger and faces the seated observer more directly. */
 export const RANGE_TERMINAL = { scale: .75, position: [.42, 1.64, 1.22], rotation: [-.08, -.06, 0] } as const;
@@ -9,11 +9,24 @@ const GLASS_BOUNDS = new THREE.Box3(new THREE.Vector3(-.745,.035 - .447,.16),new
 export class CabinDisplayState {
   mode: GunnerDisplayMode = 'day';
   focused = false;
+  private beforeInspection?: { view: RangeView; mode: GunnerDisplayMode; focused: boolean };
   select(mode: GunnerDisplayMode): void { this.mode = mode; }
   toggleFocus(): void { this.focused = !this.focused; }
   leaveInside(): void { this.focused = false; }
-  inspectHealth(): void { this.mode = 'mfocs'; this.focused = false; }
-  reset(): void { this.mode = 'day'; this.focused = false; }
+  inspectHealth(view: RangeView): RangeView {
+    this.beforeInspection ??= { view, mode: this.mode, focused: view === 'inside' && this.focused };
+    this.mode = 'mfocs'; this.focused = false;
+    return 'inside';
+  }
+  finishHealth(outcome: 'resume' | 'recovery' = 'resume'): RangeView | undefined {
+    const previous = this.beforeInspection;
+    if (!previous) return;
+    this.beforeInspection = undefined;
+    this.mode = previous.mode;
+    this.focused = outcome === 'resume' && previous.focused;
+    return outcome === 'recovery' ? 'chase' : previous.view;
+  }
+  reset(): void { this.beforeInspection = undefined; this.mode = 'day'; this.focused = false; }
 }
 
 /** Include the rugged case, grab handles and fasteners, in terminal-local coordinates. */

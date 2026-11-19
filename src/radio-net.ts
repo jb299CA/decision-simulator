@@ -24,7 +24,18 @@ export function chooseRadioPair(random: () => number, previous?: RadioPair): Rad
   return choices[Math.floor(unit * choices.length)]!;
 }
 
-/** The player's company order opens the run; later traffic is fresh HQ/relay pairs. */
+/** Existing recordings cover two performers for HQ. Cast once per session, not per cue. */
+export type RadioCast = 'sarah-hq' | 'michael-hq';
+export const GUIDED_CALLSIGN = 'Brave 6';
+export function chooseRadioCast(sample: () => number): RadioCast {
+  try {
+    const value = sample();
+    if (Number.isFinite(value) && value >= 0 && value < .10) return 'sarah-hq';
+  } catch { /* Use the base cast if a supplied source fails. */ }
+  return 'michael-hq';
+}
+
+/** The player's relay opens the run; later traffic is fresh HQ/relay pairs. */
 export class RadioNet {
   private readonly initial: RadioPair;
   private readonly openingCue: RadioNetCue;
@@ -33,26 +44,28 @@ export class RadioNet {
   private relayNext = false;
   private pairReady = false;
   private readonly random: () => number;
-  private readonly voiceRandom: () => number;
+  private readonly cast: RadioCast;
 
-  constructor(random: () => number = Math.random, previous?: RadioPair, voiceRandom: () => number = random) {
+  constructor(random: () => number = Math.random, previous?: RadioPair, cast: RadioCast = 'michael-hq') {
     this.random = random;
-    this.voiceRandom = voiceRandom;
+    this.cast = cast;
     this.selected = chooseRadioPair(random, previous);
     this.initial = this.selected;
-    this.openingCue = this.chooseVoice(this.initial.relay);
+    this.openingCue = this.initial.relay;
   }
 
   /** The first pair owns the player's callsign for the entire run. */
   get pair(): RadioPair { return this.initial; }
   get opening(): RadioNetCue { return this.openingCue; }
+  // The guided crew already identifies as Brave 6 in its intercom and ambient recordings.
+  get guidedOpening(): RadioNetCue { return this.castOrder(radioScript.radioOrders[1]); }
   get next(): RadioNetCue {
     // Prefetch may ask every frame: select once and retain the complete pair.
     if (!this.pairReady) {
       this.selected = chooseRadioPair(this.random, this.selected);
       this.pairReady = true;
     }
-    return this.nextCue ??= this.chooseVoice(this.relayNext ? this.selected.relay : this.selected.order);
+    return this.nextCue ??= (this.relayNext ? this.selected.relay : this.castOrder(this.selected.order));
   }
 
   takeNext(): RadioNetCue {
@@ -63,10 +76,11 @@ export class RadioNet {
     return cue;
   }
 
-  private chooseVoice(cue: Order | Relay): RadioNetCue {
-    let sample = 1;
-    try { sample = this.voiceRandom(); } catch { /* Keep the primary male take. */ }
-    return Number.isFinite(sample) && sample >= 0 && sample < .2
+  private castOrder(cue: Order): RadioNetCue {
+    // Only the HQ line changes performer in an alternate order. Relays
+    // must use their base audio so the company commander keeps the same
+    // voice when acknowledging HQ and when speaking to a platoon.
+    return this.cast === 'sarah-hq'
       ? radioScript.radioFemale.find(alternate => alternate.baseId === cue.id) ?? cue
       : cue;
   }

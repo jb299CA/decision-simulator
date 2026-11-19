@@ -78,3 +78,40 @@ test('continue is acknowledgement only; recovery preserves evidence and decision
   assert.equal(health.state.decisions.length, 0); assert.equal(health.state.paceLimited, false);
   assert.equal(staleFault.severity, 'severe'); assert.equal(health.state.faults[0]!.severity, 'normal');
 });
+
+test('arcade fault schedule varies onset by run, can omit a fault, and is fixed while driving', () => {
+  const draws=[.95,0,0,.01,.95,.99,.4,.9,.99]; let count=0;
+  const health=new VehicleHealth(()=>draws[count++]??0);
+  const byId=(id:string)=>health.state.faults.find(fault=>fault.id===id)!;
+  advance(health,60,false);
+  advance(health,25,true,60);
+  assert.ok(health.state.faults.every(fault=>fault.reading===100 && fault.firstWarningAt===null));
+  advance(health,4,true,85);
+  assert.ok(health.state.faults.every(fault=>fault.firstWarningAt===null));
+  advance(health,1,true,89);
+  assert.equal(byId('wheel-end').firstWarningAt,90);
+  assert.equal(byId('cooling').firstWarningAt,null);
+  advance(health,20,true,90);
+  assert.equal(byId('cooling').firstWarningAt,110);
+  advance(health,30,true,110);
+  assert.equal(byId('charging').reading,100,'omitted sensor stays at baseline');
+  assert.equal(byId('charging').firstWarningAt,null);
+  assert.equal(count,4,'frames never reroll faults');
+  health.restart();
+  advance(health,48);
+  assert.ok(health.state.faults.every(fault=>fault.firstWarningAt===null));
+  advance(health,1,true,48);
+  assert.equal(byId('cooling').firstWarningAt,49,'different primary fault and onset');
+  advance(health,160,true,49);
+  assert.ok(byId('cooling').severeAt! > byId('cooling').firstWarningAt!);
+  assert.equal(health.state.phase,'broken');
+  assert.equal(count,9);
+});
+
+test('arcade random input is defensive and restart cannot repeat the primary fault', () => {
+  const health=new VehicleHealth(()=>NaN);
+  advance(health,30);
+  assert.equal(health.state.faults.find(fault=>fault.firstWarningAt!=null)?.id,'charging');
+  health.restart(); advance(health,30);
+  assert.equal(health.state.faults.find(fault=>fault.firstWarningAt!=null)?.id,'cooling');
+});
