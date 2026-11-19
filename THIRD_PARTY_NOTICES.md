@@ -16,8 +16,10 @@ Vehicle, cabin, environment, fictional contacts, instrument graphics and effects
 
 ## Fictional synthetic dialogue
 
-The 38 bundled MP3 dialogue clips were generated from original fictional scripts using Kokoro JS 1.2.1 and the Kokoro 82M v1.0 ONNX model, using stock synthetic voices `am_michael`, `am_fenrir`, `am_eric` and `af_sarah`. No real person's voice was cloned and no operational radio recording is used. The upstream [Kokoro model](https://huggingface.co/hexgrad/Kokoro-82M) identifies its weights as Apache-2.0; that statement describes the upstream model and is not a blanket license claim for this project. Only finished clips ship; no model or runtime speech service is bundled.
+The 39 bundled MP3 dialogue clips were generated from original fictional scripts using Kokoro JS 1.2.1 and the Kokoro 82M v1.0 ONNX model, using stock synthetic voices `am_michael`, `am_fenrir`, `am_eric` and `af_sarah`. No real person's voice was cloned and no operational radio recording is used. The upstream [Kokoro model](https://huggingface.co/hexgrad/Kokoro-82M) identifies its weights as Apache-2.0; that statement describes the upstream model and is not a blanket license claim for this project. Only finished clips ship; no model or runtime speech service is bundled.
 
 ## Concept artwork
 
 `public/art/stryker-start.jpg` is an AI-generated concept-art derivative created for the start screen. It is illustrative artwork. Logo, titles and controls are separate application elements. Raw artwork, masters and planning reference photographs are not included in this handoff.
+
+The three bundled score loops in public/music are original locally rendered music. Web Audio supplies a quiet procedural bridge while a score file loads and original terminal tick effects; no third-party soundtrack is used.

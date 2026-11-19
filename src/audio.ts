@@ -1,15 +1,16 @@
 import type { Phase, Simulation } from './simulation';
 import { radioScript } from './radio-script.ts';
 import type { PowertrainState } from './powertrain.ts';
-import { ProceduralMusic, musicScene } from './music.ts';
-import { callsignForPair, RadioNet, type RadioNetCue } from './radio-net.ts';
+import { ProceduralMusic, RenderedScore, loadScoreAsset, musicScene } from './music.ts';
+import { callsignForPair, chooseRadioCast, GUIDED_CALLSIGN, RadioNet, type RadioCast, type RadioNetCue } from './radio-net.ts';
 
-export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean };
+export type VehicleAudioContext = { powertrain?: PowertrainState; inside?: boolean; training?: boolean; contact?: boolean; health?: string; terminal?: boolean; breakdown?: boolean; faultInspection?: boolean; transportPaused?: boolean; departureCrossed?: boolean; practiceCompleted?: boolean; recoveryReveal?: boolean };
 export type SoundState = 'unstarted' | 'unsupported' | 'muted' | 'paused' | 'running' | 'blocked';
 
-type Cue = typeof radioScript.phase[keyof typeof radioScript.phase] | typeof radioScript.ambient[number] | RadioNetCue;
+type Cue = typeof radioScript.phase[keyof typeof radioScript.phase] | typeof radioScript.ambient[number] | typeof radioScript.recovery | RadioNetCue;
 type LoadJob = { cue: Cue; priority: 'current' | 'prefetch'; resolve: (buffer?: AudioBuffer) => void };
 const line = (cue: Cue): string => `${cue.speaker}: ${cue.text}`;
+export const recoveryCaption = (): string => line(radioScript.recovery);
 // Quiet upper firing harmonics remain audible on small speakers without raising
 // the master ceiling or pretending these are measured vehicle frequencies.
 const dieselRatios = [1, 2, 3, 4, 5, 6, 10, 14, 19];
@@ -59,6 +60,8 @@ export class SimulationAudio {
   private loadQueue: LoadJob[] = [];
   private activeLoads = 0;
   private activePrefetch = 0;
+  private voiceBackoff = new Map<string, number>();
+  private deferredVoice?: { cue: Cue; generation: number; needsRetry: boolean };
   private squelchBuffer?: AudioBuffer;
   private squelches = new Set<AudioBufferSourceNode>();
   private radioStaticBuffer?: AudioBuffer;
@@ -82,6 +85,15 @@ export class SimulationAudio {
   private generation = 0;
   private muted = false;
   private paused = false;
+  private inspectionAmbience = false;
+  private inspectionInside?: boolean;
+  private inspectionAudioTime = 0;
+  private soundscapeTime = 0;
+  private distantBuffers?: readonly AudioBuffer[];
+  private distantSource?: { source: AudioBufferSourceNode; gain: GainNode };
+  private nextDistant?: number;
+  private distantIndex = 0;
+  private distantUntil = 0;
   private started = false;
   private disposed = false;
   private lastPhase: Phase = 'title';
@@ -93,33 +105,40 @@ export class SimulationAudio {
   private ambientIndex = 0;
   private radioNet: RadioNet;
   private drivingMode = false;
+  private recoveryAcknowledged = false;
   private readonly random: () => number;
-  private readonly voiceRandom: () => number;
+  private readonly radioCast: RadioCast;
   private missionIdentity: string;
+  private guidedMode = false;
   private speakingCaption?: string;
   private captionUntil = 0;
   private vehicleContext?: VehicleAudioContext;
-  private music?: ProceduralMusic;
+  private music?: ProceduralMusic | RenderedScore;
   private musicOn = true;
   private homeMusic = false;
   private homeMusicTime = 0;
+  private briefingBuffer?: AudioBuffer;
+  private briefingSource?: AudioBufferSourceNode;
+  private briefingNotBefore = 0;
+  private rangeOpeningObsolete = false;
 
-  constructor(random: () => number = Math.random, voiceRandom: () => number = random) {
+  constructor(random: () => number = Math.random, voiceRandom?: () => number) {
     this.random = random;
-    this.voiceRandom = voiceRandom;
-    this.radioNet = new RadioNet(random, undefined, voiceRandom);
+    this.radioCast = chooseRadioCast(voiceRandom ?? Math.random);
+    this.radioNet = new RadioNet(random, undefined, this.radioCast);
     this.missionIdentity = callsignForPair(this.radioNet.pair);
   }
 
   /** Fixed to this run's first chain, independent of later background traffic. */
-  get missionCallsign(): string { return this.missionIdentity; }
+  get missionCallsign(): string { return this.guidedMode ? GUIDED_CALLSIGN : this.missionIdentity; }
 
   get musicEnabled(): boolean { return this.musicOn; }
+  get musicPreparing(): boolean { return this.music instanceof RenderedScore && this.music.preparing; }
   /** An enabled home control must unlock playback before it can toggle off. */
   get musicNeedsActivation(): boolean { return this.musicOn && !this.muted && this.soundState !== 'running'; }
   setMusicEnabled(enabled: boolean): void {
     this.musicOn = !!enabled;
-    if (!this.musicOn) this.music?.stop();
+    if (!this.musicOn) this.music?.stop(); else if (this.music instanceof RenderedScore) this.music.retry();
   }
 
   get caption(): string {
@@ -130,13 +149,14 @@ export class SimulationAudio {
   }
 
   get radioActive(): boolean { return this.speakingCaption !== undefined; }
+  get distantCaption(): string | undefined { return this.soundscapeTime < this.distantUntil ? this.distantIndex % 2 ? "[Distant explosions]" : "[Distant gunfire]" : undefined; }
 
   /** Report the device state, rather than treating an enabled preference as playback. */
   get soundState(): SoundState {
     if (this.muted) return 'muted';
     if (!this.started) return 'unstarted';
     if (!this.context || this.disposed || this.context.state === 'closed') return 'unsupported';
-    if (this.paused) return 'paused';
+    if (this.paused && !this.inspectionAmbience) return 'paused';
     // Safari also reports "interrupted"; every non-running state needs a tap.
     return this.context.state === 'running' ? 'running' : 'blocked';
   }
@@ -159,6 +179,7 @@ export class SimulationAudio {
       }
       const context = this.context;
       if (!context) return;
+      if (retryOutput && this.music instanceof RenderedScore) this.music.retry();
       // Invoke resume in the tap's synchronous call stack, even if the previous
       // home/inspection frame is paused. The master stays silent until a frame
       // observes allowed playback. Never wait for a recording before unlocking.
@@ -170,13 +191,15 @@ export class SimulationAudio {
       this.prefetch();
       await Promise.all([activation, recovery]);
       if (this.disposed || context !== this.context) return;
-      if (epoch === this.activationEpoch && retryOutput && this.audible) await context.resume();
+      if (epoch === this.activationEpoch && retryOutput && this.transportAudible) await context.resume();
       // A delayed mobile resume must not undo a pause or mute made meanwhile.
-      if (!this.audible) this.syncContext();
+      if (!this.transportAudible) this.syncContext();
+      else if (epoch === this.activationEpoch) this.resumeCurrentVoice(retryOutput);
     } catch { /* Captions remain available when device activation fails. */ }
   }
 
-  private get audible(): boolean { return this.started && !this.disposed && !this.muted && !this.paused; }
+  private get transportAudible(): boolean { return this.started && !this.disposed && !this.muted && (!this.paused || this.inspectionAmbience); }
+  private get audible(): boolean { return this.transportAudible && !this.paused; }
 
   private selectPlaybackSession(): void {
     try {
@@ -222,6 +245,7 @@ export class SimulationAudio {
   private load(cue: Cue, priority: LoadJob['priority']): Promise<AudioBuffer | undefined> {
     const cached = this.buffers.get(cue.id);
     if (cached) return Promise.resolve(cached);
+    if (priority === 'prefetch' && (this.voiceBackoff.get(cue.id) ?? 0) > Date.now()) return Promise.resolve(undefined);
     const existing = this.loads.get(cue.id);
     if (existing) {
       const queued = this.loadQueue.find(job => job.cue.id === cue.id);
@@ -247,7 +271,14 @@ export class SimulationAudio {
       const job = this.loadQueue.splice(next, 1)[0]!;
       this.activeLoads++;
       if (job.priority === 'prefetch') this.activePrefetch++;
-      void this.decode(job.cue, context).then(buffer => job.resolve(buffer)).finally(() => {
+      void this.decode(job.cue, context).then(buffer => {
+        // Cache successful buffers, not failed promises. Back off speculative
+        // prefetches without making a recovered recording unreachable.
+        this.loads.delete(job.cue.id);
+        if (buffer) this.voiceBackoff.delete(job.cue.id);
+        else if (!this.disposed) this.voiceBackoff.set(job.cue.id, Date.now() + 15_000);
+        job.resolve(buffer);
+      }).finally(() => {
         this.activeLoads--;
         if (job.priority === 'prefetch') this.activePrefetch--;
         this.pumpLoads();
@@ -282,11 +313,12 @@ export class SimulationAudio {
     if (!this.context || this.disposed || this.paused || this.muted) return;
     const phases = Object.keys(radioScript.phase) as Exclude<Phase, 'title'>[];
     const nextPhase = this.lastPhase === 'title' ? 'exterior' : phases[phases.indexOf(this.lastPhase) + 1];
-    // Driving mode skips the guided chapters; warm its next net transmission.
-    // In the guided exercise, warm movement traffic only as it approaches.
-    const cue = this.drivingMode ? this.radioNet.next
+    // Driving owns one opening relay, fetched on entry; it must never prefetch
+    // or replay the HQ/test-fire order pool as ambient traffic. In the guided
+    // exercise, warm movement traffic only as it approaches.
+    const cue = this.drivingMode ? undefined
       : this.wasMoving && this.nextAmbient - this.lastTime <= 6 ? this.guidedTraffic
-      : nextPhase === 'exterior' ? this.radioNet.pair.order : nextPhase ? radioScript.phase[nextPhase] : undefined;
+      : nextPhase === 'exterior' ? this.radioNet.guidedOpening : nextPhase ? radioScript.phase[nextPhase] : undefined;
     if (cue) void this.load(cue, 'prefetch');
   }
 
@@ -296,7 +328,14 @@ export class SimulationAudio {
     master.gain.value = 0;
     master.connect(context.destination);
     this.master = master;
-    this.music = new ProceduralMusic(context, master);
+    this.briefingBuffer = context.createBuffer(1, Math.ceil(context.sampleRate * .024), context.sampleRate);
+    const click = this.briefingBuffer.getChannelData(0);
+    for (let i = 0; i < click.length; i++) {
+      const time = i / context.sampleRate;
+      click[i] = .045 * Math.sin(2 * Math.PI * 1150 * time) * Math.min(1, time / .002) * Math.exp(-time * 220);
+    }
+    this.music = typeof AudioBufferSourceNode === 'function' && typeof fetch === 'function'
+      ? new RenderedScore(context, master, loadScoreAsset) : new ProceduralMusic(context, master);
     const group = (): GainNode => { const node = context.createGain(); node.gain.value = 0; node.connect(master); return node; };
     this.engineGain = group(); this.rollingGain = group(); this.cabinGain = group(); this.windGain = group();
     this.whineGain = group(); this.loadGain = group();
@@ -429,14 +468,32 @@ export class SimulationAudio {
     const wind = filter('lowpass', 420); wind.connect(this.windGain); loop(white, wind);
     // Recorded speech is conditioned offline. Keep unity gain and output
     // headroom here; clarity comes from channel tone and foreground ducking.
-    const radioHigh = filter('highpass', 270), radioLow = filter('lowpass', 3400);
+    const radioHigh = filter('highpass', 185), radioLow = filter('lowpass', 3750);
     const radioLevel = context.createGain(); radioLevel.gain.value = 1;
     radioHigh.connect(radioLow).connect(radioLevel).connect(master);
     this.radioInput = radioHigh;
-    const intercomHigh = filter('highpass', 140), intercomLow = filter('lowpass', 5200);
+    const intercomHigh = filter('highpass', 115), intercomLow = filter('lowpass', 5200);
     const intercomLevel = context.createGain(); intercomLevel.gain.value = 1;
     intercomHigh.connect(intercomLow).connect(intercomLevel).connect(master);
     this.intercomInput = intercomHigh;
+    this.distantBuffers = [true,false].map(boom => {
+      // Original abstract, distant game sound: diffuse pops and rumble, not recorded weapons.
+      const buffer = context.createBuffer(1,Math.ceil(context.sampleRate * 1.4),context.sampleRate);
+      const data = buffer.getChannelData(0);
+      let smoothNoise = 0;
+      const beats = boom ? [.025,.56] : [.02,.19,.31,.59];
+      for (let i=0;i<data.length;i++) {
+        const time=i/context.sampleRate;
+        smoothNoise += .21*(random()-smoothNoise);
+        let shape=0;
+        for(const beat of beats) {
+          const age=time-beat;
+          if(age>=0) shape+=Math.min(1,age/.026)*Math.exp(-age*(boom?7:22));
+        }
+        data[i] = Math.min(1,(1.4-time)/.15)*shape*(smoothNoise*.58+(boom?Math.sin(time*2*Math.PI*115)*.3:0));
+      }
+      return buffer;
+    });
   }
 
   /** Home has its own bounded frame clock, never a simulation tick or cue queue. */
@@ -444,7 +501,8 @@ export class SimulationAudio {
     if (this.disposed) return;
     if (!this.homeMusic) {
       this.music?.stop();
-      this.cancelVoice(); this.cancelRangeShots(); this.clearQueuedLoads();
+      this.cancelVoice(); this.cancelRangeShots(); this.cancelDistant(); this.clearQueuedLoads();
+      this.nextDistant = undefined; this.distantIndex = 0; this.inspectionAudioTime = 0; this.soundscapeTime = 0;
       this.lastPhase = 'title'; this.lastTime = 0;
       this.lastEngine = false; this.wasMoving = false; this.vehicleContext = undefined;
       this.wasBroken = false; this.wasGuidedAlert = false; this.nextAmbient = Infinity;
@@ -456,18 +514,49 @@ export class SimulationAudio {
     this.setPaused(paused);
     const playing = this.audible && this.musicOn && this.context?.state === 'running';
     if (playing && Number.isFinite(delta)) this.homeMusicTime += Math.max(0, Math.min(delta, .15));
-    if (this.master) this.master.gain.value = playing ? .48 : 0;
-    this.music?.update({ time: this.homeMusicTime, scene: 'practice', audible: playing, ducked: false });
+    if (this.master) this.master.gain.value = this.audible && this.context?.state === 'running' ? .48 : 0;
+    this.music?.update({ time: this.homeMusicTime, scene: 'home', audible: playing, ducked: false });
   }
 
-  update(sim: Simulation, vehicle?: VehicleAudioContext): void {
+  /** One quiet terminal click per newly revealed text segment; never queue catchup. */
+  briefingTick(): void {
+    const context = this.context;
+    if (!this.homeMusic || !this.audible || !context || context.state !== 'running' || !this.master || !this.briefingBuffer ||
+      (typeof document !== 'undefined' && document.hidden) || context.currentTime < this.briefingNotBefore) return;
+    this.cancelBriefingTick();
+    this.briefingNotBefore = context.currentTime + .125;
+    const source = context.createBufferSource(); source.buffer = this.briefingBuffer;
+    source.connect(this.master); this.briefingSource = source;
+    source.onended = () => {
+      if (this.briefingSource === source) this.briefingSource = undefined;
+      source.disconnect();
+    };
+    try { source.start(); } catch { this.cancelBriefingTick(); }
+  }
+
+  private cancelBriefingTick(): void {
+    const source = this.briefingSource; this.briefingSource = undefined;
+    if (!source) return;
+    source.onended = null;
+    try { source.stop(); } catch { /* Already ended. */ }
+    source.disconnect();
+  }
+
+  update(sim: Simulation, vehicle?: VehicleAudioContext, frameDelta = 0): void {
     if (this.disposed) return;
     if (this.homeMusic) {
-      this.music?.stop(); this.homeMusic = false; this.homeMusicTime = 0;
+      this.music?.stop(); this.cancelBriefingTick(); this.homeMusic = false; this.homeMusicTime = 0;
     }
     if (sim.time < this.lastTime) this.restart();
     this.lastTime = sim.time;
-    if (sim.paused !== this.paused) this.setPaused(sim.paused);
+    this.setPaused(sim.paused || !!vehicle?.transportPaused, !!vehicle?.faultInspection);
+    // The score and background atmosphere get a clock during inspections.
+    // Voice/cues and simulation still use the frozen exercise clock.
+    if (this.inspectionAmbience && this.transportAudible && this.context?.state === 'running' && Number.isFinite(frameDelta)) {
+      this.inspectionAudioTime += Math.max(0, Math.min(frameDelta, .15));
+    }
+    this.soundscapeTime = sim.time + this.inspectionAudioTime;
+    if (sim.phase === 'exterior') this.guidedMode = true;
     const changed = this.lastPhase !== sim.phase;
     const engineStopped = this.lastEngine && !sim.engine;
     this.lastPhase = sim.phase;
@@ -497,25 +586,45 @@ export class SimulationAudio {
         // powertrain/training state distinguishes it from driving mode.
         const rangeEntry = sim.phase === 'cabin' && (vehicle?.powertrain !== undefined || vehicle?.training !== undefined);
         if (rangeEntry) this.drivingMode = true;
-        this.queue(rangeEntry ? this.radioNet.opening : sim.phase === 'exterior' ? this.radioNet.pair.order : radioScript.phase[sim.phase]);
+        if (!rangeEntry || (!vehicle?.departureCrossed && !vehicle?.practiceCompleted && vehicle?.training !== false)) {
+          this.queue(rangeEntry ? this.radioNet.opening : sim.phase === 'exterior' ? this.radioNet.guidedOpening : radioScript.phase[sim.phase]);
+        }
       }
+    }
+    // The single player relay contains pre-departure instructions. Consume it
+    // after practice or at LD, even during download or before an audio tap.
+    if (this.drivingMode && !this.rangeOpeningObsolete && (vehicle?.practiceCompleted || vehicle?.departureCrossed || vehicle?.training === false)) {
+      this.rangeOpeningObsolete = true;
+      this.cancelVoice(); this.clearQueuedLoads();
     }
     // Range completion shares the cabin phase; consume any obsolete movement
     // cue so its exact caption cannot describe an engine that has just stopped.
-    if (breakdown || vehicle?.terminal || (vehicle && engineStopped && !changed)) { this.cancelVoice(); this.clearQueuedLoads(); }
-    if (!this.voice && this.speakingCaption && sim.time >= this.captionUntil && !this.pending) this.speakingCaption = undefined;
-    if (this.audible && !vehicle?.terminal && sim.moving && !changed && sim.time >= this.nextAmbient && sim.time >= this.ambientNotBefore && !this.voice && !this.pending && !this.speakingCaption) {
-      this.queue(this.drivingMode ? this.radioNet.takeNext() : this.guidedTraffic);
+    if (vehicle?.terminal && vehicle.recoveryReveal) {
+      if (!this.recoveryAcknowledged) {
+        this.recoveryAcknowledged = true;
+        this.cancelVoice(); this.clearQueuedLoads();
+        this.queue(radioScript.recovery);
+      }
+    } else if (breakdown || vehicle?.terminal || (vehicle && engineStopped && !changed)) {
+      this.cancelVoice(); this.clearQueuedLoads();
+    }
+    if (!this.voice && this.speakingCaption && sim.time >= this.captionUntil && !this.pending) {
+      this.speakingCaption = undefined;
+      this.deferredVoice = undefined;
+    }
+    this.resumeCurrentVoice(false);
+    if (!this.drivingMode && this.audible && !vehicle?.terminal && sim.moving && !changed && sim.time >= this.nextAmbient && sim.time >= this.ambientNotBefore && !this.voice && !this.pending && !this.speakingCaption) {
+      this.queue(this.guidedTraffic);
       this.ambientIndex++;
       this.nextAmbient = sim.time + this.ambientDelay();
     }
-    this.prefetch();
+    if (!vehicle?.terminal) this.prefetch();
     const powertrain = vehicle?.powertrain;
-    const inside = vehicle?.inside ?? sim.phase !== 'exterior';
+    const inside = (this.inspectionAmbience ? this.inspectionInside : undefined) ?? vehicle?.inside ?? sim.phase !== 'exterior';
     const rpm = powertrain?.rpm ?? 720 + sim.speed * 330;
     const load = powertrain?.load ?? sim.speed;
     const whine = powertrain?.whine ?? Math.max(0, sim.speed * .45);
-    if (this.master) this.master.gain.value = this.audible && sim.phase !== 'title' ? .48 : 0;
+    if (this.master) this.master.gain.value = this.transportAudible && sim.phase !== 'title' ? .48 : 0;
     const level = (node: GainNode | undefined, value: number): void => { if (node) this.vehicleLevels.set(node, value); };
     level(this.engineGain, sim.engine ? (.21 + load * .16) * (vehicle ? inside ? .83 : 1.15 : 1) : 0);
     level(this.rollingGain, sim.moving ? (.04 + sim.speed * .32) : 0);
@@ -535,9 +644,38 @@ export class SimulationAudio {
     });
     if (this.firingTone) this.smooth(this.firingTone.frequency, rpm / 60, .045);
     if (announceGuidedAlert) this.healthAlert();
-    this.music?.update({ time: sim.time, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
-      audible: this.audible && this.musicOn && sim.phase !== 'title', ducked: !!this.voice,
+    this.music?.update({ time: this.soundscapeTime, scene: musicScene({ phase: sim.phase, moving: sim.moving, faultSeverity: sim.faultSeverity, alert: sim.alert, ...vehicle }),
+      audible: this.transportAudible && this.musicOn && this.context?.state === 'running' && sim.phase !== 'title', ducked: !!this.voice,
       priorityAlert: !!(this.healthAlertSource || this.breakdownSource) });
+    this.updateDistant(this.soundscapeTime, !!vehicle?.departureCrossed && !vehicle.terminal && !vehicle.breakdown);
+  }
+
+  private updateDistant(time: number, allowed: boolean): void {
+    if (!allowed) { this.cancelDistant(); this.nextDistant = undefined; return; }
+    if (this.nextDistant === undefined) this.nextDistant = time + 3;
+    const context = this.context;
+    if (!this.transportAudible || !context || context.state !== "running" || !this.master || !this.distantBuffers || time < this.nextDistant) return;
+    if (this.voice || this.pending || this.healthAlertSource || this.breakdownSource || this.rangeShots.size || this.distantSource) return;
+    const source = context.createBufferSource(), gain = context.createGain();
+    source.buffer = this.distantBuffers[this.distantIndex % 2]!;
+    gain.gain.value = .135;
+    source.connect(gain).connect(this.master);
+    this.distantSource = { source, gain };
+    source.onended = () => { if (this.distantSource?.source === source) { this.distantSource = undefined; source.disconnect(); gain.disconnect(); } };
+    try {
+      source.start(); this.distantIndex++; this.distantUntil = time + 1.6;
+    } catch { this.cancelDistant(); }
+    this.nextDistant = time + [12,15,18][this.distantIndex % 3]!;
+  }
+
+  private cancelDistant(): void {
+    this.distantUntil = 0;
+    const active = this.distantSource;
+    this.distantSource = undefined;
+    if (!active) return;
+    active.source.onended = null;
+    try { active.source.stop(); } catch { /* Already ended. */ }
+    active.source.disconnect(); active.gain.disconnect();
   }
 
   private ambientDelay(): number { return 18 + (this.ambientIndex * 7 + 3) % 11; }
@@ -562,9 +700,10 @@ export class SimulationAudio {
    * are slower than attacks, avoiding a pumping engine between radio words. */
   private mixPriority(newReport?: AudioBufferSourceNode): void {
     const duck = this.breakdownSource ? .3 : this.voice ? .38 : this.healthAlertSource ? .55 : 1;
+    if (this.distantSource) this.smooth(this.distantSource.gain.gain, this.voice || this.healthAlertSource || this.breakdownSource || this.rangeShots.size ? .024 : .135, .025);
     for (const [node, base] of this.vehicleLevels) {
       const target = base * duck;
-      if (target === 0 || !this.audible) this.zero(node.gain);
+      if (target === 0 || !this.transportAudible) this.zero(node.gain);
       else this.smooth(node.gain, target, target < node.gain.value ? .025 : .16);
     }
     const reportDuck = this.breakdownSource ? .28 : this.healthAlertSource ? .4 : this.voice ? .55 : 1;
@@ -644,6 +783,10 @@ export class SimulationAudio {
     // Captions also cover unsupported devices and missing/undecodable assets.
     this.speakingCaption = line(cue);
     this.captionUntil = this.lastTime + Math.max(5, cue.text.length / 13);
+    if (!this.muted && !this.paused && this.context?.state !== 'running') {
+      this.deferredVoice = { cue, generation: this.generation, needsRetry: false };
+      return;
+    }
     if (!this.audible) return;
     if (this.buffers.has(cue.id)) this.play(cue);
     else if (this.context) {
@@ -653,8 +796,21 @@ export class SimulationAudio {
         if (this.pending !== pending || pending.generation !== this.generation || !this.audible) return;
         this.pending = undefined;
         if (buffer) this.play(cue);
+        else if (this.lastTime < this.captionUntil) this.deferredVoice = { cue, generation: this.generation, needsRetry: true };
       });
     }
+  }
+
+  private resumeCurrentVoice(retry: boolean): void {
+    const held = this.deferredVoice;
+    if (!held || !this.audible || this.context?.state !== "running") return;
+    if (held.generation !== this.generation || this.lastTime >= this.captionUntil) {
+      this.deferredVoice = undefined;
+      return;
+    }
+    if (held.needsRetry && !retry) return;
+    this.deferredVoice = undefined;
+    this.queue(held.cue);
   }
 
   private play(cue: Cue): void {
@@ -662,6 +818,10 @@ export class SimulationAudio {
     const radio = cue.channel === 'radio';
     const input = radio ? this.radioInput : this.intercomInput;
     if (!this.audible || !context || !buffer || !input || this.lastPhase === 'title') return;
+    if (context.state !== 'running') {
+      this.deferredVoice = { cue, generation: this.generation, needsRetry: false };
+      return;
+    }
     this.cancelVoice();
     this.speakingCaption = line(cue);
     this.captionUntil = Infinity;
@@ -689,6 +849,7 @@ export class SimulationAudio {
       this.voice = undefined; source.onended = null; source.disconnect(); this.cancelSquelches();
       this.cancelRadioStatic();
       this.mixPriority(); this.captionUntil = this.lastTime + 8;
+      this.deferredVoice = { cue, generation: this.generation, needsRetry: true };
     }
   }
 
@@ -740,6 +901,7 @@ export class SimulationAudio {
   private cancelVoice(): void {
     this.generation++;
     this.pending = undefined;
+    this.deferredVoice = undefined;
     const source = this.voice;
     this.voice = undefined;
     if (source) { source.onended = null; try { source.stop(); } catch { /* Already ended. */ } source.disconnect(); }
@@ -761,14 +923,23 @@ export class SimulationAudio {
     this.syncContext();
   }
 
-  setPaused(paused: boolean): void {
-    if (this.paused === paused) {
+  setPaused(paused: boolean, inspectionAmbience = false): void {
+    inspectionAmbience = paused && inspectionAmbience;
+    if (this.paused === paused && this.inspectionAmbience === inspectionAmbience) {
       // A cached page may restore its context independently of the exercise.
-      if (paused && this.context?.state === 'running') this.syncContext();
+      if (paused && !inspectionAmbience && this.context?.state === 'running') this.syncContext();
       return;
     }
+    if (inspectionAmbience && !this.inspectionAmbience) this.inspectionInside ??= this.vehicleContext?.inside;
+    if (!paused) this.inspectionInside = undefined;
     this.paused = paused;
-    if (paused) this.silence();
+    this.inspectionAmbience = inspectionAmbience;
+    if (paused && inspectionAmbience) {
+      // Freeze dialogue progression but leave the current score, vehicle mix
+      // and already playing effects connected through the modal.
+      this.cancelVoice();
+      this.clearQueuedLoads();
+    } else if (paused) this.silence();
     this.syncContext();
   }
 
@@ -776,6 +947,8 @@ export class SimulationAudio {
     this.activationEpoch++;
     this.cancelSessionRetry();
     this.music?.stop();
+    this.cancelBriefingTick();
+    this.cancelDistant();
     this.cancelVoice();
     this.cancelRangeShots();
     this.cancelSquelches();
@@ -789,14 +962,14 @@ export class SimulationAudio {
     const context = this.context;
     if (!context || context.state === 'closed') return;
     try {
-      const requestedAudible = this.audible;
+      const requestedAudible = this.transportAudible;
       const change = requestedAudible ? context.resume() : context.suspend();
       void change.then(() => {
         // A route change can resolve an earlier resume after the user muted or
         // paused. Honor the latest transport state in every resume path.
-        if (context === this.context && !this.audible && context.state === 'running') {
+        if (context === this.context && !this.transportAudible && context.state === 'running') {
           this.syncContext();
-        } else if (context === this.context && requestedAudible !== this.audible && this.audible && context.state === 'suspended') {
+        } else if (context === this.context && requestedAudible !== this.transportAudible && this.transportAudible && context.state === 'suspended') {
           // An older focus-loss suspend can finish after the user's Play tap.
           // Reconcile the latest request without timers or replaying cues. Its
           // completion is checked too, in case another pause arrives meanwhile.
@@ -806,12 +979,18 @@ export class SimulationAudio {
     } catch { /* Some devices throw synchronously while an audio route changes. */ }
   }
 
-  restart(): void {
+  restart(guided = false): void {
     this.silence();
-    this.radioNet = new RadioNet(this.random, this.radioNet.pair, this.voiceRandom);
+    if (this.music instanceof RenderedScore) this.music.reset();
+    this.inspectionInside = undefined;
+    this.guidedMode = guided;
+    this.radioNet = new RadioNet(this.random, this.radioNet.pair, this.radioCast);
     this.missionIdentity = callsignForPair(this.radioNet.pair);
-    this.drivingMode = false;
-    this.lastPhase = 'title'; this.lastTime = 0; this.paused = false;
+    this.drivingMode = false; this.recoveryAcknowledged = false; this.rangeOpeningObsolete = false;
+    this.briefingNotBefore = 0;
+    this.lastPhase = 'title'; this.lastTime = 0; this.paused = false; this.inspectionAmbience = false;
+    this.nextDistant = undefined; this.distantIndex = 0;
+    this.inspectionAudioTime = 0; this.soundscapeTime = 0;
     this.homeMusic = false; this.homeMusicTime = 0;
     this.ambientIndex = 0; this.nextAmbient = Infinity;
     this.wasMoving = false; this.lastEngine = false; this.ambientNotBefore = 0;
@@ -830,12 +1009,12 @@ export class SimulationAudio {
     this.restorePlaybackSession(); this.playbackSession = undefined;
     this.music?.dispose(); this.music = undefined;
     for (const source of this.sources) { try { source.stop(); } catch { /* Already stopped. */ } }
-    this.sources = []; this.harmonics = []; this.whineTones = []; this.buffers.clear(); this.loads.clear();
+    this.sources = []; this.harmonics = []; this.whineTones = []; this.buffers.clear(); this.loads.clear(); this.voiceBackoff.clear();
     if (this.context) void this.context.close().catch(() => {});
     this.context = undefined; this.master = undefined;
     this.rangeShotBuffer = undefined;
     this.radioStaticBuffer = undefined;
     this.healthAlertBuffers = undefined;
-    this.breakdownBuffer = undefined;
+    this.breakdownBuffer = undefined; this.distantBuffers = undefined;
   }
 }

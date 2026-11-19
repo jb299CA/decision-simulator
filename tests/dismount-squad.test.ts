@@ -49,7 +49,9 @@ test('squad follows frozen simulation elapsed, resets hidden, and keeps pooled r
   for (let i=0;i<100;i++) squad.update(running,ground,false);
   squad.group.updateMatrixWorld(true);
   assert.deepEqual(squad.group.children.map(child => child.matrixWorld.elements.slice()),matrices);
-  assert.equal(geometries.size,2); assert.equal(materials.size,5); assert.ok(meshes<260);
+  assert.equal(geometries.size,2); assert.equal(materials.size,8); assert.ok(meshes<360);
+  assert.ok(squad.group.children.every(soldier => soldier.getObjectByName('cosmetic-rifle')?.children.length === 4));
+  assert.ok(squad.group.children.every(soldier => soldier.getObjectByName('cloth-covered-helmet') && soldier.getObjectByName('protective-eyewear')));
   squad.reset(); assert.equal(squad.group.visible,false); assert.ok(squad.group.children.every(child=>!child.visible));
   squad.update({...running,phase:'stowed',elapsed:0},ground,false); assert.equal(squad.group.visible,false);
   squad.update({...state(DISMOUNT.durationSeconds),phase:'complete'},ground,false);
@@ -71,10 +73,10 @@ test('standing boots contact terrain, reduced motion has no limb cycling, and di
   const angles=soldier.children.map(child=>child.rotation.x);
   squad.update({...running,elapsed:2.3},ground,true);
   assert.deepEqual(soldier.children.map(child=>child.rotation.x),angles);
-  const resources=new Set<THREE.BufferGeometry|THREE.Material>();
-  squad.group.traverse(object=>{if(object instanceof THREE.Mesh){resources.add(object.geometry); resources.add(object.material as THREE.Material);}});
+  const resources=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>();
+  squad.group.traverse(object=>{if(object instanceof THREE.Mesh){resources.add(object.geometry); const material=object.material as THREE.MeshStandardMaterial; resources.add(material); if(material.map) resources.add(material.map);}});
   let disposals=0; resources.forEach(resource=>resource.addEventListener('dispose',()=>disposals++));
-  squad.dispose(); squad.dispose(); assert.equal(disposals,7);
+  squad.dispose(); squad.dispose(); assert.equal(disposals,11);
 });
 
 test('inspection source closes an open ramp without mutating it or carrying squad actors', () => {

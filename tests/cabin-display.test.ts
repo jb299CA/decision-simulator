@@ -112,6 +112,39 @@ test('Day, Thermal and MFoCS retain focus, while view changes, restart and inspe
   state.leaveInside(); assert.equal(state.focused,false); // Returning to Inside starts seated.
   state.toggleFocus(); state.select('thermal'); state.reset();
   assert.equal(state.focused,false); assert.equal(state.mode,'day'); // Restart/home.
-  state.toggleFocus(); state.inspectHealth();
+  state.toggleFocus(); state.inspectHealth('inside');
   assert.equal(state.focused,false); assert.equal(state.mode,'mfocs'); // Paused dialog has priority.
+});
+
+test('fault examination restores the exact pre-inspection camera and display on resume', () => {
+  for (const view of ['chase', 'hatch', 'inside', 'gunner'] as const) {
+    const state = new CabinDisplayState();
+    state.select('thermal');
+    if (view === 'inside') state.toggleFocus();
+    assert.equal(state.inspectHealth(view), 'inside');
+    assert.equal(state.mode, 'mfocs');
+    assert.equal(state.focused, false);
+    // Reopening a duplicate inspection must not overwrite the original view.
+    state.inspectHealth('inside');
+    assert.equal(state.finishHealth(), view);
+    assert.equal(state.mode, 'thermal');
+    assert.equal(state.focused, view === 'inside');
+    assert.equal(state.finishHealth(), undefined);
+  }
+});
+
+test('manual MFoCS stays selected; recovery uses Chase and restart clears old inspection state', () => {
+  const state = new CabinDisplayState();
+  state.select('mfocs'); state.toggleFocus();
+  state.inspectHealth('inside');
+  assert.equal(state.finishHealth(), 'inside');
+  assert.equal(state.mode, 'mfocs');
+  assert.equal(state.focused, true);
+  state.inspectHealth('inside');
+  assert.equal(state.finishHealth('recovery'), 'chase');
+  assert.equal(state.mode, 'mfocs');
+  assert.equal(state.focused, false);
+  state.inspectHealth('hatch'); state.reset();
+  assert.equal(state.finishHealth(), undefined);
+  assert.equal(state.mode, 'day');
 });

@@ -1,10 +1,11 @@
 import './style.css';
 import { TouchStick, withTouchStick } from './touch-stick';
 import { OutcomeReveal } from './outcome-reveal';
+import { MissionBriefing, practicePrompt } from './mission-briefing';
 import { Simulation } from './simulation';
 import type { Phase } from './simulation';
 import { VehicleScene } from './scene';
-import { SimulationAudio, captionForPhase } from './audio';
+import { SimulationAudio, captionForPhase, recoveryCaption } from './audio';
 import { DrivingRange } from './range';
 import type { RangeView } from './range';
 import { RANGE_VIEWS } from './mission-contract';
@@ -13,7 +14,7 @@ import { CabinDisplayState } from './cabin-display';
 import { VehicleInspector } from './vehicle-inspector';
 import { escapeHtml, exerciseTime, missionDebriefMarkup, missionDebriefTitle, severityLabel } from './debrief-view';
 import { WORLD_BOUNDS, MISSION_ROUTE, MISSION_START, DEPARTURE_Z, POINTS_OF_INTEREST, SIDE_ROADS } from './world-config';
-import { contactVisibility, mapHeading, mapPoint, mapWorldPoint, PLAYER_MARKER_PATH } from './mission-map';
+import { contactVisibility, mapHeading, mapPoint, mapWorldPoint, objectivePointer, PLAYER_MARKER_PATH } from './mission-map';
 import { clientMapPoint, MapNavigation } from './map-navigation';
 import { DRIVE_CODES, drivingInput, gameKeyCode, permitsGameKeys, rangeViewForKey, RangeInspection, RangeKeyboard } from './input';
 import { GameFocusOwnership, nextTrappedFocus } from './ui-focus';
@@ -24,9 +25,11 @@ import { faultInstrumentData, systemsHealthMarkup } from './fault-display';
 
 const sim = new Simulation();
 const audio = new SimulationAudio();
+let lastMusicPreparing = false;
 let lastSoundState: SimulationAudio['soundState'] | undefined;
-const range = new DrivingRange();
-type Mode = 'home' | 'mission' | 'range';
+const range = new DrivingRange(Math.random);
+type Mode = 'home' | 'briefing' | 'mission' | 'range';
+const missionBriefing = new MissionBriefing();
 let mode: Mode = 'home';
 let rangeView: RangeView = 'chase';
 const cabinDisplay = new CabinDisplayState();
@@ -86,7 +89,7 @@ let previousFrame = performance.now();
 const playbackFocus = new PlaybackFocus({
   clearInputs: () => { cancelMapGesture(); clearRangeInputs(); },
   resetFrame: () => { previousFrame = performance.now(); },
-  syncAudio: () => { audio.setPaused(audioPaused()); syncSoundControls(); },
+  syncAudio: () => { audio.setPaused(audioPaused(), inspectionAudioContinues()); syncSoundControls(); },
 });
 
 const arrow = '<span aria-hidden="true">↗</span>';
@@ -146,7 +149,7 @@ document.querySelector('#app')!.append(healthDialog);
 const mapDialog = document.createElement('dialog');
 mapDialog.id = 'mission-map-dialog';
 mapDialog.setAttribute('aria-labelledby', 'mission-map-title');
-mapDialog.innerHTML = `<section class="expanded-map-panel"><header><div><span class="eyebrow"><span data-callsign>${escapeHtml(audio.missionCallsign)}</span> / NORTH UP</span><h2 id="mission-map-title">Mission map</h2></div><button data-action="close-map" aria-label="Close mission map">Close &times;</button></header><p>Driving, exercise time and sound are paused. Optional stops do not change the mission objective.</p><div class="map-tools" role="group" aria-label="Map view"><button data-action="map-zoom-out" aria-label="Zoom out">&minus;</button><output id="map-zoom" aria-label="Map zoom">1&times;</output><button data-action="map-zoom-in" aria-label="Zoom in">+</button><button data-action="map-fit">Fit all</button><button data-action="map-recenter">Find vehicle</button></div><p id="map-help">Drag to pan. Tap to set a waypoint, or choose a stop below. With map focused, arrow keys pan and + / &minus; zoom.</p><svg id="expanded-mission-map" data-mission-map viewBox="0 0 160 180" role="img" tabindex="0" aria-describedby="map-help" aria-label="Interactive north-up map; route, optional stops, vehicle and dismount objective"></svg><div class="expanded-map-legend"><span>&#9650; You</span><span>&#9671; DP: dismount point</span><span>LD: departure line</span><span>+ Waypoint</span><span>&#9675; Optional stop / &#10003; visited</span><span data-map-contact-legend hidden>&#9675; Troop &nbsp; &#9633; Gun truck<br>Hollow: estimated / Filled: detected / &times;: cleared</span></div><section class="map-stop-section" aria-labelledby="map-stops-title"><h3 id="map-stops-title">Optional stops</h3><div id="map-stop-list">${POINTS_OF_INTEREST.map(point => `<button data-action="map-stop-${point.id}" aria-pressed="false"><span>${escapeHtml(point.label)}</span><small>${escapeHtml(point.description)}</small><b data-visit-status>Not visited</b></button>`).join('')}</div></section><div class="map-selection"><p id="map-selection-status" role="status" aria-live="polite">No optional waypoint selected.</p><button data-action="map-clear">Clear waypoint</button></div><p class="expanded-map-location"></p><footer class="display-brand-footer"><img src="/branding/shift5-logo.svg" alt="Shift5"></footer></section>`;
+mapDialog.innerHTML = `<section class="expanded-map-panel"><header><div><span class="eyebrow"><span data-callsign>${escapeHtml(audio.missionCallsign)}</span> / NORTH UP</span><h2 id="mission-map-title">Mission map</h2></div><button data-action="close-map" aria-label="Close mission map">Close &times;</button></header><p>Driving and exercise time are paused. Music and background sounds continue if sound is on. Optional stops do not change the mission objective.</p><div class="map-tools" role="group" aria-label="Map view"><button data-action="map-zoom-out" aria-label="Zoom out">&minus;</button><output id="map-zoom" aria-label="Map zoom">1&times;</output><button data-action="map-zoom-in" aria-label="Zoom in">+</button><button data-action="map-fit">Fit all</button><button data-action="map-recenter">Find vehicle</button></div><p id="map-help">Drag to pan. Tap to set a waypoint, or choose a stop below. With map focused, arrow keys pan and + / &minus; zoom.</p><svg id="expanded-mission-map" data-mission-map viewBox="0 0 160 180" role="img" tabindex="0" aria-describedby="map-help" aria-label="Interactive north-up map; route, optional stops, vehicle and dismount objective"></svg><div class="expanded-map-legend"><span>&#9650; You</span><span>&#9671; DP: dismount point</span><span>LD: departure line</span><span>+ Waypoint</span><span>&#9675; Optional stop / &#10003; visited</span><span data-map-contact-legend hidden>&#9675; Troop &nbsp; &#9633; Gun truck<br>Hollow: estimated / Filled: detected / &times;: cleared</span></div><section class="map-stop-section" aria-labelledby="map-stops-title"><h3 id="map-stops-title">Optional stops</h3><div id="map-stop-list">${POINTS_OF_INTEREST.map(point => `<button data-action="map-stop-${point.id}" aria-pressed="false"><span>${escapeHtml(point.label)}</span><small>${escapeHtml(point.description)}</small><b data-visit-status>Not visited</b></button>`).join('')}</div></section><div class="map-selection"><p id="map-selection-status" role="status" aria-live="polite">No optional waypoint selected.</p><button data-action="map-clear">Clear waypoint</button></div><p class="expanded-map-location"></p><footer class="display-brand-footer"><img src="/branding/shift5-logo.svg" alt="Shift5"></footer></section>`;
 document.querySelector('#app')!.append(mapDialog);
 const expandedMap = mapDialog.querySelector<SVGSVGElement>('#expanded-mission-map')!;
 
@@ -302,7 +305,7 @@ function renderHealthPanel(): void {
     : 'Inspect the readings and choose a response. Reducing pace early can limit damage; continued driving can make it worse.';
   healthDialog.dataset.health = health.phase;
   if (!healthDialog.querySelector('#health-vehicle-model')) {
-    healthDialog.innerHTML = `<div class="health-hardware"><span>MFoCS / COMMANDER DISPLAY &middot; ${escapeHtml(mode === 'range' ? range.callsign : audio.missionCallsign)}</span><img class="health-corner-logo" src="/branding/shift5-logo.svg" alt="Shift5"></div><div class="health-screen"><header class="health-panel-heading"><div><span class="eyebrow">VEHICLE HEALTH</span><h2 id="health-title">Vehicle condition</h2></div><button data-action="close-health" class="health-close" aria-label="Close MFoCS health display">Close &times;</button></header><p id="health-inspection-note">Driving, exercise time and sound are paused while you inspect.</p><div class="health-event" role="status" aria-live="polite"></div><div class="health-console-grid"><section class="vehicle-overview" aria-label="Vehicle sensors"><div class="operator-panel-heading"><span>STRYKER / SENSOR LOCATIONS</span><span id="health-clock"></span></div><div class="vehicle-condition-overview"><div id="health-vehicle-model" class="vehicle-inspector-host"></div><div id="health-system-score" class="systems-health-host"></div></div><div id="health-sensor-list" class="fault-selectors"></div></section><section id="health-fault-detail" class="fault-detail" tabindex="-1" aria-label="Selected fault readings"></section></div><details class="operator-details"><summary>How this display gets its data</summary><p>Existing vehicle / MFoCS access &rarr; Manifold &rarr; Turbine pulling, translating and structuring &rarr; analytics insight &rarr; crew decision &rarr; outcome.</p><p>Manifold is the access path in this illustration. This is not actual Shift5 software or an independently verified integration.</p></details><p class="health-disclaimer">Training data &middot; illustrative faults and game consequences. No live vehicle connection, real thresholds or maintenance procedure.</p></div><div class="health-actions"><button data-action="health-continue"><b>Continue mission</b><span>Keep driving with the fault unresolved</span></button><button data-action="health-diagnose"><b>Inspect fault</b><span>Review assessment; no repair</span></button><button data-action="health-reduce-pace"><b>Reduce pace</b><span>Limit further damage; no repair</span></button><button data-action="health-recovery"><b>Call recovery</b><span>Stop this run for repair</span></button></div><div class="health-hardware"><span>TRAINING DISPLAY</span><span>INSPECTION PAUSED</span></div>`;
+    healthDialog.innerHTML = `<div class="health-hardware"><span>MFoCS / COMMANDER DISPLAY &middot; ${escapeHtml(mode === 'range' ? range.callsign : audio.missionCallsign)}</span><img class="health-corner-logo" src="/branding/shift5-logo.svg" alt="Shift5"></div><div class="health-screen"><header class="health-panel-heading"><div><span class="eyebrow">VEHICLE HEALTH</span><h2 id="health-title">Vehicle condition</h2></div><button data-action="close-health" class="health-close" aria-label="Close MFoCS health display">Close &times;</button></header><p id="health-inspection-note">Driving and exercise time are paused while you inspect. Music and background sounds continue if sound is on.</p><p id="health-ambient-caption" class="sr-only" role="status" aria-atomic="true"></p><div class="health-event" role="status" aria-live="polite"></div><div class="health-console-grid"><section class="vehicle-overview" aria-label="Vehicle sensors"><div class="operator-panel-heading"><span>STRYKER / SENSOR LOCATIONS</span><span id="health-clock"></span></div><div class="vehicle-condition-overview"><div id="health-vehicle-model" class="vehicle-inspector-host"></div><div id="health-system-score" class="systems-health-host"></div></div><div id="health-sensor-list" class="fault-selectors"></div></section><section id="health-fault-detail" class="fault-detail" tabindex="-1" aria-label="Selected fault readings"></section></div><details class="operator-details"><summary>How this display gets its data</summary><p>Existing vehicle / MFoCS access &rarr; Manifold &rarr; Turbine pulling, translating and structuring &rarr; analytics insight &rarr; crew decision &rarr; outcome.</p><p>Manifold is the access path in this illustration. This is not actual Shift5 software or an independently verified integration.</p></details><p class="health-disclaimer">Training data &middot; illustrative faults and game consequences. No live vehicle connection, real thresholds or maintenance procedure.</p></div><div class="health-actions"><button data-action="health-continue"><b>Continue mission</b><span>Keep driving with the fault unresolved</span></button><button data-action="health-diagnose"><b>Inspect fault</b><span>Review assessment; no repair</span></button><button data-action="health-reduce-pace"><b>Reduce pace</b><span>Limit further damage; no repair</span></button><button data-action="health-recovery"><b>Call recovery</b><span>Stop this run for repair</span></button></div><div class="health-hardware"><span>TRAINING DISPLAY</span><span>INSPECTION PAUSED</span></div>`;
   }
   healthDialog.querySelector('#health-title')!.textContent = health.phase === 'broken' ? 'Vehicle breakdown.' : health.phase === 'recovery' ? 'Recovery requested.' : health.phase === 'nominal' ? 'Vehicle condition' : 'Faults need a crew decision.';
   healthDialog.querySelector('.health-event')!.innerHTML = `<strong>${health.phase === 'broken' ? 'STOPPED / BREAKDOWN' : health.phase === 'recovery' ? 'STOPPED / REPAIR REQUIRED' : health.paceLimited ? 'REDUCED PACE / FAULTS UNRESOLVED' : health.phase === 'critical' ? 'SEVERE FAULT' : health.phase === 'warning' ? 'VEHICLE HEALTH ALERT' : 'ALL SENSORS NORMAL'}</strong><p>${escapeHtml(statusMessage)}</p>`;
@@ -327,9 +330,7 @@ function openHealth(): void {
   healthReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   healthInspection.begin(range.paused, keyboard);
   clearRangeInputs();
-  void action('range-view-inside');
-  cabinDisplay.inspectHealth();
-  syncGunnerDisplay();
+  setRangeView(cabinDisplay.inspectHealth(rangeView));
   setPaused(true);
   selectedFault = range.health.faults.find(fault => fault.severity === 'failed')?.id ?? range.health.faults.find(fault => fault.severity === 'severe')?.id ?? range.health.faults.find(fault => fault.severity === 'moderate')?.id ?? 'charging';
   renderHealthPanel();
@@ -340,12 +341,14 @@ function openHealth(): void {
   syncControls();
 }
 
-function closeHealth(): void {
+function closeHealth(outcome: 'resume' | 'recovery' = 'resume'): void {
   if (!healthInspection.open) return;
   const paused = healthInspection.end(keyboard);
   healthInspector?.dispose(); healthInspector = null;
-  healthDialog.close();
+  if (healthDialog.open) healthDialog.close();
   document.body.classList.remove('health-inspecting');
+  const view = cabinDisplay.finishHealth(outcome);
+  if (view !== undefined && mode === 'range') setRangeView(view);
   clearRangeInputs();
   setPaused(paused);
   if (healthReturnFocus?.isConnected) healthReturnFocus.focus({ preventScroll: true }); else stage.focus({ preventScroll: true });
@@ -366,6 +369,7 @@ function openDebrief(): void {
   debriefReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   debriefDialog.innerHTML = missionDebriefMarkup(range.debrief);
   debriefDialog.showModal();
+  audio.setPaused(true);
   document.body.classList.add('debrief-inspecting');
   debriefDialog.querySelector<HTMLButtonElement>('[data-action="close-debrief"]')!.focus();
 }
@@ -461,6 +465,16 @@ function screenIntro(kicker: string, title: string, text: string): string {
   return `<div class="screen-heading"><span class="eyebrow">${kicker}</span><h1>${title}</h1><p>${text}</p></div>`;
 }
 
+function setRangeView(view: RangeView): void {
+  clearRangeInputs();
+  rangeView = view;
+  if (view !== 'inside') cabinDisplay.leaveInside();
+  document.body.dataset.rangeView = view;
+  syncSpeedometerView();
+  document.querySelectorAll<HTMLButtonElement>('.range-view-buttons button').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.action === `range-view-${view}`)));
+  syncGunnerDisplay();
+}
+
 function syncGunnerDisplay(): void {
   const inside = mode === 'range' && rangeView === 'inside';
   const gunnerDisplay = cabinDisplay.mode;
@@ -489,12 +503,12 @@ function resetGunnerDisplay(): void {
 
 function renderRange(): void {
   rangeControlsExpanded = false;
-  stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">${escapeHtml(range.callsign)} / ASSIGNED MISSION</span><h1>Practice. Cross the line. Complete the mission.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
+  stage.innerHTML = `<aside id="range-drawer" class="range-drawer" role="dialog" aria-modal="true" aria-labelledby="range-drawer-title"><span class="sr-only">Exercise paused.</span><div class="range-drawer-heading"><h2 id="range-drawer-title">Mission &amp; settings</h2><button data-action="range-drawer" aria-label="Close mission details and settings">Close &times;</button></div><section class="range-hud" aria-label="Mission instruments"><div class="range-title"><span class="eyebrow">${escapeHtml(range.callsign)} / ASSIGNED MISSION</span><h1>Deliver the squad.</h1><p id="range-mission-status"></p><p id="range-objective-count" class="range-objective-count"></p><div class="mission-progress"><span id="range-progress"></span></div></div><div class="range-stats"><div><span>TERRAIN</span><strong id="range-terrain">Training ground</strong></div><div><span>SPEED &middot; MPH</span><strong id="range-speed">0</strong></div><div><span>VEHICLE INTEGRITY</span><strong id="range-integrity">100%</strong></div><div><span>HITS / SHOTS</span><strong><span id="range-hits">0</span> / <span id="range-shots">0</span></strong></div></div></section>
     <div class="range-drawer-settings"><section class="range-status-details" aria-label="Current alerts"><p id="range-health-detail"></p><p id="range-contact-detail"></p><p id="range-event-detail"></p></section><p>Hold ACCEL or Space to accelerate; release to coast. Drag the left stick to drive and steer. Hold S / down or pull the stick back to slow, then reverse. Auto aim slews toward nearby targets ahead. Wait for the lock before firing; shots follow the barrel while it turns. Hold FIRE to shoot; the aim slider or Q / E temporarily takes manual control.</p><p>Clear the contacts, stop inside the marked dismount zone, then select Drop ramp or press R to unload the nine-person squad. Outside zone = mission failure. The ramp command commits the unload.</p><div><button data-action="sound-retry">Enable / retry sound</button><button class="drawer-music-control" data-action="music" aria-pressed="${audio.musicEnabled}">Music: ${audio.musicEnabled ? 'on' : 'off'}</button><button data-action="aim-assist" aria-pressed="${range.aimAssistEnabled}">Auto aim: ${range.aimAssistEnabled ? 'on' : 'off'}</button><button data-action="motion" aria-pressed="${reducedMotion}">Reduced motion</button><button data-action="fullscreen">Fullscreen</button><button data-action="restart">Restart mission</button><button data-action="menu">Main menu</button></div><p class="sound-help">Sound on but silent? Enable / retry sound refreshes the audio output and returns to the exercise. On iPhone, check media volume and the selected speaker or headphones.</p><p>Fictional game handling and combat. Simulated speed limits: road 60 mph, grass 45, wash 25, rock 18, reverse 10. Terrain and vehicle faults can reduce the current limit. These are game settings, not operational guidance. No operational procedures or ballistics.</p></div></aside>
     <div class="range-instrument-stack">
     <section class="range-speedometer" aria-label="Simulated vehicle speed" hidden><div class="speedometer-reading"><strong id="speedometer-speed">0</strong><span>MPH <b id="speedometer-direction" hidden>REV</b></span><small>SIM</small></div><div class="speedometer-limit"><span>LIMIT <b id="speedometer-limit">60</b></span><small id="speedometer-reason">Road</small></div><div class="speedometer-track" aria-hidden="true"><span id="speedometer-progress"></span></div></section>
     <button class="range-health" id="range-health-button" data-action="health" aria-haspopup="dialog"><span class="range-health-heading"><span class="range-health-icon" aria-hidden="true">!</span><span>Open MFoCS</span></span><b id="range-health-label">Systems normal</b></button>
-    <aside class="mission-map" aria-label="Mission map"><button data-action="map" id="map-toggle" aria-expanded="${mapInspection.open}" aria-haspopup="dialog" aria-controls="mission-map-dialog"><span class="map-label"><span class="map-full-label">MISSION </span>MAP</span><img class="map-corner-brand" src="/branding/shift5-logo.svg" alt=""><span>&#10530;</span></button><div class="map-content" data-action="map" role="button" tabindex="0" aria-label="Expand mission map" aria-haspopup="dialog" aria-controls="mission-map-dialog"><svg id="mission-map-svg" data-mission-map viewBox="0 0 160 180" role="img" aria-label="North-up schematic of the complete route, departure line, staging area and dismount objective. After departure, hollow icons show estimated contacts; filled icons show detected contacts; crosses show cleared contacts."></svg><div class="map-legend"><span>&#9650; YOU</span><span>&#9671; DISMOUNT</span><span>LD DEPARTURE</span><span id="map-contact-legend" data-map-contact-legend hidden>&#9675; TROOP &nbsp; &#9633; GUN TRUCK<br>HOLLOW EST. / FILLED SEEN / &times; CLEARED</span></div><p id="range-location">GRID 0 / 80</p></div><p id="map-navigation-hint" hidden></p></aside>
+    <aside class="mission-map" aria-label="Mission map"><button data-action="map" id="map-toggle" aria-expanded="${mapInspection.open}" aria-haspopup="dialog" aria-controls="mission-map-dialog"><span class="map-label"><span class="map-full-label">MISSION </span>MAP</span><img class="map-corner-brand" src="/branding/shift5-logo.svg" alt=""><span class="map-expand-icon" aria-hidden="true">&#10530;</span><span class="phone-objective" id="phone-objective" hidden aria-hidden="true"><svg viewBox="0 0 20 20" width="20" height="20" focusable="false"><path d="M10 2 L17 16 L10 12 L3 16 Z" fill="currentColor"/></svg><span><b>DISMOUNT</b><small id="phone-objective-distance"></small></span></span></button><span id="phone-objective-description" class="sr-only"></span><div class="map-content" data-action="map" role="button" tabindex="0" aria-label="Expand mission map" aria-haspopup="dialog" aria-controls="mission-map-dialog"><svg id="mission-map-svg" data-mission-map viewBox="0 0 160 180" role="img" aria-label="North-up schematic of the complete route, departure line, staging area and dismount objective. After departure, hollow icons show estimated contacts; filled icons show detected contacts; crosses show cleared contacts."></svg><div class="map-legend"><span>&#9650; YOU</span><span>&#9671; DISMOUNT</span><span>LD DEPARTURE</span><span id="map-contact-legend" data-map-contact-legend hidden>&#9675; TROOP &nbsp; &#9633; GUN TRUCK<br>HOLLOW EST. / FILLED SEEN / &times; CLEARED</span></div><p id="range-location">GRID 0 / 80</p></div><p id="map-navigation-hint" hidden></p></aside>
     <section class="gunner-display-controls" aria-label="Inside gunner display" hidden><div class="gunner-display-buttons"><button data-action="gunner-day" data-gunner-mode="day" aria-pressed="true" aria-label="Day gunner display, live game view">Day</button><button data-action="gunner-thermal" data-gunner-mode="thermal" aria-pressed="false" aria-label="Thermal gunner display, simulated game imagery">Thermal</button><button data-action="gunner-mfocs" data-gunner-mode="mfocs" aria-pressed="false" aria-label="MFoCS vehicle data display">MFoCS</button><button data-action="gunner-expand" aria-expanded="false">Focus display</button></div><span class="gunner-display-caption" aria-live="polite">DAY / LIVE GAME VIEW</span></section>
     </div>
 
@@ -507,6 +521,26 @@ function renderRange(): void {
   syncGunnerDisplay();
   syncSpeedometerView();
   updateRangeLive();
+}
+
+function renderBriefing(): void {
+  document.body.dataset.phase = 'briefing';
+  document.body.classList.remove('display-expanded');
+  stage.innerHTML = `<section class="mission-briefing" aria-labelledby="briefing-title"><div class="briefing-header"><span>FRONT RANGE / TRAINING ORDERS</span><img src="/branding/shift5-logo.svg" alt="Shift5"></div><h1 id="briefing-title">MISSION BRIEFING</h1><p class="sr-only" id="briefing-readable">${escapeHtml(missionBriefing.text)}</p><div class="briefing-copy" aria-hidden="true"><span id="briefing-typed"></span><span class="briefing-cursor">&#9608;</span></div><div class="briefing-actions"><button data-action="accept-mission" class="briefing-accept" hidden>Accept Mission <span aria-hidden="true">&gt;</span></button><button data-action="skip-briefing" class="briefing-skip">Show full briefing</button><button data-action="menu" class="briefing-back">Back to home</button></div><p class="briefing-state" id="briefing-state" role="status" aria-live="polite">Receiving orders. The mission starts only when you accept.</p></section>`;
+  updateBriefing();
+}
+
+function updateBriefing(): void {
+  if (mode !== 'briefing') return;
+  const typed = document.querySelector('#briefing-typed');
+  if (typed && typed.textContent !== missionBriefing.visibleText) typed.textContent = missionBriefing.visibleText;
+  const accept = document.querySelector<HTMLButtonElement>('[data-action="accept-mission"]');
+  if (accept) accept.hidden = !missionBriefing.ready;
+  const skip = document.querySelector<HTMLButtonElement>('[data-action="skip-briefing"]');
+  if (skip) skip.hidden = missionBriefing.ready;
+  const status = document.querySelector('#briefing-state');
+  const message = missionBriefing.ready ? 'Orders received. Select Accept Mission when ready.' : 'Receiving orders. The mission starts only when you accept.';
+  if (status && status.textContent !== message) status.textContent = message;
 }
 
 function render(): void {
@@ -523,6 +557,7 @@ function render(): void {
   if (mode === 'home') scene.update(sim, 0, reducedMotion);
   document.querySelector<HTMLElement>('.chapter-rail')!.hidden = mode !== 'mission';
   document.querySelector<HTMLElement>('.caption-label')!.textContent = mode === 'range' ? 'RANGE / SYSTEM' : 'CREW / SYSTEM';
+  if (mode === 'briefing') { renderBriefing(); syncControls(); updateCaption(); return; }
   if (mode === 'range') {
     document.body.dataset.phase = 'range';
     document.body.classList.remove('display-expanded');
@@ -541,7 +576,7 @@ function render(): void {
   document.documentElement.style.setProperty('--progress', `${phaseIndex[p] / 10 * 100}%`);
   const location = '<div class="location-tag"><span class="location-cross">⌖</span> FRONT RANGE TRAINING AREA <span>38.7° N / 104.8° W · ILLUSTRATIVE</span></div>';
   if (p === 'title') {
-    stage.innerHTML = `<section class="hero home-hero" aria-labelledby="home-title"><h1 id="home-title">STRYKER<span>MISSION SIMULATOR</span></h1><p class="home-tagline">Start the mission. Watch your data.</p><div class="home-actions">${button('Start mission', 'start-range')}${button('Guided exercise', 'begin', true)}</div><div class="home-secondary"><details class="home-help"><summary>How to play</summary><div><p><strong>Mission:</strong> Practice on the boards, cross the departure line, clear fictional contacts and stop in the dismount zone. Select Drop ramp to unload the nine-person squad. Outside zone = mission failure. Check vehicle-health alerts in MFoCS.</p><p><strong>Controls:</strong> WASD / arrows to drive, Space to accelerate, F to fire, R to drop the ramp. On a phone, use the thumb stick, ACCEL and FIRE.</p><p class="sound-help"><strong>Sound on but silent?</strong> Check media volume and the selected speaker or headphones. <button data-action="sound-retry">Enable / retry sound</button> Then start or resume the exercise.</p><p><strong>Guided exercise:</strong> Follow a charging-system warning and make the protective crew decision. About 3&ndash;5 minutes, at your pace.</p></div></details><a class="home-shift5-link" href="https://shift5.io/" target="_blank" rel="noopener noreferrer" aria-label="Visit Shift5 website (opens in a new tab)"><span class="home-shift5-heading"><img src="/branding/shift5-logo.svg" alt="Shift5"><span class="home-shift5-visit">Visit shift5.io <span aria-hidden="true">&#8599;</span></span></span><span class="home-shift5-tagline">Real Data. Rapid Analysis. Right Decision.</span></a></div></section>`;
+    stage.innerHTML = `<section class="hero home-hero" aria-labelledby="home-title"><h1 id="home-title">STRYKER<span>MISSION SIMULATOR</span></h1><p class="home-tagline">Start the mission. Watch your data.</p><div class="home-actions">${button('Start mission', 'start-range')}${button('Guided exercise', 'begin', true)}</div><div class="home-secondary"><details class="home-help"><summary>How to play</summary><div><p><strong>Mission:</strong> Use the optional practice boards, cross the departure line, clear fictional contacts and stop in the dismount zone. Select Drop ramp to unload the nine-person squad. Outside zone = mission failure. Check vehicle-health alerts in MFoCS.</p><p><strong>Controls:</strong> WASD / arrows to drive, Space to accelerate, F to fire, R to drop the ramp. On a phone, use the thumb stick, ACCEL and FIRE.</p><p class="sound-help"><strong>Sound on but silent?</strong> Check media volume and the selected speaker or headphones. <button data-action="sound-retry">Enable / retry sound</button> Then start or resume the exercise.</p><p><strong>Guided exercise:</strong> Follow a charging-system warning and make the protective crew decision. About 3&ndash;5 minutes, at your pace.</p></div></details><a class="home-shift5-link" href="https://shift5.io/" target="_blank" rel="noopener noreferrer" aria-label="Visit Shift5 website (opens in a new tab)"><span class="home-shift5-heading"><img src="/branding/shift5-logo.svg" alt="Shift5"><span class="home-shift5-visit">Visit shift5.io <span aria-hidden="true">&#8599;</span></span></span><span class="home-shift5-tagline">Real Data. Rapid Analysis. Right Decision.</span></a></div></section>`;
   } else if (p === 'exterior') {
     stage.innerHTML = `${location}<section class="exterior-card">${guidedDetails('Approach / exercise brief', '<span class="eyebrow">01 / APPROACH</span><h1>A routine movement.<br>An unseen change.</h1><p>The crew is preparing to move across the training area. The display inside shows output, electrical load and engine state.</p><p class="quiet-text">Your role: follow that evidence, then make the protective call.</p>', 'exterior-brief')}${button('Enter the cabin', 'board')}</section><div class="scene-annotation"><i></i><span>EXISTING VEHICLE DATA<br><b>The story starts here.</b></span></div>`;
   } else if (p === 'cabin') {
@@ -620,9 +655,14 @@ function updateLive(): void {
 }
 
 function updateCaption(): void {
+  if (healthInspection.open) {
+    const healthCaption = healthDialog.querySelector('#health-ambient-caption');
+    const background = audio.distantCaption ?? '';
+    if (healthCaption && healthCaption.textContent !== background) healthCaption.textContent = background;
+  }
   const next = mode === 'range'
-    ? range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : range.mission.phase === 'training' ? 'Practice on boards, then drive across the yellow departure line.' : range.mission.notice
-    : mode === 'home' ? 'Choose the dismount-point mission or follow the guided vehicle-health decision exercise.' : audio.caption || captionForPhase(sim.phase);
+    ? outcomeReveal.recoveryElapsed !== null ? recoveryCaption() : range.dismounting ? `${range.mission.failureReason === 'dismount-outside-zone' ? 'Mission failed: ramp dropped outside the dismount zone. ' : ''}${range.dismount.phase === 'opening' ? 'Ramp lowering.' : 'Squad exiting: nine troops unloading.'}` : range.health.phase === 'broken' || audio.radioActive ? audio.caption : range.time < rangeEventFeedbackUntil ? rangeEventFeedback : range.time < rangeFeedbackUntil ? rangeFeedback : audio.distantCaption ?? (range.mission.phase === 'training' ? practicePrompt(range.shotsFired, range.targets.filter(target => target.kind === 'training' && target.destroyedAt !== null).length) : range.mission.notice)
+    : mode === 'briefing' ? 'Read your orders. The vehicle and mission clock wait for Accept Mission.' : mode === 'home' ? 'Choose the dismount-point mission or follow the guided vehicle-health decision exercise.' : audio.caption || captionForPhase(sim.phase);
   if (next !== lastCaption) { caption.textContent = next; const dialogCaption = document.querySelector('#dialog-caption'); if (dialogCaption) dialogCaption.textContent = next; lastCaption = next; }
 }
 
@@ -709,6 +749,19 @@ function updateRangeLive(): void {
   set('range-health-detail', document.getElementById('range-health-notice')?.textContent || 'Vehicle systems normal.');
   const mission = range.mission;
   const terminal = range.missionEnded;
+  const pointer = document.getElementById('phone-objective');
+  if (pointer) {
+    const objective = !terminal && !range.dismounting ? objectivePointer(range.position,range.heading,mission.objective) : null;
+    pointer.hidden = !objective;
+    const tap = document.getElementById('map-toggle');
+    if (objective) {
+      pointer.dataset.arrived = String(objective.inZone);
+      pointer.querySelector('svg')?.style.setProperty('transform', 'rotate(' + objective.degrees.toFixed(1) + 'deg)');
+      set('phone-objective-distance', objective.inZone ? 'IN ZONE' : objective.meters + ' m');
+      set('phone-objective-description', objective.inZone ? 'Vehicle is in the dismount zone.' : 'Dismount point is ' + objective.meters + ' meters away. Open Map to see the route.');
+      tap?.setAttribute('aria-describedby','phone-objective-description');
+    } else tap?.removeAttribute('aria-describedby');
+  }
   const clock = range.movementClock;
   const clockLabel = clock.status === 'waiting' ? 'PRACTICE' : clock.status === 'arrived' ? 'ARRIVED' : clock.status === 'expired' ? 'TIME UP' : terminal ? 'HALTED' : range.paused || document.hidden ? 'PAUSED' : 'REMAINING';
   const clockTime = exerciseTime(Math.ceil(clock.remainingSeconds));
@@ -725,7 +778,7 @@ function updateRangeLive(): void {
   const broken = boards.filter(t => t.destroyedAt !== null).length;
   const dismountStatus = range.dismount.phase === 'opening' ? 'Ramp lowering' : 'Squad exiting: nine troops unloading';
   const rampAvailability = range.dropRampAvailability;
-  set('range-mission-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / Wrong dismount location. ' : 'DISMOUNT / '}${dismountStatus}.` : terminal ? (mission.status === 'complete' ? 'MISSION COMPLETE / squad delivered' : mission.failureReason === 'movement-timeout' ? 'MISSION FAILED / three-minute movement deadline missed' : mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / squad unloaded outside the dismount zone' : mission.status === 'recovery' ? 'MISSION STOPPED / recovery requested' : range.health.phase === 'broken' ? 'MISSION STOPPED / vehicle breakdown' : 'MISSION ENDED / vehicle integrity depleted') : mission.phase === 'training' ? 'PRACTICE / Test fire, then cross the yellow departure line. Your three-minute clock starts at LD.' : mission.phase === 'combat' ? `CLEAR CONTACTS / ${mission.remainingContacts} remaining. Hollow map icons show estimated positions.` : `DISMOUNT / ${Math.round(mission.distance)} units to objective. Stop inside, then select Drop ramp.`);
+  set('range-mission-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / Wrong dismount location. ' : 'DISMOUNT / '}${dismountStatus}.` : terminal ? (mission.status === 'complete' ? 'MISSION COMPLETE / squad delivered' : mission.failureReason === 'movement-timeout' ? 'MISSION FAILED / three-minute movement deadline missed' : mission.failureReason === 'dismount-outside-zone' ? 'MISSION FAILED / squad unloaded outside the dismount zone' : mission.status === 'recovery' ? 'MISSION STOPPED / recovery requested' : range.health.phase === 'broken' ? 'MISSION STOPPED / vehicle breakdown' : 'MISSION ENDED / vehicle integrity depleted') : mission.phase === 'training' ? `STAGING / ${practicePrompt(range.shotsFired, broken)}` : mission.phase === 'combat' ? `CLEAR CONTACTS / ${mission.remainingContacts} remaining. Hollow map icons show estimated positions.` : `DISMOUNT / ${Math.round(mission.distance)} units to objective. Stop inside, then select Drop ramp.`);
   set('range-objective-count', range.dismounting ? mission.notice : mission.phase === 'training' ? `${broken} / ${boards.length} practice boards broken (optional). Contacts activate beyond LD.` : mission.remainingContacts > 0 ? `${mission.remainingContacts} / ${mission.contacts.length} contacts remaining. Clear all before dropping the ramp in the zone.` : `All ${mission.contacts.length} contacts cleared. Stop in the marked zone before the deadline, then select Drop ramp.`);
   set('ramp-command-status', range.dismounting ? `${mission.failureReason === 'dismount-outside-zone' ? 'Wrong zone: mission failed. ' : ''}${dismountStatus}.` : terminal ? 'Unload command closed.' : rampAvailability.reason);
   const rampButton = document.querySelector<HTMLButtonElement>('#drop-ramp-button');
@@ -737,20 +790,21 @@ function updateRangeLive(): void {
   if (progress) progress.style.width = `${terminal ? 100 : range.dismounting ? 95 : Math.min(90, mission.currentWaypoint / (mission.waypoints.length - 1) * 90)}%`;
   document.querySelector('#range-integrity')?.classList.toggle('integrity-low', mission.integrity < 40);
   const result = document.querySelector<HTMLElement>('#range-result');
-  if (result) result.hidden = !terminal || (range.mission.status === 'breakdown' && shownDebrief !== range.debrief && !outcomeReveal.ready);
+  if (result) result.hidden = !terminal || ((range.mission.status === 'breakdown' || range.mission.status === 'recovery') && shownDebrief !== range.debrief && !outcomeReveal.ready);
   if (terminal && range.debrief) {
     const report = range.debrief;
     set('range-result-title', missionDebriefTitle(report));
     set('range-result-detail', report.summary);
-    if (shownDebrief !== report && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && (report.outcome !== 'breakdown' || outcomeReveal.ready)) openDebrief();
+    if (shownDebrief !== report && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && (report.outcome !== 'breakdown' && report.outcome !== 'recovery' || outcomeReveal.ready)) openDebrief();
   }
   if (mission.status !== lastMissionStatus) {
     lastMissionStatus = mission.status;
-    rangeFeedback = mission.notice; rangeFeedbackUntil = range.time + 4;
+    if (mission.phase !== 'training') { rangeFeedback = mission.notice; rangeFeedbackUntil = range.time + 4; }
     if (terminal) { clearRangeInputs(); syncControls(); }
   }
-  set('range-contact-notice', mission.notice);
-  set('range-contact-detail', mission.notice);
+  const currentNotice = mission.phase === 'training' && !terminal && !range.dismounting ? practicePrompt(range.shotsFired, broken) : mission.notice;
+  set('range-contact-notice', currentNotice);
+  set('range-contact-detail', currentNotice);
   set('range-event-notice', range.time < rangeEventFeedbackUntil ? rangeEventFeedback : '');
   set('range-event-detail', range.time < rangeEventFeedbackUntil ? rangeEventFeedback : '');
   updateMissionMap();
@@ -762,7 +816,12 @@ function updateRangeLive(): void {
 }
 
 function isPaused(): boolean { return mode === 'range' ? range.paused : sim.paused; }
-function audioPaused(): boolean { return document.hidden || (mode !== 'home' && isPaused()); }
+function audioPaused(): boolean { return document.hidden || (mode !== 'home' && (isPaused() || evidenceOpen || debriefDialog.open)); }
+function inspectionAudioContinues(): boolean {
+  if (document.hidden || debriefDialog.open) return false;
+  if (mode === 'range') return !range.missionEnded && (healthInspection.audioContinues || mapInspection.audioContinues);
+  return mode === 'mission' && evidenceOpen && !sim.paused;
+}
 
 function clearRangeInputs(): void {
   keyboard.clear();
@@ -796,8 +855,9 @@ function renderEvidenceRows(): void {
 
 function syncSoundControls(): void {
   const state = audio.soundState;
+  lastMusicPreparing = audio.musicPreparing;
   lastSoundState = state;
-  const retry = state === 'unstarted' || state === 'blocked' || (mode === 'home' && state === 'paused');
+  const retry = state === 'unstarted' || state === 'blocked' || ((mode === 'home' || mode === 'briefing') && state === 'paused');
   const label = muted ? 'Sound off' : retry ? 'Tap sound' : state === 'paused' ? 'Sound paused' : state === 'unsupported' ? 'Sound unavailable' : 'Sound on';
   const description = muted ? 'Turn sound on (M)' : retry ? 'Tap to enable sound (M)' : state === 'unsupported' ? 'Sound unavailable on this device; tap to retry (M)' : state === 'paused' ? 'Sound paused with exercise; turn sound off (M)' : 'Turn sound off (M)';
   document.querySelectorAll<HTMLButtonElement>('[data-action="mute"]').forEach(el => {
@@ -809,32 +869,33 @@ function syncSoundControls(): void {
   });
   document.querySelector('#sound-label')!.textContent = label;
   document.querySelectorAll<HTMLButtonElement>('[data-action="music"]').forEach(el => {
-    const playMusic = mode === 'home' && audio.musicNeedsActivation;
-    const status = !audio.musicEnabled ? 'Music off' : muted ? 'Music on; master sound muted' : playMusic ? 'Play music' : audioPaused() ? 'Music on; paused with exercise' : retry ? 'Music on; tap sound to enable audio' : 'Music on';
+    const playMusic = (mode === 'home' || mode === 'briefing') && audio.musicNeedsActivation;
+    const status = !audio.musicEnabled ? 'Music off' : muted ? 'Music on; master sound muted' : playMusic ? 'Play music' : audioPaused() && !inspectionAudioContinues() ? 'Music on; paused with exercise' : audio.musicPreparing ? 'Music loading' : retry ? 'Music on; tap sound to enable audio' : 'Music on';
     el.setAttribute('aria-label', playMusic ? 'Play music' : `${status}. ${audio.musicEnabled ? 'Turn music off' : 'Turn music on'}`);
     el.title = status;
     if (el.classList.contains('drawer-music-control')) el.textContent = `Music: ${audio.musicEnabled ? 'on' : 'off'}`;
   });
-  document.querySelector('#music-label')!.textContent = mode === 'home' && audio.musicNeedsActivation ? 'Play music' : audio.musicEnabled ? 'Music on' : 'Music off';
+  document.querySelector('#music-label')!.textContent = (mode === 'home' || mode === 'briefing') && audio.musicNeedsActivation ? 'Play music' : audio.musicPreparing ? 'Music loading' : audio.musicEnabled ? 'Music on' : 'Music off';
   document.querySelector('#sound-icon')!.textContent = muted ? '◖×' : retry ? '♪↻' : state === 'unsupported' ? '♪×' : '◖))';
 }
 
 /** Keep context activation in the original click/key gesture, before any await. */
 function activateSound(retryOutput = false): void {
-  audio.setPaused(audioPaused());
+  audio.setPaused(audioPaused(), inspectionAudioContinues());
   void audio.start(retryOutput).then(syncSoundControls, syncSoundControls);
   syncSoundControls();
 }
 
 function syncControls(): void {
   const paused = isPaused();
+  document.body.classList.toggle('briefing-held', mode === 'briefing' && (paused || document.hidden));
   syncHealthPulse();
   document.querySelectorAll<HTMLButtonElement>('[data-action="music"]').forEach(el => {
     el.setAttribute('aria-pressed', String(audio.musicEnabled));
     if (el.classList.contains('drawer-music-control')) el.textContent = `Music: ${audio.musicEnabled ? 'on' : 'off'}`;
   });
   document.querySelector('#music-label')!.textContent = audio.musicEnabled ? 'Music on' : 'Music off';
-  document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-pressed', String(paused)); el.disabled = mode === 'home' || healthInspection.open || mapInspection.open; });
+  document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-pressed', String(paused)); el.disabled = mode === 'home' || healthInspection.open || mapInspection.open || evidenceOpen; });
   document.querySelector('#pause-label')!.textContent = paused ? 'Resume' : 'Pause';
   const pauseDescription = paused ? 'Resume exercise (P)' : 'Pause exercise (P)';
   document.querySelectorAll<HTMLButtonElement>('[data-action="pause"]').forEach(el => { el.setAttribute('aria-label', pauseDescription); el.title = pauseDescription; });
@@ -852,7 +913,7 @@ function syncControls(): void {
   syncGunnerDisplay();
   const slider = document.querySelector<HTMLInputElement>('#range-aim-input');
   if (slider) slider.disabled = paused || terminalRange || dismounting;
-  audio.setPaused(audioPaused());
+  audio.setPaused(audioPaused(), inspectionAudioContinues());
   syncSoundControls();
 }
 
@@ -885,10 +946,10 @@ async function action(name: string): Promise<void> {
   }
   if (name === 'music') {
     // The first home tap honors enabled music and unlocks it; a later tap toggles.
-    if (!(mode === 'home' && audio.musicNeedsActivation)) {
+    if (!((mode === 'home' || mode === 'briefing') && audio.musicNeedsActivation)) {
       audio.setMusicEnabled(!audio.musicEnabled); preferences.musicEnabled = audio.musicEnabled; saveGamePreferences(preferences);
     }
-    if (audio.musicEnabled && !muted) activateSound();
+    if (audio.musicEnabled && !muted) activateSound(audio.soundState === 'blocked');
     syncControls(); return;
   }
   if (name.startsWith('gunner-') && mode === 'range' && rangeView === 'inside') {
@@ -930,12 +991,17 @@ async function action(name: string): Promise<void> {
       renderHealthPanel();
       healthDialog.querySelector<HTMLElement>('#health-fault-detail')?.focus({ preventScroll: true });
     } else {
-      closeHealth();
-      if (decision === 'recovery') setPaused(false);
+      closeHealth(decision === 'recovery' ? 'recovery' : 'resume');
+      if (decision === 'recovery') {
+        outcomeReveal.update(range.debrief,0,false);
+        setPaused(false);
+        activateSound();
+      }
     }
     updateRangeLive(); syncControls(); return;
   }
   if (name === 'menu') {
+    missionBriefing.cancel();
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset();
@@ -948,31 +1014,33 @@ async function action(name: string): Promise<void> {
     displayExpanded = false; insideView = true; scene.setViewMode('inside');
     previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return;
   }
-  if (name === 'start-range' || (name === 'restart' && mode === 'range')) {
+  if (name === 'start-range' || (name === 'restart' && (mode === 'range' || mode === 'briefing'))) {
     closeMap();
     setRangeDrawer(false);
     closeDebrief(); shownDebrief = null; outcomeReveal.reset(); selectedFault = 'charging';
     if (!graphicsAvailable) return;
     if (healthInspection.open) closeHealth();
-    clearRangeInputs(); mode = 'range'; range.restart(); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
+    clearRangeInputs(); mode = 'briefing'; range.restart(); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted);
     resetGunnerDisplay();
     mapNavigation.fit();
     rangeView = 'chase'; document.body.dataset.rangeView = rangeView; lastMissionStatus = ''; lastRangeShots = 0; lastRangeHits = 0; rangeFeedbackUntil = 0; lastHealthAlertSerial = 0; observedBrokenBoards.clear(); rangeEventFeedbackUntil = 0;
+    missionBriefing.begin(range.callsign, reducedMotion);
     previousFrame = performance.now();
     render(); stage.focus({ preventScroll: true }); window.scrollTo({ top: 0 });
     activateSound();
     return;
   }
+  if (name === 'skip-briefing' && mode === 'briefing' && !isPaused()) {
+    missionBriefing.skip(); updateBriefing(); document.querySelector<HTMLButtonElement>('[data-action="accept-mission"]')?.focus({ preventScroll: true }); return;
+  }
+  if (name === 'accept-mission' && mode === 'briefing' && !isPaused() && !document.hidden && missionBriefing.accept()) {
+    clearRangeInputs(); mode = 'range'; previousFrame = performance.now();
+    render(); stage.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); activateSound(); return;
+  }
   if (name.startsWith('range-view-') && mode === 'range') {
     const view = name.slice('range-view-'.length) as RangeView;
     if (!RANGE_VIEWS.includes(view)) return;
-    clearRangeInputs();
-    rangeView = view;
-    if (view !== 'inside') cabinDisplay.leaveInside();
-    document.body.dataset.rangeView = rangeView;
-    syncSpeedometerView();
-    document.querySelectorAll<HTMLButtonElement>('.range-view-buttons button').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.action === name)));
-    syncGunnerDisplay();
+    setRangeView(view);
     return;
   }
   if (name === 'map' && mode === 'range') { openMap(); return; }
@@ -1025,9 +1093,9 @@ async function action(name: string): Promise<void> {
     if (displayExpanded) document.querySelector('.instrument-position')?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'instant' : 'smooth' });
     scene.resize(); return;
   }
-  if (name === 'pause') { if (mapInspection.open) return; if (rangeDrawerInspection.open) { setRangeDrawer(false); if (!isPaused()) activateSound(); return; } if (!document.hidden && mode !== 'home' && !healthInspection.open) { setPaused(!isPaused()); if (!isPaused()) activateSound(); } return; }
+  if (name === 'pause') { if (mapInspection.open || evidenceOpen) return; if (rangeDrawerInspection.open) { setRangeDrawer(false); if (!isPaused()) activateSound(); return; } if (!document.hidden && mode !== 'home' && !healthInspection.open) { setPaused(!isPaused()); if (!isPaused()) activateSound(); } return; }
   if (name === 'mute') {
-    const retry = !muted && (audio.soundState === 'blocked' || audio.soundState === 'unstarted' || audio.soundState === 'unsupported' || (mode === 'home' && audio.soundState === 'paused'));
+    const retry = !muted && (audio.soundState === 'blocked' || audio.soundState === 'unstarted' || audio.soundState === 'unsupported' || ((mode === 'home' || mode === 'briefing') && audio.soundState === 'paused'));
     if (!retry) {
       muted = !muted;
       audio.setMuted(muted);
@@ -1037,19 +1105,19 @@ async function action(name: string): Promise<void> {
     if (!muted) activateSound();
     syncControls(); return;
   }
-  if (name === 'motion') { reducedMotion = !reducedMotion; preferences.reducedMotion = reducedMotion; saveGamePreferences(preferences); document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); return; }
-  if (name === 'restart') { guidedWarningAt = null; guidedSevereAt = null; clearRangeInputs(); resetGunnerDisplay(); if (dialog.open) dialog.close(); displayExpanded = false; insideView = true; scene.setViewMode('inside'); sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted); if (mode === 'mission') { sim.begin(); sim.board(); } activateSound(); previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return; }
+  if (name === 'motion') { reducedMotion = !reducedMotion; if (mode === 'briefing' && reducedMotion) { missionBriefing.skip(); updateBriefing(); } preferences.reducedMotion = reducedMotion; saveGamePreferences(preferences); document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); return; }
+  if (name === 'restart') { guidedWarningAt = null; guidedSevereAt = null; clearRangeInputs(); resetGunnerDisplay(); if (dialog.open) dialog.close(); displayExpanded = false; insideView = true; scene.setViewMode('inside'); sim.restart(); audio.restart(mode === 'mission'); range.callsign = audio.missionCallsign; audio.setMuted(muted); if (mode === 'mission') { sim.begin(); sim.board(); } activateSound(); previousFrame = performance.now(); render(); window.scrollTo({ top: 0 }); return; }
   if (name === 'evidence') {
     clearRangeInputs();
     document.querySelector('#detail-chart')!.innerHTML = chart(true);
-    renderEvidenceRows(); updateCharts(); evidenceOpen = true; syncPauseMenu(); dialog.showModal(); return;
+    renderEvidenceRows(); updateCharts(); evidenceOpen = true; syncPauseMenu(); dialog.showModal(); syncControls(); return;
   }
   if (name === 'close-evidence') { dialog.close(); return; }
   if ((sim.paused && mode !== 'home') || document.hidden) return;
   const before = sim.phase;
   if (name === 'begin') {
     guidedWarningAt = null; guidedSevereAt = null; selectedFault = 'charging';
-    mode = 'mission'; sim.restart(); audio.restart(); range.callsign = audio.missionCallsign; audio.setMuted(muted); insideView = true; scene.setViewMode('inside');
+    mode = 'mission'; sim.restart(); audio.restart(true); range.callsign = audio.missionCallsign; audio.setMuted(muted); insideView = true; scene.setViewMode('inside');
     resetGunnerDisplay();
     sim.begin();
     activateSound();
@@ -1067,7 +1135,7 @@ document.addEventListener('click', event => {
   if (target) { event.preventDefault(); void action(target.dataset.action!); }
   // Run after action state changes so explicit Music off / Sound off wins.
   // Native click covers taps, keyboard buttons and ordinary home links/details.
-  if (event.isTrusted && mode === 'home' && !document.hidden && audio.musicNeedsActivation && !['music', 'mute', 'sound-retry'].includes(target?.dataset.action ?? '')) activateSound();
+  if (event.isTrusted && !audioPaused() && ((mode === 'home' || mode === 'briefing') ? audio.musicNeedsActivation : audio.soundState === 'blocked') && !['music', 'mute', 'sound-retry', 'begin', 'start-range', 'restart', 'pause'].includes(target?.dataset.action ?? '')) activateSound();
 });
 function rangePlayable(): boolean { return mode === 'range' && !range.paused && !document.hidden && !range.missionEnded && !range.dismounting && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open && !dialog.open; }
 
@@ -1256,7 +1324,7 @@ document.addEventListener('input', event => { if (event.target instanceof HTMLIn
 document.addEventListener('change', event => { if (event.target instanceof HTMLInputElement && event.target.id === 'range-aim-input') { aimInput = 0; event.target.value = '0'; } });
 // Clicking away releases controls without changing the user's Pause choice.
 window.addEventListener('blur', () => playbackFocus.blur());
-dialog.addEventListener('close', () => { evidenceOpen = false; syncPauseMenu(); });
+dialog.addEventListener('close', () => { evidenceOpen = false; previousFrame = performance.now(); syncControls(); });
 pauseBanner.addEventListener('cancel', event => { event.preventDefault(); void action('pause'); });
 mapDialog.addEventListener('cancel', event => { event.preventDefault(); closeMap(); });
 mapDialog.addEventListener('click', event => {
@@ -1265,10 +1333,11 @@ mapDialog.addEventListener('click', event => {
   if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeMap();
 });
 healthDialog.addEventListener('cancel', event => { event.preventDefault(); closeHealth(); });
+healthDialog.addEventListener('close', () => { if (!healthDialog.open) closeHealth(); });
 debriefDialog.addEventListener('cancel', event => { event.preventDefault(); closeDebrief(); });
 document.addEventListener('fullscreenchange', () => { document.querySelector('[data-action="fullscreen"]')?.setAttribute('aria-pressed', String(!!document.fullscreenElement)); scene.resize(); });
-document.addEventListener('visibilitychange', () => { playbackFocus.visibilityChanged(); syncHealthPulse(); });
-motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
+document.addEventListener('visibilitychange', () => { playbackFocus.visibilityChanged(); syncHealthPulse(); document.body.classList.toggle('briefing-held', mode === 'briefing' && (isPaused() || document.hidden)); });
+motionPreference.addEventListener('change', event => { if (preferences.reducedMotion !== null) return; reducedMotion = event.matches; if (mode === 'briefing' && reducedMotion) { missionBriefing.skip(); updateBriefing(); } document.body.classList.toggle('reduced-motion', reducedMotion); syncControls(); });
 // Measure captions rather than assuming a fixed height: long cues and phone text scaling
 // must reserve their real space below the persistent action.
 const captionBar = document.querySelector<HTMLElement>('.bottom-bar')!;
@@ -1288,14 +1357,18 @@ function frame(now: number): void {
   previousFrame = now;
   // Browsers may suspend hidden frames. Never replay that wall time or audio.
   if (document.hidden) { requestAnimationFrame(frame); return; }
-  const active = !isPaused();
+  const active = !isPaused() && !evidenceOpen;
   if (mode === 'range') {
     if (active) range.tick(delta, rangeInput());
     outcomeReveal.update(range.debrief, delta, active && !healthInspection.open && !mapInspection.open && !rangeDrawerInspection.open && !debriefDialog.open);
-    scene.updateRange(range, active ? delta : 0, reducedMotion, rangeView);
+    const recoveryElapsed = outcomeReveal.recoveryElapsed;
+    scene.updateRange(range, active ? delta : 0, reducedMotion, rangeView, recoveryElapsed);
     audio.update(range.audioState, { powertrain: range.powertrain, inside: rangeView === 'inside', training: range.mission.phase === 'training',
+      practiceCompleted: range.shotsFired > 0 || range.targets.some(target => target.kind === 'training' && target.destroyedAt !== null),
       contact: range.mission.departureCrossed && range.mission.contacts.some(contact => !contact.neutralized && Math.hypot(contact.x - range.position.x, contact.z - range.position.z) <= 130),
-      health: range.health.phase, terminal: range.missionEnded, breakdown: range.health.phase === 'broken' });
+      health: range.health.phase, terminal: range.missionEnded, breakdown: range.health.phase === 'broken',
+      faultInspection: inspectionAudioContinues(), transportPaused: debriefDialog.open, departureCrossed: range.mission.departureCrossed && !range.dismounting,
+      recoveryReveal: recoveryElapsed !== null }, delta);
     if (range.health.alertSerial !== lastHealthAlertSerial) {
       if (range.health.alertSerial > lastHealthAlertSerial && range.health.phase !== 'broken') audio.healthAlert(range.health.phase === 'critical' ? 'critical' : 'warning');
       lastHealthAlertSerial = range.health.alertSerial;
@@ -1327,12 +1400,16 @@ function frame(now: number): void {
   } else {
     if (active && mode === 'mission') sim.tick(delta);
     if (mode === 'mission') scene.update(sim, active ? delta : 0, reducedMotion, guidedFaults(), audio.missionCallsign);
-    if (mode === 'home') audio.updateHome(delta, audioPaused());
-    else audio.update(sim, { inside: insideView });
-    if (lastPhase !== sim.phase) render();
-    updateLive();
+    if (mode === 'home' || mode === 'briefing') audio.updateHome(delta, audioPaused());
+    else audio.update(sim, { inside: insideView, faultInspection: inspectionAudioContinues(), transportPaused: evidenceOpen }, delta);
+    if (mode === 'briefing') {
+      if (missionBriefing.update(delta, active)) { audio.briefingTick(); updateBriefing(); }
+    } else {
+      if (lastPhase !== sim.phase) render();
+      updateLive();
+    }
   }
-  if (audio.soundState !== lastSoundState) syncSoundControls();
+  if (audio.soundState !== lastSoundState || audio.musicPreparing !== lastMusicPreparing) syncSoundControls();
   requestAnimationFrame(frame);
 }
 render();
