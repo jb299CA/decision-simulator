@@ -1,6 +1,6 @@
 # Decision Simulator
 
-A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 50 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
+A browser-local TypeScript/Vite/Three.js game and product demonstration. This engineering snapshot corresponds to release 51 and contains the application, tests and bundled runtime assets. It has no connection to a production deployment, hosting account or deployment credentials.
 
 The two experiences are a fictional arcade dismount mission and a guided vehicle-health decision exercise. Telemetry, faults, handling, combat, thermal contrast and outcomes are synthetic illustrations. This is not actual Shift5 software, a verified vehicle integration, equipment training or a vehicle-control system. Inspecting a fault does not confirm an alternator diagnosis or repair the vehicle.
 
@@ -59,7 +59,7 @@ To complete delivery, clear the contacts, stop inside the marked dismount zone a
 
 Each run selects a company/platoon identity: Aztec, Brave or Crazy Horse with 1-6, 2-6 or 3-6. The opening order is the matching company-to-platoon test-fire and LD clearance; later traffic follows Tomahawk 3 to company6, then matching platoon. Each prerecorded exchange includes its acknowledgment. Later background pairs vary without changing the player's displayed or debrief callsign.
 
-Original dialogue follows the call order, digit pronunciation and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 38 compact MP3s, using locally generated original voices. Strong male voices are the default, with female commander alternatives selected for20% of net transmissions. Tomahawk is spoken as Three. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
+Original dialogue follows the call order and proword distinctions in [Army ATP 6-02.53, Appendix I](https://rdl.train.army.mil/catalog-ws/view/100.ATSC/0C45D378-25E0-438E-8881-749EF51DE080-1452191121290/atp6_02x53.pdf). The game bundles 38 compact MP3s, using locally generated original voices. Strong male voices are the default, with female commander alternatives selected for20% of net transmissions. All numbers use ordinary pronunciations: three, five and nine. Callsign digits remain separate. Radio and intercom have distinct filtering; speech priority, transmit edges and cancellation follow simulation state. There is no runtime speech service.
 
 ## Validation and limitations
 
@@ -96,3 +96,5 @@ Release 48: prominent mission countdown in all four camera views, with the three
 Release 49: assisted, manual and center aim slew at a bounded game rate. Shots follow the actual barrel; lock indication waits for alignment. The six practice boards start about 92 game metres away and have at least 46 metres between them, leaving the road clear. All 325 tests and production build pass. Longer encounters can cause ignored severe faults to break down before arrival; early and late pace mitigation still permit completion. Browser play verification remains outstanding.
 
 Release 50 removes the solid gameplay header background, border and blur across desktop and phone. Individual controls retain their backgrounds; the logo/text receive subtle contrast shadows. TypeScript and production build pass. Gameplay is unchanged from the 325-test release 49 baseline.
+
+Release 51 regenerates all 38 dialogue clips with firmer male and female casting, shorter command sentences and controlled cadence. Female commanders remain about 20% of complete calls. Ordinary numbers replace phonetic variants throughout, and audio URLs use a new cache version. All 326 tests, TypeScript and production build pass; source/audio hashes agree and PCM has no clipped samples. Subjective listening and actual phone output remain unverified.

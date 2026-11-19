@@ -16,7 +16,7 @@ Vehicle, cabin, environment, fictional contacts, instrument graphics and effects
 
 ## Fictional synthetic dialogue
 
-The fourteen bundled MP3 dialogue clips were generated from original fictional scripts using Kokoro JS 1.2.1 and the Kokoro 82M v1.0 ONNX model, using stock synthetic voices `am_michael`, `am_eric` and `af_heart`. No real person's voice was cloned and no operational radio recording is used. The upstream [Kokoro model](https://huggingface.co/hexgrad/Kokoro-82M) identifies its weights as Apache-2.0; that statement describes the upstream model and is not a blanket license claim for this project. Only finished clips ship; no model or runtime speech service is bundled.
+The 38 bundled MP3 dialogue clips were generated from original fictional scripts using Kokoro JS 1.2.1 and the Kokoro 82M v1.0 ONNX model, using stock synthetic voices `am_michael`, `am_fenrir`, `am_eric` and `af_sarah`. No real person's voice was cloned and no operational radio recording is used. The upstream [Kokoro model](https://huggingface.co/hexgrad/Kokoro-82M) identifies its weights as Apache-2.0; that statement describes the upstream model and is not a blanket license claim for this project. Only finished clips ship; no model or runtime speech service is bundled.
 
 ## Concept artwork
 

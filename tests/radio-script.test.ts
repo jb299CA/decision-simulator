@@ -27,7 +27,7 @@ test('Brave radio calls stand alone while crew intercom stays plain', () => {
         for (const segment of cue.segments) {
           assert.match(segment.text, /^.+, this is .+\./, 'called station precedes sender');
           assert.doesNotMatch(segment.spokenText, /Tomahawk tree/i, 'Tomahawk Three uses the user-requested ordinary pronunciation');
-          assert.doesNotMatch(segment.spokenText.replace(/Tomahawk three/gi, 'Tomahawk'), /\bthree\b/, 'other radio threes retain TREE');
+          assert.doesNotMatch(segment.spokenText, /\b(?:tree|fower|fife|niner|wun|ait)\b/i, 'all numbers use ordinary pronunciation');
         }
       } else {
         assert.match(cue.text, /^(?:All Brave stations|Brave one one|Brave six), this is Brave (?:six|one one|one two)\./);
@@ -48,6 +48,21 @@ test('Brave radio calls stand alone while crew intercom stays plain', () => {
   assert.match(radioScript.phase.debrief.text, /repair and verification are still required/i);
 });
 
+test('all synthesis uses ordinary numbers and preserves digit-by-digit call signs', () => {
+  for (const cue of cues) {
+    const synthesis = 'segments' in cue ? cue.segments.map(segment => segment.spokenText).join(' ') : cue.text;
+    for (const text of [cue.text, synthesis]) {
+      assert.doesNotMatch(text, /\b(?:tree|fower|fife|niner|wun|ait|fife-er)\b/i, `${cue.id}: ordinary number pronunciation`);
+    }
+    if ('platoon' in cue) {
+      const digit = { 1: 'one', 2: 'two', 3: 'three' }[cue.platoon];
+      assert.ok(synthesis.includes(`${digit} six`), 'callsign digits stay separate');
+      assert.match(synthesis, /three minutes from the ell dee/, 'deadline remains three minutes from the LD');
+      assert.doesNotMatch(synthesis, /\b(?:sixteen|twenty-six|thirty-six)\b/i);
+    }
+  }
+});
+
 test('HQ orders and company relays cover every requested matching call sign', () => {
   assert.equal(radioScript.radioOrders.length, 3);
   assert.equal(radioScript.radioRelays.length, 9);
@@ -65,7 +80,7 @@ test('HQ orders and company relays cover every requested matching call sign', ()
       assert.equal(relays.length, 1);
       assert.ok(relays[0].segments[0].text.startsWith(`${name} ${numbers[platoon]}-six, this is ${name} six.`));
       assert.equal(relays[0].segments[1].text, `${name} six, this is ${name} ${numbers[platoon]}-six. Wilco. Out.`);
-      assert.match(relays[0].segments[0].text, /Cleared to test fire, then move to the line of departure\. Report when ready\. You have three minutes from the LD to reach the dismount point\. Over\.$/);
+      assert.match(relays[0].segments[0].text, /Cleared to test fire\. Then move to the line of departure\. Report when ready\. You have three minutes from the LD to reach the dismount point\. Over\.$/);
       assert.match(relays[0].segments[0].spokenText, /from the ell dee to reach/);
       assert.doesNotMatch(relays[0].segments[1].text, /ready/i, 'acknowledgement confirms receipt before practice is complete');
     }
@@ -87,8 +102,8 @@ test('primary commanders and all replies are male with matching female commander
     assert.equal(variant.text, base.text);
     assert.equal(variant.speaker, base.speaker);
     assert.equal(variant.company, base.company);
-    assert.match(variant.voice, /^af_/);
-    assert.match(variant.segments[0].voice, /^af_/);
+    assert.equal(variant.voice, 'af_sarah');
+    assert.equal(variant.segments[0].voice, 'af_sarah');
     assert.notDeepEqual(
       readFileSync(new URL(`public/audio/${variant.id}.mp3`, root)),
       readFileSync(new URL(`public/audio/${base.id}.mp3`, root)),
@@ -107,7 +122,7 @@ test('every caption resolves to a compact, versioned public MP3 asset', () => {
   for (const cue of cues) {
     const publicUrl = new URL(cue.file, 'https://example.invalid');
     assert.equal(publicUrl.pathname, `/audio/${cue.id}.mp3`);
-    assert.equal(publicUrl.searchParams.get('v'), 'male-radio-r44');
+    assert.equal(publicUrl.searchParams.get('v'), 'serious-radio-r51');
     const mp3 = readFileSync(new URL(`public${publicUrl.pathname}`, root));
     assert.ok(mp3.length > 1000 && mp3.length < 180000, 'nonempty mobile-sized speech asset, including the complete opening order');
     assert.equal(mp3[0], 0xff, 'MP3 starts with a frame sync');

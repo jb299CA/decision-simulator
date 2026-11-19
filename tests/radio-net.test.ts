@@ -96,7 +96,7 @@ test('voice variants preserve exact captions, matching company/platoon and male 
     assert.equal(alternate.speaker, base.speaker);
     assert.equal(alternate.company, base.company);
     if ('platoon' in base) assert.equal('platoon' in alternate && alternate.platoon, base.platoon);
-    assert.equal(alternate.segments[0].voice, 'af_heart');
+    assert.equal(alternate.segments[0].voice, 'af_sarah');
     assert.ok(alternate.segments[1].voice.startsWith('am_'));
     assert.equal(alternate.segments[1].text, base.segments[1].text);
   }
